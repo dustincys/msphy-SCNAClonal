@@ -5,65 +5,34 @@
 #         Email: chu@yanshuo.name
 #      HomePage: http://yanshuo.name
 #       Version: 0.0.1
-#    LastChange: 2017-04-24 15:30:17
-#       History: YI lI
+#    LastChange: 2017-11-24 13:53:26
+#       History:
 # =============================================================================
 '''
 import sys
 import numpy as np
 import scipy.cluster.hierarchy as hcluster
+
+from segment import Segment
 from scipy.stats.mstats import gmean
 from collections import Counter
-
-# from GCBASELINE import constants
-# from GCBASELINE.preprocess.utils import *
-from utils import get_chrom_format, get_chrom_lens_idxs, BEDnParser,\
-    chrom_name_to_idx, chrom_idx_to_name, get_segment_name, BEDParser,\
-    get_LOH_frac, get_APM_frac_MAXMIN, get_LOH_status, get_APM_status
-import constants
-
-
-class Segment:
-
-    def __init__(self):
-        self.name = ""
-        self.chrom_idx = -1
-        self.chrom_name = ""
-        self.start = -1
-        self.end = -1
-        self.normal_reads_num = -1
-        self.tumor_reads_num = -1
-        self.sites_num = 0
-        self.LOH_frac = -1
-        self.LOH_status = 'NONE'
-        self.APM_frac = -1
-        self.APM_status = 'NONE'
-        self.baseline_label = 'FALSE'
-        self.log2_ratio = 0.0
-        self.paired_counts = None
-        self.BAF_counts = None
-        self.copy_number = -1
-        self.stripe_number = -1
-        self.allele_type = 'NONE'
-        self.subclone_prev = -1
-        self.subclone_cluster = 'NONE'
-
-        self.gc = -1
-        self.log_ratio = 0
-
-        # save the likelihood of the last phi, {phi: (likelihood, copy_number,
-        # pi)}
-        self.phi_last = None
 
 
 class Data:
 
-    def __init__(self):
-        self.seg_num = 0
-        self.Lambda_S = -1
-        self.segments = []
+    self.seg_num = 0
+    self.baseline = -1
+    self.segments = []
 #       peak reange
-        self.pr = 0
+    self.pr = 0
+
+    def __init__(self, max_copynumber = 6, coverage = 30):
+
+        self.max_copynumber = max_copynumber
+        self.coverage = coverage
+
+        self.allele_config = get_cn_allele_config(max_copy_number)
+
 
     def load_segments_bed(self, bed_file_normalized_name):
         """
@@ -253,7 +222,7 @@ class Data:
                 cluster_min = cluster_temp
 
         print mccs
-        print "log Lambda_S: {}".format(np.log(rdr_min))
+        print "log baseline: {}".format(np.log(rdr_min))
         sys.stdout.flush()
 
         cluster_flag = (clusters == cluster_min)
@@ -277,4 +246,177 @@ class Data:
             print 'Error: No diploid segments found, existing...'
             sys.exit(1)
 
-        self.Lambda_S = rdr_min
+        self.baseline = rdr_min
+
+    def _log_likelihood(self, id, phi, update_tree=True, new_state=0):
+
+        if update_tree:
+            ##################################################
+            # some useful info about the tree,
+            # used by CNV related computations,
+            u.set_node_height(self.tssb)
+            u.set_path_from_root_to_node(self.tssb)
+            u.map_datum_to_node(self.tssb)
+            ##################################################
+
+        seg = self.segments[id]
+        ll, cn, pi = self._getSegResData(seg, phi)
+
+        return ll
+
+    def _getSegResData(self, seg, phi):
+        copy_numbers = None
+        if seg.baseline_label == "True":
+            copy_numbers = [2]
+        elif get_loga(seg) > self.baseline:
+            copy_numbers = range(2, self.max_copy_number + 1)
+        else:
+            copy_numbers = range(0, 2 + 1)
+
+        ll_pi_s = [self._getLLSeg(seg, copy_number, phi) for copy_number in
+                   copy_numbers]
+        (ll, pi) = max(ll_pi_s, key=lambda x: x[0])
+        cn = ll_pi_s.index((ll, pi))
+        return ll, cn, pi
+
+    def _getLLSeg(self, seg, copy_number, phi):
+        ll_seg = 0
+        ll_rd = self._getRD(seg, copy_number, phi)
+        allele_types = self._allele_config[copy_number]
+        self._augBAF(seg, copy_number)
+        if 0 == seg.paired_counts.shape[0]:
+            ll_baf = 0
+            pi = "*"
+        else:
+            ll_baf, pi = self._getBAF(seg, copy_number, allele_types, phi)
+        ll_seg = ll_baf + ll_rd
+        return ll_seg, pi
+
+    def _augBAF(self, seg, copy_number):
+        if copy_number > 2:
+            threshold = constants.BAF_THRESHOLD * self._coverage
+            d_T_j = np.sum(seg.BAF[:, 2:4], axis=1)
+            idx_rm = tuple(np.where(d_T_j < threshold)[0])
+            seg.BAF = np.delete(seg.BAF, idx_rm, axis=0)
+        else:
+            pass
+
+    def _getRD(self, seg, copy_number, phi):
+        c_N = constants.COPY_NUMBER_NORMAL
+        bar_c = phi * copy_number + (1.0 - phi) * c_N
+        print "____>>> _getRD: bar_c, c_N, self._baseline, seg.normal_reads_num____"
+        print bar_c, c_N, self._baseline, seg.normal_reads_num
+        print "_________end _getRD:bar_c, c_N, self._baseline, seg.normal_reads_num______________"
+
+        lambda_possion = (
+            bar_c / c_N) * self._baseline * (seg.normal_reads_num + 1) #not minus 1 ? better
+        if lambda_possion < 0:
+            lambda_possion = 0
+        print "____>>> _getRD: seg.tumor_reads_num, lambda_possion____"
+        print seg.tumor_reads_num, lambda_possion
+        print "_________end _getRD:seg.tumor_reads_num, lambda_possion______________"
+
+        ll_RD = log_poisson_pdf(seg.tumor_reads_num, lambda_possion)
+        return ll_RD
+
+    def _getBAF(self, seg, copy_number, allele_types, phi):
+        c_N = constants.COPY_NUMBER_NORMAL
+        mu_N = constants.MU_N
+        # keys, ppmm values 0.5
+        mu_G = np.array(allele_types.values())
+
+        print "____>>> _getBAF: mu_N, mu_G, c_N, copy_number, phi____"
+        print mu_N, mu_G, c_N, copy_number, phi
+        print "_________end _getBAF:mu_N, mu_G, c_N, copy_number, phi______________"
+
+        mu_E = get_mu_E_joint(mu_N, mu_G, c_N, copy_number, phi)
+
+        if seg.paired_counts.shape[0] > 1:
+            b_T_j = np.min(seg.paired_counts[:, 2:4], axis=1)
+            d_T_j = np.sum(seg.paired_counts[:, 2:4], axis=1)
+            baf = b_T_j * 1.0 / d_T_j
+            outlier = mad_based_outlier(baf)
+            BAF = np.delete(seg.paired_counts, list(outlier.astype(int)), axis=0)
+            b_T_j = np.min(BAF[:, 2:4], axis=1)
+            d_T_j = np.sum(BAF[:, 2:4], axis=1)
+
+        else:
+            b_T_j = np.min(seg.paired_counts[:, 2:4], axis=1)
+            d_T_j = np.sum(seg.paired_counts[:, 2:4], axis=1)
+            pass
+
+        # add prior or not?
+        ll = log_binomial_likelihood(b_T_j, d_T_j, mu_E)
+        ll_bafs = ll.sum(axis=0)
+        idx_max = ll_bafs.argmax(axis=0)
+        ll_baf = ll_bafs[idx_max]
+        pi = allele_types[allele_types.keys()[idx_max]]
+        return ll_baf, pi
+
+    # computes the binomial parameter
+    def compute_n_genomes(self, tp, new_state=0):
+        def descend(nd, new_state):
+            # this is needed for Metropolis-Hastings likelihood computations
+            pi = nd.pi1[tp] if new_state else nd.pi[tp]
+            ssm_node = self.node.path[-1]
+            mr_cnv = self.find_most_recent_cnv(nd)
+            ancestors = nd.get_ancestors()
+            if (ssm_node not in ancestors) and (not mr_cnv):
+                self.nr1 += pi * 2
+                self.nr2 += pi * 2
+                self.nr3 += pi * 2
+                self.nr4 += pi * 2
+            elif ssm_node in ancestors and (not mr_cnv):
+                self.nr1 += pi
+                self.nv1 += pi
+                self.nr2 += pi
+                self.nv2 += pi
+                self.nr3 += pi
+                self.nv3 += pi
+                self.nr4 += pi
+                self.nv4 += pi
+            elif (ssm_node not in ancestors) and mr_cnv:
+                self.nr1 += pi * (mr_cnv[1] + mr_cnv[2])
+                self.nr2 += pi * (mr_cnv[1] + mr_cnv[2])
+                self.nr3 += pi * (mr_cnv[1] + mr_cnv[2])
+                self.nr4 += pi * (mr_cnv[1] + mr_cnv[2])
+            elif ssm_node in ancestors and mr_cnv:
+                self.nr3 += pi * max(0, (mr_cnv[1]+mr_cnv[2] - 1))
+                self.nv3 += pi * min(1, mr_cnv[1]+mr_cnv[2])
+                self.nr4 += pi * max(0, (mr_cnv[1] + mr_cnv[2] - 1))
+                self.nv4 += pi * min(1, mr_cnv[1]+mr_cnv[2])
+
+                if ssm_node in mr_cnv[0].node.get_ancestors():
+                    self.nr1 = self.nr1 + pi * mr_cnv[1]
+                    self.nv1 = self.nv1 + pi * mr_cnv[2]
+                    self.nr2 = self.nr2 + pi * mr_cnv[2]
+                    self.nv2 = self.nv2 + pi * mr_cnv[1]
+                else:
+                    self.nr1 = self.nr1 + pi * max(0, (mr_cnv[1]+mr_cnv[2] - 1))
+                    self.nv1 = self.nv1 + pi * min(1, mr_cnv[1]+mr_cnv[2])
+                    self.nr2 = self.nr2 + pi * max(0,
+                                                   (mr_cnv[1] + mr_cnv[2] - 1))
+                    self.nv2 = self.nv2 + pi * min(1, mr_cnv[1]+mr_cnv[2])
+            else:
+                print "PANIC"
+
+        nodes = self.tssb.root['node'].tssb.get_nodes()
+        self.nr1 = 0
+        self.nv1 = 0
+        self.nr2 = 0
+        self.nv2 = 0
+        self.nr3 = 0
+        self.nv3 = 0
+        self.nr4 = 0
+        self.nv4 = 0
+        for nd in nodes:
+            descend(nd, new_state)
+        if len(self.cnv) == 1 and self.node == self.cnv[0][0].node:
+            out = [
+                (self.nr1, self.nv1),
+                (self.nr2, self.nv2),
+                (self.nr3, self.nv3),
+                (self.nr4, self.nv4)]
+        else:
+            out = [(self.nr1, self.nv1), (self.nr2, self.nv2)]
+        return out

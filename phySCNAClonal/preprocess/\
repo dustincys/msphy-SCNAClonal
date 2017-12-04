@@ -1,0 +1,53 @@
+'''
+# =============================================================================
+#      FileName: stripe.py
+#          Desc: Stripe aggregation and decomposition
+#        Author: Chu Yanshuo
+#         Email: chu@yanshuo.name
+#      HomePage: http://yanshuo.name
+#       Version: 0.0.1
+#    LastChange: 2017-11-24 13:53:39
+#       History:
+# =============================================================================
+'''
+
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import sys
+import numpy as np
+import scipy.cluster.hierarchy as hcluster
+
+from segment import Segment
+from scipy.stats.mstats import gmean
+from collections import Counter
+
+class Stripes(object):
+
+    """The stripe objects, including load, property operations"""
+
+    def __init__(self, data):
+        """import data object
+
+        :data: TODO
+
+        """
+        self._data = data
+
+    def _aggregation(self, parameters):
+        """The aggregation operations for segments in data
+
+        :parameters: TODO
+        :returns: TODO
+
+        """
+        pass
+
+    def _decomposition(self, parameters):
+        """The decomposition operations for segments in data
+
+        :parameters: TODO
+        :returns: TODO
+
+        """
+        pass

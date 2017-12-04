@@ -54,6 +54,7 @@ class pSCNAClonal_Converter:
         self.process_num = process_num
 
         self.data = Data()
+        self.stripes = None
 
     def convert(self, method, pkl_flag=False):
         if pkl_flag and self.pkl_path != "":
@@ -79,7 +80,15 @@ class pSCNAClonal_Converter:
         data_file_name = self.input_filename_base + '.pSCNAClonal.input.pkl'
         outfile = open(data_file_name, 'wb')
         pkl.dump(self.data, outfile, protocol=2)
+        outfile.close()
 
+
+        self.stripes = MergeSeg(self.data)
+        self.stripes.get()
+
+        stripes_file_name = self.input_filename_base + '.pSCNAClonal.stripes.input.pkl'
+        outfile = open(stripes_file_name, 'wb')
+        pkl.dump(self.stripes, outfile, protocol=2)
         outfile.close()
 
     def _MCMC_gccorrection(self):
