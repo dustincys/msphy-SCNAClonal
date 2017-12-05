@@ -13,10 +13,12 @@ Modified on 2014-04-09
 '''
 
 import sys
-import numpy as np
-from scipy.stats import binom, beta
-
 from multiprocessing import Pool
+
+import numpy as np
+from scipy.misc import comb
+from scipy.special import gammaln
+from scipy.stats import beta, binom
 
 import constants
 
@@ -157,10 +159,10 @@ def normal_heterozygous_filter(counts):
     idx_keep = []
 
     for i in xrange(0, I):
-        a_N = counts[i, 0]*1.0
-        b_N = counts[i, 1]*1.0
+        a_N = counts[i, 0] * 1.0
+        b_N = counts[i, 1] * 1.0
         d_N = a_N + b_N
-        BAF_N = b_N/d_N
+        BAF_N = b_N / d_N
 
         if BAF_N >= BAF_N_MIN and BAF_N <= 0.5:
             idx_keep.append(i)
@@ -173,13 +175,13 @@ def normal_heterozygous_filter(counts):
 def get_BAF_counts(counts):
     BAF_bins = constants.BAF_BINS
 
-    a_N = counts[:, 0]*1.0
-    b_N = counts[:, 1]*1.0
-    a_T = counts[:, 2]*1.0
-    b_T = counts[:, 3]*1.0
+    a_N = counts[:, 0] * 1.0
+    b_N = counts[:, 1] * 1.0
+    a_T = counts[:, 2] * 1.0
+    b_T = counts[:, 3] * 1.0
 
-    BAF_N = b_N/(a_N + b_N)
-    BAF_T = b_T/(a_T + b_T)
+    BAF_N = b_N / (a_N + b_N)
+    BAF_T = b_T / (a_T + b_T)
 
     BAF_counts, _, _ = np.histogram2d(BAF_N, BAF_T, bins=(BAF_bins, BAF_bins))
 
@@ -210,12 +212,12 @@ def get_APM_frac_MAXMIN_SNP(counts):
     l_T = np.min(counts[:, 2:4], axis=1)
     p_T = l_T * 1.0 / d_T
 
-    APM_num = np.where(np.logical_and(p_T > APM_N_MIN,
-                                      p_T <= 0.5))[0].shape[0]
+    APM_num = np.where(np.logical_and(p_T > APM_N_MIN, p_T <= 0.5))[0].shape[0]
     APM_frac = APM_num * 1.0 / (I + 1.0)
 
     return APM_frac
     pass
+
 
 def get_APM_frac_MAXMIN(counts):
     """get the baf position that are average in the tumor bam
@@ -242,13 +244,13 @@ def get_APM_frac_MAXMIN(counts):
     l_T = np.min(counts[:, 2:4], axis=1)
     p_T = l_T * 1.0 / d_T
 
-    APM_num = np.where(np.logical_and(p_T > APM_N_MIN,
-                                      p_T <= 0.5))[0].shape[0]
-    APM_frac = APM_num*1.0/I
+    APM_num = np.where(np.logical_and(p_T > APM_N_MIN, p_T <= 0.5))[0].shape[0]
+    APM_frac = APM_num * 1.0 / I
 
     return APM_frac
 
     pass
+
 
 def get_LOH_frac_SNP(counts):
     I = counts.shape[0]
@@ -268,9 +270,10 @@ def get_LOH_frac_SNP(counts):
     p_T = binom.cdf(l_T, d_T, p)
 
     LOH_num = np.where(p_T < thred)[0].shape[0]
-    LOH_frac = (LOH_num + 1.0)*1.0/(I + 1.0)
+    LOH_frac = (LOH_num + 1.0) * 1.0 / (I + 1.0)
 
     return LOH_frac
+
 
 def get_LOH_frac(counts):
     I = counts.shape[0]
@@ -291,7 +294,7 @@ def get_LOH_frac(counts):
     p_T = binom.cdf(l_T, d_T, p)
 
     LOH_num = np.where(p_T < thred)[0].shape[0]
-    LOH_frac = LOH_num*1.0/I
+    LOH_frac = LOH_num * 1.0 / I
 
     return LOH_frac
 
@@ -322,7 +325,7 @@ def get_APM_frac(counts):
     p_T = binom.cdf(l_T, d_T, p)
 
     APM_num = np.where(p_T > thred)[0].shape[0]
-    APM_frac = APM_num*1.0/I
+    APM_frac = APM_num * 1.0 / I
 
     return APM_frac
 
@@ -379,15 +382,10 @@ def remove_outliers(X):
         return remove_outliers(X)
 
 
-def calculate_BAF(
-    tumorData,
-    normalData,
-    chrmsToUse,
-    minSNP,
-    gamma,
-     process_num):
+def calculate_BAF(tumorData, normalData, chrmsToUse, minSNP, gamma,
+                  process_num):
 
-        # function to select columns from a 2D list
+    # function to select columns from a 2D list
     select_col = lambda array, colNum: map(lambda x: x[colNum], array)
 
     # vectors of tumor data
@@ -409,9 +407,8 @@ def calculate_BAF(
     print "Determining heterozygosity."
     p = Pool(process_num)
     repGamma = [gamma for i in range(len(tumorData))]
-    isHet = p.map(
-        is_heterozygous, zip(
-            normalRefCount, normalMutCount, repGamma))
+    isHet = p.map(is_heterozygous,
+                  zip(normalRefCount, normalMutCount, repGamma))
     print "Calculating BAFs."
     for i in range(len(tumorData)):
         chrm = tumorData[i][0]
@@ -577,12 +574,12 @@ def get_row_by_segment(tumorData, normalData, segment):
     :returns: TODO
 
     """
-    tumorData_temp = filter(lambda item: item[0] == int(segment.chrom_name)
-                            and (item[1] >= segment.start and item[1] <=
-                                 segment.end), tumorData)
-    normalData_temp = filter(lambda item: item[0] == int(segment.chrom_name)
-                             and (item[1] >= segment.start and item[1] <=
-                                  segment.end), normalData)
+    tumorData_temp = filter(
+        lambda item: item[0] == int(segment.chrom_name) and (item[1] >= segment.start and item[1] <= segment.end),
+        tumorData)
+    normalData_temp = filter(
+        lambda item: item[0] == int(segment.chrom_name) and (item[1] >= segment.start and item[1] <= segment.end),
+        normalData)
 
     return tumorData_temp, normalData_temp
 
@@ -598,12 +595,70 @@ def get_paired_counts(tumorData, normalData):
 
     paired_counts_temp = []
     for i in range(len(normalData)):
-        paired_counts_temp.append([int(normalData[i][2]),
-                                   int(normalData[i][3]),
-                                   int(tumorData[i][2]),
-                                   int(tumorData[i][3]),
-                                   int(normalData[i][0]),
-                                   int(normalData[i][1])])
+        paired_counts_temp.append([
+            int(normalData[i][2]),
+            int(normalData[i][3]),
+            int(tumorData[i][2]),
+            int(tumorData[i][3]),
+            int(normalData[i][0]),
+            int(normalData[i][1])
+        ])
     paired_counts_j = np.array(paired_counts_temp)
 
     return paired_counts_j
+
+
+def get_loga(data):
+    return np.log(data.tumor_reads_num + 1) - np.log(data.normal_reads_num + 1)
+
+
+def log_poisson_likelihood(k, Lambda):
+    return k * np.log(Lambda) - Lambda - gammaln(k + 1)
+
+
+def get_cn_allele_config(max_copynumber):
+    cn_allele_config = {}
+    for cn in range(0, max_copynumber + 1):
+        allele_config = {}
+        for M_num in range(0, (cn + 2) / 2):
+            P_num = cn - M_num
+            if P_num == 0 and M_num == 0:
+                mu_T = constants.EMPIRI_BAF / (
+                    constants.EMPIRI_AAF + constants.EMPIRI_BAF)
+                pi_T = 'NULL'
+            elif P_num == M_num:
+                mu_T = 0.5
+                pi_T = 'P' * P_num + 'M' * M_num
+            else:
+                mu_T = (M_num * 1.0) / cn
+                pi_T = 'P' * P_num + 'M' * M_num + '/' + 'P' * M_num + 'M' * P_num
+            allele_config[pi_T] = mu_T
+        cn_allele_config[cn] = allele_config
+    return cn_allele_config
+
+
+def get_mu_E_joint(mu_N, mu_G, c_N, c_H, phi):
+    return ((1.0 - phi) * c_N * mu_N + phi * c_H * mu_G) / (
+        (1.0 - phi) * c_N + phi * c_H)
+
+
+def log_binomial_likelihood(k, n, mu):
+    column_shape = (k.size, 1)
+    row_shape = (1, mu.size)
+    cb = comb(n, k)
+    cb = cb.reshape(column_shape) * np.ones((row_shape))
+    k = k.reshape(column_shape)
+    n = n.reshape(column_shape)
+    mu = mu.reshape(row_shape)
+    return np.log(cb) + k * np.log(mu) + (n - k) * np.log(1 - mu)
+
+
+def mad_based_outlier(points, thresh=3.5):
+    if len(points.shape) == 1:
+        points = points[:, None]
+    median = np.median(points, axis=0)
+    diff = np.sum((points - median)**2, axis=-1)
+    diff = np.sqrt(diff)
+    med_abs_deviation = np.median(diff)
+    modified_z_score = 0.6745 * diff / med_abs_deviation
+    return modified_z_score > thresh

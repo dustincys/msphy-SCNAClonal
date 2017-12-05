@@ -17,6 +17,7 @@
 import heapq
 import sys
 from collections import Counter
+from random import randint
 
 import numpy as np
 from scipy.cluster import hierarchy
@@ -27,6 +28,9 @@ from sklearn.cluster import MeanShift, estimate_bandwidth
 from sklearn.datasets.samples_generator import make_blobs
 
 import constants
+from pydp.densities import Density, log_poisson_pdf
+from utils import (get_cn_allele_config, get_loga, get_mu_E_joint,
+                   log_binomial_likelihood, mad_based_outlier)
 
 
 class Stripe:
@@ -36,23 +40,34 @@ class Stripe:
 
         self.paired_counts = None
 
+        self.tumor_reads_num = -1.0
+        self.normal_reads_num = -1.0
         self.rdr = -1.0
+
+        self.baseline_label = False
+        self._baseline = -1
 
     def init_seg(self, seg_list, seg_idx):
         self.index_seg = seg_idx
 
-        self._getRD(seg_list)
-        self._getBAF(seg_list)
+        self._init_RD(seg_list)
+        self._init_BAF(seg_list)
 
-    def _getRD(self, seg_list):
+    def _init_RD(self, seg_list):
         # 获取几何平均值
+        tumor_reads_num = [seg.tumor_reads_num for seg in seg_list]
+        normal_reads_num = [seg.normal_reads_num for seg in seg_list]
+
+        self.tumor_reads_num = gmean(tumor_reads_num)
+        self.normal_reads_num = gmean(normal_reads_num)
+
         ratios = [
             seg.tumor_reads_num * 1.0 / seg.normal_reads_num
             for seg in seg_list
         ]
         self.rdr = gmean(ratios)
 
-    def _getBAF(self, seg_list):
+    def _init_BAF(self, seg_list):
         self.paired_counts = np.array(
             [[], [], [], [], [], []], dtype=int).transpose()
 
@@ -73,28 +88,98 @@ class Stripe:
             phi, self.mu_r, self.mu_v, tp, new_state)
 
 
-    def __log_complete_likelihood__(self, phi, mu_r, mu_v, tp, new_state=0):
+    def __log_likelihood_CN_BAF(self, phi):
 
-        if self.cnv:
-            ll = []
-            poss_n_genomes = self.compute_n_genomes(tp, new_state)
-            poss_n_genomes = [x for x in poss_n_genomes if x[1] > 0]
-            for (nr, nv) in poss_n_genomes:
-                mu = (nr * mu_r + nv*(1-mu_r)) / (nr + nv)
-                ll.append(
-                    u.log_binomial_likelihood(self.a[tp],
-                                              self.d[tp],
-                                              mu) +
-                    log(1.0 / len(poss_n_genomes)) + self._log_bin_norm_const
-                    [tp])
-            if len(poss_n_genomes) == 0:
-                ll.append(log(1e-99))  # to handle cases with zero likelihood
-            llh = u.logsumexp(ll)
-        else:  # CNV datum
-            mu = (1 - phi) * mu_r + phi*mu_v  # (mu_r=0.999, mu_v=0.5)
-            llh = u.log_binomial_likelihood(
-                self.a[tp], self.d[tp], mu) + self._log_bin_norm_const[tp]
-        return llh
+        # if seg.phi_last is not None and Phi.phi in seg.phi_last.keys(): # return seg.phi_last[Phi.phi].likelihood
+        # else:
+            # if seg.phi_last is None:
+                # seg.phi_last = {}
+
+            # if len(seg.phi_last) >= constants.SEG_RECORD_SIZE:
+                # idx = randint(0, constants.SEG_RECORD_SIZE - 1)
+                # seg.phi_last.pop(seg.phi_last.keys()[idx])
+
+        # 此处是否添加记录
+        ll, cn, pi = self._getStripeCNBAF(phi)
+        # seg.phi_last[Phi.phi] = SegmentResultData(ll, cn, pi)
+        return ll
+
+
+    def _getStripeCNBAF(self, phi):
+        max_copy_number = constants.MAX_COPY_NUMBER
+
+        cns = None
+        if self.baseline_label == "True":
+            cns = [2]
+        elif self.rdr > self._baseline:
+            cns = range(2, max_copy_number + 1)
+        else:
+            cns = range(0, 2 + 1)
+
+        ll_pi_s = [self._getLLStripe(cn, phi) for cn in cns]
+        (ll, pi) = max(ll_pi_s, key=lambda x: x[0])
+        cn = cns[ll_pi_s.index((ll, pi))]
+        return ll, cn, pi
+
+    def _getLLStripe(self, cn, phi):
+        allele_config = get_cn_allele_config(contants.MAX_COPY_NUMBER)
+        rd_weight = constants.RD_WEIGHT
+
+        ll_seg = 0
+        ll_rd = self._getRD(cn, phi)
+
+        allele_types = allele_config[cn]
+        if 0 == seg.paired_counts.shape[0]:
+            ll_baf = 0
+            pi = "*"
+        else:
+            ll_baf, pi = self._getBAF(cn, allele_types, phi)
+        ll_seg = ll_baf + ll_rd
+        return ll_seg, pi
+
+    def _getRD(self, cn, phi):
+        c_N = constants.COPY_NUMBER_NORMAL
+
+        bar_c = phi * cn + (1.0 - phi) * c_N
+
+        lambda_possion = (
+            bar_c / c_N) * self._baseline * (self.normal_reads_num + 1) #not minus 1 ? better
+        if lambda_possion < 0:
+            lambda_possion = 0
+
+        ll_RD = log_poisson_pdf(self.tumor_reads_num, lambda_possion)
+        return ll_RD
+
+    def _getBAF(self, seg, cn, allele_types, phi):
+        c_N = constants.COPY_NUMBER_NORMAL
+        mu_N = constants.MU_N
+
+        # keys, ppmm values 0.5
+        mu_G = np.array(allele_types.values())
+
+        mu_E = get_mu_E_joint(mu_N, mu_G, c_N, cn, phi)
+
+        if self.paired_counts.shape[0] > 1:
+            b_T_j = np.min(self.paired_counts[:, 2:4], axis=1)
+            d_T_j = np.sum(self.paired_counts[:, 2:4], axis=1)
+            baf = b_T_j * 1.0 / d_T_j
+            outlier = mad_based_outlier(baf)
+            BAF = np.delete(self.paired_counts, list(outlier.astype(int)), axis=0)
+            b_T_j = np.min(BAF[:, 2:4], axis=1)
+            d_T_j = np.sum(BAF[:, 2:4], axis=1)
+
+        else:
+            b_T_j = np.min(self.paired_counts[:, 2:4], axis=1)
+            d_T_j = np.sum(self.paired_counts[:, 2:4], axis=1)
+            pass
+
+        # add prior or not?
+        ll = log_binomial_likelihood(b_T_j, d_T_j, mu_E)
+        ll_bafs = ll.sum(axis=0)
+        idx_max = ll_bafs.argmax(axis=0)
+        ll_baf = ll_bafs[idx_max]
+        pi = allele_types[allele_types.keys()[idx_max]]
+        return ll_baf, pi
 
 
 class MergeSeg(object):
