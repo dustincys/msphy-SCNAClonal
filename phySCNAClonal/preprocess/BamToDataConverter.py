@@ -19,14 +19,15 @@ import pysam
 
 from mcmc import MCMCLM
 
-from pSCNAClonal.preprocess.data import Data
-from pSCNAClonal.preprocess.iofun import PairedCountsIterator, PairedPileupIterator
-from pSCNAClonal.preprocess.utils import get_BAF_counts, normal_heterozygous_filter
+from phySCNAClonal.preprocess.data import Data
+from phySCNAClonal.preprocess.stripe import Stripe, DataStripes
+from phySCNAClonal.preprocess.iofun import PairedCountsIterator, PairedPileupIterator
+from phySCNAClonal.preprocess.utils import get_BAF_counts, normal_heterozygous_filter
 
 from plotGC import GCStripePlot
 
 
-class pSCNAClonal_Converter:
+class phySCNAClonal_Converter:
 
     def __init__(self, normal_bam_filename, tumor_bam_filename,
                  reference_genome_filename, input_filename_base, segments_bed,
@@ -65,7 +66,7 @@ class pSCNAClonal_Converter:
             infile.close()
         else:
             self._load_segments_bed()
-            print "pSCNAClonal converter converting"
+            print "phySCNAClonal converter converting"
 
             if "auto" == method:
                 self._MCMC_gccorrection()
@@ -77,19 +78,22 @@ class pSCNAClonal_Converter:
         self.visualize()
         self._baseline_selection()
 
-        data_file_name = self.input_filename_base + '.pSCNAClonal.input.pkl'
+        data_file_name = self.input_filename_base + '.phySCNAClonal.input.pkl'
         outfile = open(data_file_name, 'wb')
         pkl.dump(self.data, outfile, protocol=2)
         outfile.close()
 
 
-        self.stripes = MergeSeg(self.data)
-        self.stripes.get()
+        self.dataStripes = DataStripes(self.data)
+        self.dataStripes.get()
 
-        stripes_file_name = self.input_filename_base + '.pSCNAClonal.stripes.input.pkl'
+        stripes_file_name = self.input_filename_base + '.phySCNAClonal.stripes.input.pkl'
         outfile = open(stripes_file_name, 'wb')
-        pkl.dump(self.stripes, outfile, protocol=2)
+        pkl.dump(self.dataStripes, outfile, protocol=2)
         outfile.close()
+
+        stripes_file_name = self.input_filename_base + '.phySCNAClonal.stripes.input.txt'
+        self.dataStripes.output_txt(stripes_file_name)
 
     def _MCMC_gccorrection(self):
         """

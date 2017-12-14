@@ -32,11 +32,13 @@ from pydp.densities import Density, log_poisson_pdf
 from utils import (get_cn_allele_config, get_loga, get_mu_E_joint,
                    log_binomial_likelihood, mad_based_outlier)
 
+# import json
 
 class Stripe:
     def __init__(self):
         # 记录对应原始seg的索引
-        self.index_seg = None
+        self.stripe_id = ""
+        self.segs_idx = None
 
         self.paired_counts = None
 
@@ -47,35 +49,42 @@ class Stripe:
         self.baseline_label = False
         self._baseline = -1
 
-    def init_seg(self, seg_list, seg_idx):
-        self.index_seg = seg_idx
+        self.copy_number = -1
+        self.genotype = ""
+        self.phi = 0.0
 
-        self._init_RD(seg_list)
-        self._init_BAF(seg_list)
+        self.tssb = None
+        self.node = None  # this is the node where the datum resides
 
-    def _init_RD(self, seg_list):
+    def init_segs(self, segs_list, segs_idx):
+        self.segs_idx = segs_idx
+
+        self._init_RD(segs_list)
+        self._init_BAF(segs_list)
+
+    def _init_RD(self, segs_list):
         # 获取几何平均值
-        tumor_reads_num = [seg.tumor_reads_num for seg in seg_list]
-        normal_reads_num = [seg.normal_reads_num for seg in seg_list]
+        tumor_reads_num = [seg.tumor_reads_num for seg in segs_list]
+        normal_reads_num = [seg.normal_reads_num for seg in segs_list]
 
         self.tumor_reads_num = gmean(tumor_reads_num)
         self.normal_reads_num = gmean(normal_reads_num)
 
         ratios = [
             seg.tumor_reads_num * 1.0 / seg.normal_reads_num
-            for seg in seg_list
+            for seg in segs_list
         ]
         self.rdr = gmean(ratios)
 
-    def _init_BAF(self, seg_list):
+    def _init_BAF(self, segs_list):
         self.paired_counts = np.array(
             [[], [], [], [], [], []], dtype=int).transpose()
 
-        for seg in seg_list:
+        for seg in segs_list:
             self.paired_counts = np.vstack((self.paired_counts,
                                             seg.paired_counts))
 
-    def log_likelihood(self, phi, tp, update_tree=True, new_state=0):
+    def _log_likelihood(self, phi, update_tree=True):
         if update_tree:
             ##################################################
             # some useful info about the tree,
@@ -84,8 +93,7 @@ class Stripe:
             u.set_path_from_root_to_node(self.tssb)
             u.map_datum_to_node(self.tssb)
             ##################################################
-        return self.__log_complete_likelihood__(
-            phi, self.mu_r, self.mu_v, tp, new_state)
+        return self.__log_likelihood_CN_BAF(phi)
 
 
     def __log_likelihood_CN_BAF(self, phi):
@@ -118,7 +126,7 @@ class Stripe:
 
         ll_pi_s = [self._getLLStripe(cn, phi) for cn in cns]
         (ll, pi) = max(ll_pi_s, key=lambda x: x[0])
-        cn = cns[ll_pi_s.index((ll, pi))]
+        cn = cns[ll_pi_s.idx((ll, pi))]
         return ll, cn, pi
 
     def _getLLStripe(self, cn, phi):
@@ -182,7 +190,7 @@ class Stripe:
         return ll_baf, pi
 
 
-class MergeSeg(object):
+class DataStripes(object):
     """The stripe objects, including load, property operations"""
 
     def __init__(self, data):
@@ -194,12 +202,40 @@ class MergeSeg(object):
         self._data = data
         self.stripes = []  # stripes
 
+        self.baseline = -1
+
     def get(self):
         """TODO: Docstring for get.
         :returns: TODO
 
         """
         self._aggregation(y_down, y_up, stripe_num, noise_stripe_num=2)
+
+    def output_txt(self, outFileName):
+        with open(outFileName, 'w') as outFile:
+            outFile.write("{0}\t{1}\t{2}\t{3}\n".format(
+                "id", "segs_idx", "paired_counts", "tumor_reads_num",
+                "normal_reads_num", "rdr", "baseline_label" , "copy_number",
+                "genotype", "phi"))
+
+            for s in self.stripes:
+                a_T = s.paired_counts[:,2]
+                b_T = s.paired_counts[:,3]
+                a_T_strl = np.array_str(a_T).strip("[]").split()
+                b_T_strl = np.array_str(b_T).strip("[]").split()
+
+                outFile.write("{0}\t{1}\t{2}\t{3}\n".format(
+                    s.stripe_id,
+                    s.segs_idx,
+                    "{0}|{1}".format(",".join(a_T_strl), ",".join(b_T_strl)),
+                    s.tumor_reads_num,
+                    s.normal_reads_num,
+                    s.rdr,
+                    s.baseline_label,
+                    s.copy_number,
+                    s.genotype,
+                    s.phi)
+            pass
 
     def _aggregation(self, y_down, y_up, stripe_num, noise_stripe_num=2):
         """The aggregation operations for segments in data
@@ -211,7 +247,7 @@ class MergeSeg(object):
 
         reads_depth_ratio_log = []
 
-        # here should keep index
+        # here should keep idx
         yc_v = np.array([
             np.log(seg.tumor_reads_num + 1) - np.log(seg.normal_reads_num + 1)
             for seg in self._data.segments
@@ -256,11 +292,11 @@ class MergeSeg(object):
         # 然后返回
 
         # 这里需要有一个记录原始向量中位置的向量
-        seg_list = [self._data.segments[idx] for idx in mstrip_seg_idx]
+        segs_list = [self._data.segments[idx] for idx in mstrip_seg_idx]
 
         paired_counts_all = np.array(
             [[], [], [], [], [], []], dtype=int).transpose()
-        for seg in seg_list:
+        for seg in segs_list:
             paired_counts_all = np.vstack((paired_counts_all,
                                            seg.paired_counts))
 
@@ -282,22 +318,23 @@ class MergeSeg(object):
         n_clusters_ = len(labels_unique)
 
         seg_label = [
-            self._getSegLabl(seg, cluster_centers) for seg in seg_list
+            self._getSegLabl(seg, cluster_centers) for seg in segs_list
         ]
 
         for label in set(seg_label):
             if label == -1:
                 continue
             sub_seg_list = [
-                seg for seg, idx in enumerate(seg_list)
+                seg for seg, idx in enumerate(segs_list)
                 if seg_label[idx] == label
             ]
             sub_seg_idx = [
-                mstrip_seg_idx[idx] for seg, idx in enumerate(seg_list)
+                mstrip_seg_idx[idx] for seg, idx in enumerate(segs_list)
                 if seg_label[idx] == label
             ]
             temp_stripe = Stripe()
-            temp_stripe.init_seg(sub_seg_list, sub_seg_idx)
+            temp_stripe.stripe_id = "{0}_{1}".format(str(c_id), str(idx))
+            temp_stripe.init_segs(sub_seg_list, sub_seg_idx)
             self.stripes.append(temp_stripe)
 
     def _getSegLabl(self, seg, cluster_centers):
