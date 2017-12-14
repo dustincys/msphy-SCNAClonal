@@ -634,6 +634,7 @@ def get_cn_allele_config(max_copynumber):
                 pi_T = 'P' * P_num + 'M' * M_num + '/' + 'P' * M_num + 'M' * P_num
             allele_config[pi_T] = mu_T
         cn_allele_config[cn] = allele_config
+        # {2:{PP/MM:0, PM:0.5},     3:{...},...}
     return cn_allele_config
 
 
@@ -643,14 +644,12 @@ def get_mu_E_joint(mu_N, mu_G, c_N, c_H, phi):
 
 
 def log_binomial_likelihood(k, n, mu):
-    column_shape = (k.size, 1)
-    row_shape = (1, mu.size)
-    cb = comb(n, k)
-    cb = cb.reshape(column_shape) * np.ones((row_shape))
-    k = k.reshape(column_shape)
-    n = n.reshape(column_shape)
-    mu = mu.reshape(row_shape)
-    return np.log(cb) + k * np.log(mu) + (n - k) * np.log(1 - mu)
+    # example:
+        # k: array([2, 3, 2])
+        # n: array([2, 3, 2])
+        # mu: 0.3
+    # return array([2, 3, 2])
+    return np.log(comb(n, k)) + k * np.log(mu) + (n - k) * np.log(1 - mu)
 
 
 def mad_based_outlier(points, thresh=3.5):

@@ -64,10 +64,19 @@ LL_PERCENT_CHANGE_THRED = 0.90
 TAU = 500
 SIGMA = 0.0001
 ERR = 0.01
-EMPIRI_BAF = 0.485
-EMPIRI_AAF = 1 - EMPIRI_BAF
 
+#########
+#  baf  #
+#########
+
+EMPIRI_BAF = 0.485
+EMPIRI_AAF = 1.0 - EMPIRI_BAF
 MU_N = EMPIRI_BAF/(EMPIRI_BAF + EMPIRI_AAF)
+
+########################
+#  copy number config  #
+########################
+
 COPY_NUMBER_NORMAL = 2
 COPY_NUMBER_BASELINE = 2
 ALLELE_TYPE_BASELINE = 'PM'

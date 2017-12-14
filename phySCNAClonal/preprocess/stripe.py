@@ -44,14 +44,19 @@ class Stripe:
 
         self.tumor_reads_num = -1.0
         self.normal_reads_num = -1.0
+        # 似乎用不到
         self.rdr = -1.0
 
         self.baseline_label = False
+        # 似乎不应该放在这里
         self._baseline = -1
 
+        # 这两个应该放在这里
         self.copy_number = -1
         self.genotype = ""
-        self.phi = 0.0
+
+        # phi应该放在node结点中
+        # self.phi = 0.0
 
         self.tssb = None
         self.node = None  # this is the node where the datum resides
@@ -93,80 +98,53 @@ class Stripe:
             u.set_path_from_root_to_node(self.tssb)
             u.map_datum_to_node(self.tssb)
             ##################################################
-        return self.__log_likelihood_CN_BAF(phi)
+        # 注意： 此处要使用mc环节设定的copynumber和genotype
+        return self.__log_likelihood_RD_BAF(phi, self.copy_number, self.genotype)
 
 
-    def __log_likelihood_CN_BAF(self, phi):
-
-        # if seg.phi_last is not None and Phi.phi in seg.phi_last.keys(): # return seg.phi_last[Phi.phi].likelihood
-        # else:
-            # if seg.phi_last is None:
-                # seg.phi_last = {}
-
-            # if len(seg.phi_last) >= constants.SEG_RECORD_SIZE:
-                # idx = randint(0, constants.SEG_RECORD_SIZE - 1)
-                # seg.phi_last.pop(seg.phi_last.keys()[idx])
-
+    def __log_likelihood_RD_BAF(self, phi, copy_number, genotype):
         # 此处是否添加记录
-        ll, cn, pi = self._getStripeCNBAF(phi)
-        # seg.phi_last[Phi.phi] = SegmentResultData(ll, cn, pi)
-        return ll
-
-
-    def _getStripeCNBAF(self, phi):
-        max_copy_number = constants.MAX_COPY_NUMBER
-
-        cns = None
-        if self.baseline_label == "True":
-            cns = [2]
-        elif self.rdr > self._baseline:
-            cns = range(2, max_copy_number + 1)
-        else:
-            cns = range(0, 2 + 1)
-
-        ll_pi_s = [self._getLLStripe(cn, phi) for cn in cns]
-        (ll, pi) = max(ll_pi_s, key=lambda x: x[0])
-        cn = cns[ll_pi_s.idx((ll, pi))]
-        return ll, cn, pi
-
-    def _getLLStripe(self, cn, phi):
-        allele_config = get_cn_allele_config(contants.MAX_COPY_NUMBER)
         rd_weight = constants.RD_WEIGHT
 
-        ll_seg = 0
-        ll_rd = self._getRD(cn, phi)
+        ll_RD = self.__log_likelihood_RD(phi, copy_number)
+        ll_BAF = self.__log_likelihood_BAF(phi, genotype)
 
-        allele_types = allele_config[cn]
-        if 0 == seg.paired_counts.shape[0]:
-            ll_baf = 0
-            pi = "*"
-        else:
-            ll_baf, pi = self._getBAF(cn, allele_types, phi)
-        ll_seg = ll_baf + ll_rd
-        return ll_seg, pi
+        return ll_RD * rd_weight + ll_BAF
 
-    def _getRD(self, cn, phi):
-        c_N = constants.COPY_NUMBER_NORMAL
 
-        bar_c = phi * cn + (1.0 - phi) * c_N
+    def __log_likelihood_RD(self, phi, copy_number):
+        cn_N = constants.COPY_NUMBER_NORMAL
 
-        lambda_possion = (
-            bar_c / c_N) * self._baseline * (self.normal_reads_num + 1) #not minus 1 ? better
+        bar_c = phi * cn + (1.0 - phi) * cn_N
+
+        lambda_possion = (bar_c / cn_N) * self._baseline * (
+            self.normal_reads_num + 1) #not minus 1 ? better
         if lambda_possion < 0:
             lambda_possion = 0
 
-        ll_RD = log_poisson_pdf(self.tumor_reads_num, lambda_possion)
+        ll_RD = log_poisson_pdf(self.tumor_reads_num+1, lambda_possion)
         return ll_RD
 
-    def _getBAF(self, seg, cn, allele_types, phi):
-        c_N = constants.COPY_NUMBER_NORMAL
+
+    def __log_likelihood_BAF(self, phi, genotype):
+        max_copy_number = contants.MAX_COPY_NUMBER
+        cn_N = constants.COPY_NUMBER_NORMAL
         mu_N = constants.MU_N
 
-        # keys, ppmm values 0.5
-        mu_G = np.array(allele_types.values())
+        # {2:{PP/MM:0, PM:0.5},     3:{...},...}
+        allele_config = get_cn_allele_config(max_copy_number)
+        cn_T = len(genotype)
+        #allele_types = {PP/MM:0, PM:0.5}
+        allele_types = allele_config[cn_T]
+        for gts in allele_types.keys():
+            gtl = gts.split("/")
+            if genotype in gtl:
+                mu_G = allele_types[gts]
+                break
 
-        mu_E = get_mu_E_joint(mu_N, mu_G, c_N, cn, phi)
+        mu_E = get_mu_E_joint(mu_N, mu_G, cn_N, cn_T, phi)
 
+        # 此处去除outlier
         if self.paired_counts.shape[0] > 1:
             b_T_j = np.min(self.paired_counts[:, 2:4], axis=1)
             d_T_j = np.sum(self.paired_counts[:, 2:4], axis=1)
@@ -181,13 +159,9 @@ class Stripe:
             d_T_j = np.sum(self.paired_counts[:, 2:4], axis=1)
             pass
 
-        # add prior or not?
-        ll = log_binomial_likelihood(b_T_j, d_T_j, mu_E)
-        ll_bafs = ll.sum(axis=0)
-        idx_max = ll_bafs.argmax(axis=0)
-        ll_baf = ll_bafs[idx_max]
-        pi = allele_types[allele_types.keys()[idx_max]]
-        return ll_baf, pi
+        # return array([2, 3, 2])
+        ll = log_binomial_likelihood(b_T_j, d_T_j, mu_E).sum(axis=0)
+        return ll
 
 
 class DataStripes(object):
@@ -226,7 +200,7 @@ class DataStripes(object):
 
                 outFile.write("{0}\t{1}\t{2}\t{3}\n".format(
                     s.stripe_id,
-                    s.segs_idx,
+                    ",".join(s.segs_idx),
                     "{0}|{1}".format(",".join(a_T_strl), ",".join(b_T_strl)),
                     s.tumor_reads_num,
                     s.normal_reads_num,
