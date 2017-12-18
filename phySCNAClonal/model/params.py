@@ -1,3 +1,15 @@
+'''
+# =============================================================================
+#      FileName: params.py
+#          Desc:
+#        Author: Chu Yanshuo
+#         Email: chu@yanshuo.name
+#      HomePage: http://yanshuo.name
+#       Version: 0.0.1
+#    LastChange: 2017-12-08 16:43:47
+#       History: phylowgs
+# =============================================================================
+'''
 ###### code to sample from the paramater posterior p(\phi | data) ########
 
 import os
@@ -34,19 +46,14 @@ def metropolis(tssb,
                iters=1000,
                std=0.01,
                burnin=0,
-               n_ssms=0,
-               n_cnvs=0,
-               fin1='',
-               fin2='',
+               n_stripes=0,
                rseed=1,
                ntps=5,
                tmp_dir='.'):
     wts, nodes = tssb.get_mixture()
 
     # file names
-    FNAME_SSM_DATA = fin1
-    FNAME_CNV_DATA = fin2
-    NTPS = str(ntps)
+    # NTPS = str(ntps)
     FNAME_C_TREE, FNAME_C_DATA_STATES, FNAME_C_PARAMS, FNAME_C_MH_ARATIO = get_c_fnames(
         tmp_dir)
 
@@ -150,77 +157,14 @@ def write_data_state(tssb, fname):
     fh = open(fname, 'w')
     wts, nodes = tssb.get_mixture()
 
+    # 此处dat为stripe，记录拷贝数、基因型、以及population frequency
+    # 注意此处基因型无法区分呈现互补数的基因型
     for dat in tssb.data:
-        if not dat.cnv:
-            continue  # nothing to do for CNVs
         if not dat.node:
             continue  # todo: this won't happen
-        poss_n_genomes = dat.compute_n_genomes(0)
         for node in nodes:
-
-            ssm_node = dat.node.path[-1]
-            mr_cnv = find_most_recent_cnv(dat, node)
-            ancestors = node.get_ancestors()
-
-            dat.state1 = ''  # maternal
-            dat.state2 = ''  # paternal
-            dat.state3 = ''  # maternal
-            dat.state4 = ''  # paternal
-
-            if (ssm_node not in ancestors) and (not mr_cnv):
-                dat.state1 += str(node.id) + ',' + str(2) + ',' + str(0) + ';'
-                dat.state2 += str(node.id) + ',' + str(2) + ',' + str(0) + ';'
-                dat.state3 += str(node.id) + ',' + str(2) + ',' + str(0) + ';'
-                dat.state4 += str(node.id) + ',' + str(2) + ',' + str(0) + ';'
-            elif ssm_node in ancestors and (not mr_cnv):
-                dat.state1 += str(node.id) + ',' + str(1) + ',' + str(1) + ';'
-                dat.state2 += str(node.id) + ',' + str(1) + ',' + str(1) + ';'
-                dat.state3 += str(node.id) + ',' + str(1) + ',' + str(1) + ';'
-                dat.state4 += str(node.id) + ',' + str(1) + ',' + str(1) + ';'
-            elif (ssm_node not in ancestors) and mr_cnv:
-                dat.state1 += str(node.id) + ',' + str(
-                    mr_cnv[1] + mr_cnv[2]) + ',' + str(0) + ';'
-                dat.state2 += str(node.id) + ',' + str(
-                    mr_cnv[1] + mr_cnv[2]) + ',' + str(0) + ';'
-                dat.state3 += str(node.id) + ',' + str(
-                    mr_cnv[1] + mr_cnv[2]) + ',' + str(0) + ';'
-                dat.state4 += str(node.id) + ',' + str(
-                    mr_cnv[1] + mr_cnv[2]) + ',' + str(0) + ';'
-            elif ssm_node in ancestors and mr_cnv:
-                dat.state3 += str(node.id) + ',' + str(
-                    max(0, mr_cnv[1] + mr_cnv[2] - 1)) + ',' + str(
-                        min(1, mr_cnv[1] + mr_cnv[2])) + ';'
-                dat.state4 += str(node.id) + ',' + str(
-                    max(0, mr_cnv[1] + mr_cnv[2] - 1)) + ',' + str(
-                        min(1, mr_cnv[1] + mr_cnv[2])) + ';'
-                if ssm_node in mr_cnv[0].node.get_ancestors():
-                    # maternal
-                    dat.state1 += str(node.id) + ',' + str(
-                        mr_cnv[1]) + ',' + str(mr_cnv[2]) + ';'
-                    # paternal
-                    dat.state2 += str(node.id) + ',' + str(
-                        mr_cnv[2]) + ',' + str(mr_cnv[1]) + ';'
-                else:
-                    dat.state1 += str(node.id) + ',' + str(
-                        max(0, mr_cnv[1] + mr_cnv[2] - 1)) + ',' + str(
-                            min(1, mr_cnv[1] + mr_cnv[2])) + ';'
-                    dat.state2 += str(node.id) + ',' + str(
-                        max(0, mr_cnv[1] + mr_cnv[2] - 1)) + ',' + str(
-                            min(1, mr_cnv[1] + mr_cnv[2])) + ';'
-            else:
-                print "PANIC"
-
-            if poss_n_genomes[0][1] == 0:
-                dat.state1 = dat.state2
-            elif poss_n_genomes[1][1] == 0:
-                dat.state2 = dat.state1
-            if len(poss_n_genomes) == 2:
-                dat.state3 = dat.state1
-                dat.state4 = dat.state2
-            fh.write(
-                str(dat.id[1:]) + '\t' + dat.state1.strip(';') + '\t' +
-                dat.state2.strip(';') + '\t' + dat.state3.strip(';') + '\t' +
-                dat.state4.strip(';') + '\t')
+            fh.write(str(dat.id) + '\t' + str(dat.copy_number) + '\t' +
+                str(dat.genotype) + '\t' + str(dat.phi))
             fh.write('\n')
 
     fh.flush()

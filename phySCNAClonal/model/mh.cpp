@@ -162,7 +162,7 @@ double param_post(struct node nodes[], struct datum data[], int old,struct confi
 			p=nodes[i].param[tp];
 		for(int j=0;j<nodes[i].ndata;j++){
 			//此处调用data中的似然
-			llh+=data[nodes[i].dids.at(j)].log_ll(p,old,tp);
+			llh+=data[nodes[i].dids.at(j)].log_ll(p, old, tp);
 		}
 	}
 	return llh;

@@ -1,4 +1,16 @@
 #!/usr/bin/env python2
+'''
+# =============================================================================
+#      FileName: evolve.py
+#          Desc:
+#        Author: Chu Yanshuo
+#         Email: chu@yanshuo.name
+#      HomePage: http://yanshuo.name
+#       Version: 0.0.1
+#    LastChange: 2017-12-05 16:00:23
+#       History:
+# =============================================================================
+'''
 import os
 import sys
 import cPickle as pickle
@@ -31,7 +43,7 @@ from datetime import datetime
 
 
 def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
-                  config, ssm_file, cnv_file, params_file, top_k_trees_file,
+                  config, params_file, top_k_trees_file,
                   clonal_freqs_file, burnin_samples, num_samples, mh_itr,
                   mh_std, write_state_every, write_backups_every, rand_seed,
                   tmp_dir):
@@ -58,21 +70,26 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
     with open('random_seed.txt', 'w') as seedf:
         seedf.write('%s\n' % state['rand_seed'])
 
-    state['ssm_file'] = ssm_file
-    state['cnv_file'] = cnv_file
     state['tmp_dir'] = tmp_dir
     state['top_k_trees_file'] = top_k_trees_file
     state['clonal_freqs_file'] = clonal_freqs_file
     state['write_state_every'] = write_state_every
     state['write_backups_every'] = write_backups_every
 
-    codes, n_ssms, n_cnvs, cnv_logical_physical_mapping = load_data(
-        state['ssm_file'], state['cnv_file'])
-    if len(codes) == 0:
-        logmsg('No SSMs or CNVs provided. Exiting.', sys.stderr)
+    # 此处载入数据
+    stripes, baseline = load_data(state['stripes_file'])
+
+    if len(stripes) == 0:
+        logmsg('No stripes provided. Exiting.', sys.stderr)
         return
-    NTPS = len(codes[0].a)  # number of samples / time point
-    state['glist'] = [datum.name for datum in codes if len(datum.name) > 0]
+
+    # sample 个数
+    # NTPS = len(codes[0].a)  # number of samples / time point
+    # gene list
+    # state['glist'] = [datum.name for datum in codes if len(datum.name) > 0]
+
+    # stripe list
+    state['stripe_list'] = [stripe_name. for stripe in stripes]
 
     # MCMC settings
     state['burnin'] = burnin_samples
@@ -97,7 +114,7 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
         dp_gamma=state['dp_gamma'],
         alpha_decay=state['alpha_decay'],
         root_node=root,
-        data=codes)
+        data=stripes)
     # hack...
     if 1:
         depth = 0
@@ -122,8 +139,8 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
             new_node.add_datum(n)
             state['tssb'].assignments[n] = new_node
 
-    for datum in codes:
-        datum.tssb = state['tssb']
+    for stripe in stripes:
+        stripe.tssb = state['tssb']
 
     tree_writer = TreeWriter()
     tree_writer.add_extra_file('cnv_logical_physical_mapping.json',
@@ -146,7 +163,7 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
         mcmcf.write('Iteration\tLLH\tTime\n')
 
     do_mcmc(state_manager, backup_manager, safe_to_exit, run_succeeded, config,
-            state, tree_writer, codes, n_ssms, n_cnvs, NTPS, tmp_dir)
+            state, tree_writer, stripes, tmp_dir)
 
 
 def resume_existing_run(state_manager, backup_manager, safe_to_exit,
@@ -172,11 +189,11 @@ def resume_existing_run(state_manager, backup_manager, safe_to_exit,
     NTPS = len(codes[0].a)  # number of samples / time point
 
     do_mcmc(state_manager, backup_manager, safe_to_exit, run_succeeded, config,
-            state, tree_writer, codes, n_ssms, n_cnvs, NTPS, state['tmp_dir'])
+            state, tree_writer, stripes, state['tmp_dir'])
 
 
 def do_mcmc(state_manager, backup_manager, safe_to_exit, run_succeeded, config,
-            state, tree_writer, codes, n_ssms, n_cnvs, NTPS, tmp_dir_parent):
+            state, tree_writer, stripes, tmp_dir_parent):
     start_iter = state['last_iteration'] + 1
     unwritten_trees = []
     mcmc_sample_times = []
@@ -214,9 +231,9 @@ def do_mcmc(state_manager, backup_manager, safe_to_exit, run_succeeded, config,
         ##################################################
 
         state['mh_acc'] = metropolis(
-            tssb, state['mh_itr'], state['mh_std'], state['mh_burnin'], n_ssms,
-            n_cnvs, state['ssm_file'], state['cnv_file'], state['rand_seed'],
-            NTPS, config['tmp_dir'])
+            tssb, state['mh_itr'], state['mh_std'], state['mh_burnin'],
+            n_stripes, state['rand_seed'],config['tmp_dir'])
+
         if float(state['mh_acc']) < 0.08 and state['mh_std'] < 10000:
             state['mh_std'] = state['mh_std'] * 2.0
             logmsg("Shrinking MH proposals. Now %f" % state['mh_std'])
@@ -304,12 +321,12 @@ def do_mcmc(state_manager, backup_manager, safe_to_exit, run_succeeded, config,
                     state['top_k'])
 
     # save clonal frequencies
-    freq = dict([(g, []) for g in state['glist']])
-    glist = array(freq.keys(), str)
-    glist.shape = (1, len(glist))
+    freq = dict([(g, []) for g in state['stripe_list']])
+    stripe_list = array(freq.keys(), str)
+    stripe_list.shape = (1, len(stripe_list))
     savetxt(
         state['clonal_freqs_file'],
-        vstack((glist, array([freq[g] for g in freq.keys()]).T)),
+        vstack((stripe_list, array([freq[g] for g in freq.keys()]).T)),
         fmt='%s',
         delimiter=', ')
 

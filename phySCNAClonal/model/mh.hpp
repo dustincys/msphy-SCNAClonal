@@ -1,4 +1,3 @@
-
 #include<vector>
 #include<cstring>
 #include<math.h>
@@ -54,38 +53,39 @@ struct node{
 
 struct datum{
 	int id;
+
+	//用于保存原始seg的索引，用于post process
 	vector<int> segs_idx;
+
 	vector<int> a;
 	vector<int> b;
 
 	int tumor_reads_num;
 	int normal_reads_num;
-	double rdr;
 
 	bool baseline_label;
-	int copy_number;
 
-	char genotype[];
-	double phi;
+	int copy_number; //用于保存param时刻对应的copy_number
+	char genotype[]; //用于保存param时刻对应的genotype
 
-
-	vector<double> log_bin_norm_const;//log_bin_coeff(d,a);
-
+	//vector<double> log_bin_norm_const;//log_bin_coeff(d,a);
 	//struct datum* cnv; // for SSM datum, this is a pointer to its CNV datum
 	//int cnv;// just an indicator for cnv or ssm datum
-
 	// this is used to compute the binomial parameter
-	vector <struct state> states1, states2, states3, states4; // maternal and paternal state
+	//vector <struct state> states1, states2, states3, states4; // maternal and paternal state
+	//double log_ll1111(vector<double> phi, int old){
+	//double llh = 0.0;
+	//for(int tp=0; tp<phi.size();tp++)
+	//llh+=log_complete_ll(phi[tp],mu_r,mu_v,old,tp);
+	//return llh;
+	//}
 
-	double log_ll1111(vector<double> phi, int old){
-		double llh = 0.0;
-		for(int tp=0; tp<phi.size();tp++)
-			llh+=log_complete_ll(phi[tp],mu_r,mu_v,old,tp);
-		return llh;
-	}
-
-	double log_ll(double phi, int old, int tp){
-		return log_complete_ll(phi,mu_r,mu_v,old,tp);
+	//此处不使用tp因为默认只使用一个tp
+	double log_ll(double phi, int old){
+		//pi 为基因型
+		ll, cn, pi = self._getSegResData(seg, Phi.phi)
+		seg.phi_last[Phi.phi] = SegmentResultData(ll, cn, pi)
+		return log_complete_ll(phi,mu_r,mu_v,old);
 	}
 
 	double log_complete_ll(double phi, double mu_r, double mu_v, int old, int tp){
