@@ -1,11 +1,14 @@
 #include<vector>
 #include<cstring>
+#include <string>
 #include<math.h>
 
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_rng.h>
 
 #include "util.hpp"
+
+using namespace std;
 
 void sample_cons_params(struct node nodes[],struct config conf,gsl_rng *rand,int tp);
 double multi_param_post(struct node nodes[], struct datum data[], int old,struct config conf);
@@ -66,7 +69,8 @@ struct datum{
 	bool baseline_label;
 
 	int copy_number; //用于保存param时刻对应的copy_number
-	char genotype[]; //用于保存param时刻对应的genotype
+	//free it before delete struct
+	string genotype; //用于保存param时刻对应的genotype
 
 	//vector<double> log_bin_norm_const;//log_bin_coeff(d,a);
 	//struct datum* cnv; // for SSM datum, this is a pointer to its CNV datum
@@ -81,95 +85,28 @@ struct datum{
 	//}
 
 	//此处不使用tp因为默认只使用一个tp
-	double log_ll(double phi, int old){
+	double log_ll(double phi, cngenotype& cgn){
 		//pi 为基因型
-		ll, cn, pi = self._getSegResData(seg, Phi.phi)
-		seg.phi_last[Phi.phi] = SegmentResultData(ll, cn, pi)
-		return log_complete_ll(phi,mu_r,mu_v,old);
+		ll, cn, pi = log_likelihood_RD_BAF(phi, cgn);
+
+		copy_number = cn;
+		genotype = pi;
+		return ll
 	}
+	double log_likelihood_RD_BAF(double phi, cngenotype& cgn){
+		/************************************
+		*  Here requires metrix operation  *
+		************************************/
 
-	double log_complete_ll(double phi, double mu_r, double mu_v, int old, int tp){
-		double nr=0;
-		double nv=0;
-		double mu = 0;
-		double llh = 0;
+        copy_numbers = None
+        if seg.baseline_label == "True":
+            copy_numbers = [2]
+        elif get_loga(seg) > self._baseline:
+            copy_numbers = range(2, self._max_copy_number + 1)
+        else:
+            copy_numbers = range(0, 2 + 1)
 
-		if(cnv==NULL){	// cnv data
-			mu = (1 - phi) * mu_r + phi * mu_v;
-			llh = log_binomial_likelihood(a[tp], d[tp], mu) + log_bin_norm_const[tp];
-		}
-		else{ // ssm data
-			double ll[4]; // maternal and paternal
-			nr=0;
-			nv=0;
-			for(int i=0;i<states1.size();i++){
-				if(old==0){
-					nr += (states1[i].nd->pi1[tp])*states1[i].nr;
-					nv += (states1[i].nd->pi1[tp])*states1[i].nv;
-				}else{
-					nr += (states1[i].nd->pi[tp])*states1[i].nr;
-					nv += (states1[i].nd->pi[tp])*states1[i].nv;
-				}
-			}
-			if(nr+nv>0){
-				mu = (nv*(1-mu_r) + nr*mu_r)/(nr+nv);
-				ll[0] = log_binomial_likelihood(a[tp], d[tp], mu) + log(0.25) + log_bin_norm_const[tp];
-			}else{
-				ll[0]=log(pow(10,-99));
-			}
-			// repetitive...
-			nr=nv=0;
-			for(int i=0;i<states2.size();i++){
-				if(old==0){
-					nr += (states2[i].nd->pi1[tp])*states2[i].nr;
-					nv += (states2[i].nd->pi1[tp])*states2[i].nv;
-				}else{
-					nr += (states2[i].nd->pi[tp])*states2[i].nr;
-					nv += (states2[i].nd->pi[tp])*states2[i].nv;
-				}
-			}
-			if(nr+nv>0){
-				mu = (nv*(1-mu_r) + nr*mu_r)/(nr+nv);
-				ll[1] = log_binomial_likelihood(a[tp], d[tp], mu) + log(0.25) + log_bin_norm_const[tp];
-			}else{
-				ll[1]=log(pow(10,-99));
-			}
-			nr=nv=0;
-			for(int i=0;i<states3.size();i++){
-				if(old==0){
-					nr += (states3[i].nd->pi1[tp])*states3[i].nr;
-					nv += (states3[i].nd->pi1[tp])*states3[i].nv;
-				}else{
-					nr += (states3[i].nd->pi[tp])*states3[i].nr;
-					nv += (states3[i].nd->pi[tp])*states3[i].nv;
-				}
-			}
-			if(nr+nv>0){
-				mu = (nv*(1-mu_r) + nr*mu_r)/(nr+nv);
-				ll[2] = log_binomial_likelihood(a[tp], d[tp], mu) + log(0.25) + log_bin_norm_const[tp];
-			}else{
-				ll[2]=log(pow(10,-99));
-			}
-
-			nr=nv=0;
-			for(int i=0;i<states4.size();i++){
-				if(old==0){
-					nr += (states4[i].nd->pi1[tp])*states4[i].nr;
-					nv += (states4[i].nd->pi1[tp])*states4[i].nv;
-				}else{
-					nr += (states4[i].nd->pi[tp])*states4[i].nr;
-					nv += (states4[i].nd->pi[tp])*states4[i].nv;
-				}
-			}
-			if(nr+nv>0){
-				mu = (nv*(1-mu_r) + nr*mu_r)/(nr+nv);
-				ll[3] = log_binomial_likelihood(a[tp], d[tp], mu) + log(0.25) + log_bin_norm_const[tp];
-			}else{
-				ll[3]=log(pow(10,-99));
-			}
-
-			llh = logsumexp(ll,4);
-		}
 		return llh;
+
 	}
 };

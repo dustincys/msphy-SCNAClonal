@@ -26,7 +26,7 @@ void dirichlet_sample(int size, double alpha[], double *x,gsl_rng *r){
 	for(int i=0;i<size;i++)
 		x[i]=x[i]+0.0001;
 	//此处是非零处理
-	double sum=0.0;	
+	double sum=0.0;
 	for(int i=0;i<size;i++)
 		sum+=x[i];
 	for(int i=0;i<size;i++)
@@ -39,7 +39,14 @@ double logsumexp(double x[], int nx){
 		if (x[i]>maxes)
 			maxes=x[i];
 	for (int i=0;i<nx;i++)
-		sum+=exp(x[i]-maxes);       
+		sum+=exp(x[i]-maxes);
 	return log(sum) + maxes;
 }
 
+vector<int> get_cn_vec(int max_copy_number){
+	vector<int> cn_vec;
+	for(int i=0; i<max_copy_number+1; i++){
+		cn_vec.push_back(i)
+	}
+	return cn_vec;
+}

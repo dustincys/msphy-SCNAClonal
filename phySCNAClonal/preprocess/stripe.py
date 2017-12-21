@@ -117,13 +117,17 @@ class Stripe:
 
         ll_pi_s = [self._getLLStripe(copy_number, phi) for copy_number in
                    copy_numbers]
-        ll, _ = max(ll_pi_s, key=lambda x: x[0])
+        ll, pi = max(ll_pi_s, key=lambda x: x[0])
+        cn = ll_pi_s.index((ll, pi))
+
+        self.copy_number = cn
+        self.genotype = pi
 
         return ll
 
 
     def _getLLStripe(self, copy_number, phi):
-        rd_weight = constants.RD_WEIGHT
+        rd_weight = constants.RD_WEIGHT_TSSB
 
         ll_stripe = 0
         ll_rd = self._getRD(copy_number, phi)
@@ -138,7 +142,7 @@ class Stripe:
         else:
             ll_baf, pi = self._getBAF(self, copy_number, allele_types, phi)
 
-        ll_stripe = ll_rd * rd_weight + ll_baf
+        ll_stripe = ll_rd * rd_weight + ll_baf * (1 - rd_weight)
 
         return ll_stripe, pi
 

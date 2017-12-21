@@ -63,7 +63,7 @@ class Node(object):
         return self._children
 
     def get_data(self):
-                # return self.tssb.data[list(self.data),:] #shankar
+        # return self.tssb.data[list(self.data),:] #shankar
         ids = list(self.data)
         return [self.tssb.data[id] for id in ids]
 
