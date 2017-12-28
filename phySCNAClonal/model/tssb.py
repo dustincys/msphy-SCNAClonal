@@ -149,12 +149,10 @@ class TSSB(object):
                 if new_node in llhmap:
                     new_llh = llhmap[new_node]
                 else:
-
                     ####################################
                     #  Record most likely copy number  #
                     ####################################
-
-                    new_llh = new_node.logprob(self.data[n:n + 1])
+                    new_llh = new_node.logprob_restricted(self.data[n:n + 1])
                     llhmap[new_node] = new_llh
                 if new_llh > llh_s:
                     break

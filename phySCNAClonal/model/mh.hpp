@@ -7,8 +7,10 @@
 #include <gsl/gsl_rng.h>
 
 #include "util.hpp"
+#include <Eigen/Dense>
 
 using namespace std;
+using namespace Eigen;
 
 void sample_cons_params(struct node nodes[],struct config conf,gsl_rng *rand,int tp);
 double multi_param_post(struct node nodes[], struct datum data[], int old,struct config conf);
@@ -60,8 +62,8 @@ struct datum{
 	//用于保存原始seg的索引，用于post process
 	vector<int> segs_idx;
 
-	vector<int> a;
-	vector<int> b;
+	ArrayXd a;
+	ArrayXd b;
 
 	int tumor_reads_num;
 	int normal_reads_num;
@@ -72,41 +74,77 @@ struct datum{
 	//free it before delete struct
 	string genotype; //用于保存param时刻对应的genotype
 
-	//vector<double> log_bin_norm_const;//log_bin_coeff(d,a);
-	//struct datum* cnv; // for SSM datum, this is a pointer to its CNV datum
-	//int cnv;// just an indicator for cnv or ssm datum
-	// this is used to compute the binomial parameter
-	//vector <struct state> states1, states2, states3, states4; // maternal and paternal state
-	//double log_ll1111(vector<double> phi, int old){
-	//double llh = 0.0;
-	//for(int tp=0; tp<phi.size();tp++)
-	//llh+=log_complete_ll(phi[tp],mu_r,mu_v,old,tp);
-	//return llh;
-	//}
-
 	//此处不使用tp因为默认只使用一个tp
-	double log_ll(double phi, cngenotype& cgn){
+	double log_ll(double phi, cngenotype& cgn,
+			int max_copy_number, double baseline){
 		//pi 为基因型
-		ll, cn, pi = log_likelihood_RD_BAF(phi, cgn);
-
-		copy_number = cn;
-		genotype = pi;
-		return ll
+		if(baseline_label){
+			ArrayXd cns(3);
+			cns << 1, 2, 3;
+			log_likelihood_RD_BAF(phi, cgn, cns);
+		}else if(get_loga(tumor_reads_num, normal_reads_num)
+				> baseline){
+			ArrayXd cns(max_copy_number);
+			for(int i = 1; i < max_copy_number; i ++){
+				cns << i;
+			}
+			log_likelihood_RD_BAF(phi, cgn, cns);
+		}else{
+			ArrayXd cns(3);
+			cns << 0, 1, 2;
+			log_likelihood_RD_BAF(phi, cgn, cns);
+		}
 	}
-	double log_likelihood_RD_BAF(double phi, cngenotype& cgn){
+	double log_likelihood_RD_BAF(double phi, cngenotype& cgn, ArrayXd& cns){
 		/************************************
-		*  Here requires metrix operation  *
+		*  Here requires vector maximum operation  *
 		************************************/
+		int cns_length = cns.size();
+		int cols_n = cns(cns_length -1) + 1;
+		int rows_n = cns_length;
 
-        copy_numbers = None
-        if seg.baseline_label == "True":
-            copy_numbers = [2]
-        elif get_loga(seg) > self._baseline:
-            copy_numbers = range(2, self._max_copy_number + 1)
-        else:
-            copy_numbers = range(0, 2 + 1)
+		ArrayXd bar_c = phi * cns + (1.0 - phi) * 2.0;
+		ArrayXd lambda_possion = (bar_c/2.0)*baseline*
+			(normal_reads_num + 1);
+		ArrayXd rds = log_poisson_pdf(lambda_possion);
 
-		return llh;
+		/***************************************
+		*  initialize with negative infinity  *
+		***************************************/
 
+		ArrayXXd ll(rows_n, cols_n);
+		ll.fill(-std::numeric_limits<double>::infinity());
+
+		/********************************
+		*  filter out b and d vector.  *
+		********************************/
+
+		//column vector
+		ArrayXd b_T_j = get_b_T_j(a, b);
+		ArrayXd d_T_j = get_d_T_j(a, b);
+
+		for(int i=0; i<rows_n; i++){
+			//mu_E should be row vector
+			//mu_N constant
+			//mu_G column vector
+			//c_N constant
+			//copy_number constant
+			//phi constant
+			//ArrayXd mu_E = get_mu_E_joint(mu_N, mu_G, c_N, copy_number, phi);
+			ArrayXd mu_E = get_mu_E_joint(cgn.getBaf(cns(i)), copy_number, phi);
+			ll.block(i,0,1,cns(i)+1) = log_binomial_likelihood(b_T_j, d_T_j, mu_E);
+		}
+
+		/******************************
+		*  get maximum args from ll  *
+		******************************/
+
+		MatrixXf::Index maxRow, maxCol;
+		float max_ll = ll.maxCoeff(&maxRow, &maxCol);
+
+		copy_number = cns(maxRow);
+		genotype = cgn.getGenotype(copy_number, maxCol);
+
+		return max_ll;
 	}
 };

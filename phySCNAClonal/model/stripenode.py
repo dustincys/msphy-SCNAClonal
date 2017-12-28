@@ -7,6 +7,7 @@ from node import *
 
 from util2 import *
 
+from phySCNAClonal import constants
 
 class StripeNode(Node):
 
@@ -56,7 +57,7 @@ class StripeNode(Node):
         return x[0]._log_likelihood(self.param)
 
     def logprob_restricted(self, x):
-        lower_node, upper_node = self.find_neighbor_datum_n(x)
+        lower_node, upper_node = self.__find_neighbor_datum_n(x)
 
         l_flag = True
         u_flag = True
@@ -77,7 +78,7 @@ class StripeNode(Node):
     def complete_logprob(self):
         return sum([self.logprob([data]) for data in self.get_data()])
 
-    def find_neighbor_datum_n(self, x):
+    def __find_neighbor_datum_n(self, x):
         datums = self.get_data()
         if x not in datums:
             datums.append(x)
@@ -94,6 +95,8 @@ class StripeNode(Node):
             return (datums_sorted[idx-1], datums_sorted[idx+1])
 
     def __is_good_gap(self, lower_node, upper_node, position):
+        varpi = constants.VARPI
+
         rdr_lower = 1.0*lower_node.tumor_reads_num/lower_node.normal_reads_num
         rdr_upper = 1.0*upper_node.tumor_reads_num/upper_node.normal_reads_num
         L = np.exp(rdr_upper - rdr_lower)
@@ -106,5 +109,5 @@ class StripeNode(Node):
         if cn < 0:
             return False
         else:
-            return L >= (1.0 + (self.param /
-                                (cn * self.param + 2 * (1 - self.param))))
+            return L >= varpi * (1.0 + (self.param /
+                    (cn * self.param + 2 * (1 - self.param))))

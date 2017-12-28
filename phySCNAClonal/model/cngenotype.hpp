@@ -6,6 +6,11 @@
 #include <vector>
 #include <map>
 
+#include <Eigen/Dense>
+#include <unsupported/Eigen/MatrixFunctions>
+#include <unsupported/Eigen/SpecialFunctions>
+
+using namespace Eigen;
 using namespace std;
 
 class cngenotype
@@ -17,7 +22,7 @@ public:
 	vector<string> getGenotype(int copy_number);
 
 	double getBaf(int copy_number, int index);
-	vector<double> getBaf(int copy_number);
+	ArrayXd getBaf(int copy_number);
 
 private:
 	//2: ["PP", "PM", "MM"]
@@ -26,7 +31,7 @@ private:
 	//是否添加基因型先验概率表
 	//map< int, vector<double> > cn_genotype_ll;
 	//2: [0.2, 0.5, 0.2]
-	map< int, vector<double> > cn_genotype_baf;
+	map< int, ArrayXd> cn_genotype_baf;
 
 	void init_map(int max_copy_number);
 	string genotype(int p_num, int m_num);
@@ -41,10 +46,10 @@ vector<string> cngenotype::getGenotype(int copy_number){
 }
 
 double cngenotype::getBaf(int copy_number, int index){
-	return this->cn_genotype_baf[copy_number][index];
+	return this->cn_genotype_baf[copy_number](index);
 }
 
-vector<double> cngenotype::getBaf(int copy_number){
+ArrayXd cngenotype::getBaf(int copy_number){
 	return this->cn_genotype_baf[copy_number];
 }
 
@@ -63,6 +68,8 @@ void cngenotype::init_map(int max_copy_number){
 	double EMPIRI_AAF = 1 - EMPIRI_BAF;
 
 	for(int cn=0; cn<max_copy_number+1; cn++){
+		int rows_n = ceil((max_copy_number+1.0)/2.0);
+		this->cn_genotype_baf[cn] = ArrayXd(rows_n);
 		for(int M_num=0; M_num<(cn + 2)/2; M_num++){
 			double mu_T = 0.0;
 			string pi_T = "";
@@ -80,8 +87,7 @@ void cngenotype::init_map(int max_copy_number){
 					'/' + this->genotype(M_num, P_num);
 			}
 			this->cn_genotype[cn].push_back(pi_T);
-			this->cn_genotype_baf[cn].push_back(mu_T);
-			//this->cn_genotype_ll[cn].push_back(mu_T);
+			this->cn_genotype_baf[cn](M_num) = mu_T;
 		}
 	}
 }
