@@ -31,12 +31,10 @@ def get_c_fnames(tmp_dir):
         return os.path.join(tmp_dir, fname)
 
     FNAME_C_TREE = _make_c_fname('tree')
-    FNAME_C_DATA_STATES = _make_c_fname('data_states')
     FNAME_C_PARAMS = _make_c_fname('params')
     FNAME_C_MH_ARATIO = _make_c_fname('mh_ar')
 
-    return (FNAME_C_TREE, FNAME_C_DATA_STATES, FNAME_C_PARAMS,
-            FNAME_C_MH_ARATIO)
+    return (FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO)
 
 
 # done for multi-sample
@@ -47,45 +45,44 @@ def metropolis(tssb,
                std=0.01,
                burnin=0,
                n_stripes=0,
+               fin='',
                rseed=1,
-               ntps=5,
                tmp_dir='.'):
     wts, nodes = tssb.get_mixture()
 
     # file names
-    # NTPS = str(ntps)
-    FNAME_C_TREE, FNAME_C_DATA_STATES, FNAME_C_PARAMS, FNAME_C_MH_ARATIO = get_c_fnames(
-        tmp_dir)
+    FNAME_STRIPE_DATA = fin
+    FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO = get_c_fnames(tmp_dir)
 
     ## initialize the MH sampler###########
-    # for tp in arange(ntps):
-    #	sample_cons_params(tssb,tp)
-    #	update_params(tssb,tp)
+    # sample_cons_params(tssb)
+    # update_params(tssb)
     ######################################
 
     ## prepare to call the c++ code ###########
     u2.set_node_height(tssb)
-    write_tree(tssb, n_ssms,
-               FNAME_C_TREE)  # write the current tree to the disk
+    write_tree(tssb, FNAME_C_TREE)  # write the current tree to the disk
     u2.map_datum_to_node(tssb)
-
-    # this is need for binomial parameter computations
-    write_data_state(tssb, FNAME_C_DATA_STATES)
     ###########################################
 
     MH_ITR = str(iters)
     MH_STD = str(std)
-    N_SSM_DATA = str(n_ssms)
-    N_CNV_DATA = str(n_cnvs)
+    N_STRIPE_DATA = str(n_stripes)
     NNODES = str(len(nodes))
     TREE_HEIGHT = str(max([node.ht for node in nodes]) + 1)
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
     sp.check_call([
-        '%s/mh.o' % script_dir, MH_ITR, MH_STD, N_SSM_DATA, N_CNV_DATA, NNODES,
-        TREE_HEIGHT, FNAME_SSM_DATA, FNAME_CNV_DATA, FNAME_C_TREE,
-        FNAME_C_DATA_STATES, FNAME_C_PARAMS, FNAME_C_MH_ARATIO, NTPS
-    ])
+        '%s/mh.o' % script_dir,
+        MH_ITR,
+        MH_STD,
+        N_STRIPE_DATA,
+        NNODES,
+        TREE_HEIGHT,
+        FNAME_STRIPE_DATA,
+        FNAME_C_TREE,
+        FNAME_C_PARAMS,
+        FNAME_C_MH_ARATIO])
     ar = str(loadtxt(FNAME_C_MH_ARATIO, dtype='string'))
     # update the tree with the new parameters sampled using the c++ code
     update_tree_params(tssb, FNAME_C_PARAMS)
@@ -95,7 +92,7 @@ def metropolis(tssb,
 
 # done for multi-sample
 
-def write_tree(tssb, n_ssms, fname):
+def write_tree(tssb, fname):
     fh = open(fname, 'w')
     wts, nodes = tssb.get_mixture()
     did_int_dict = dict()
@@ -143,22 +140,23 @@ def write_tree(tssb, n_ssms, fname):
 # these weights are used to compute data log-likelihood
 
 
-def write_data_state(tssb, fname):
-    fh = open(fname, 'w')
-    wts, nodes = tssb.get_mixture()
+# 此处不需要传递拷贝数和基因型参数
+# def write_data_state(tssb, fname):
+    # fh = open(fname, 'w')
+    # wts, nodes = tssb.get_mixture()
 
-    # 此处dat为stripe，记录拷贝数、基因型、以及population frequency
-    # 注意此处基因型无法区分呈现互补数的基因型
-    for dat in tssb.data:
-        if not dat.node:
-            continue  # todo: this won't happen
-        for node in nodes:
-            fh.write(str(dat.id) + '\t' + str(dat.copy_number) + '\t' +
-                str(dat.genotype) + '\t' + str(dat.phi))
-            fh.write('\n')
+    # # 此处dat为stripe，记录拷贝数、基因型、以及population frequency
+    # # 注意此处基因型无法区分呈现互补数的基因型
+    # for dat in tssb.data:
+        # if not dat.node:
+            # continue  # todo: this won't happen
+        # for node in nodes:
+            # fh.write(str(dat.id) + '\t' + str(dat.copy_number) + '\t' +
+                # str(dat.genotype) + '\t' + str(dat.phi))
+            # fh.write('\n')
 
-    fh.flush()
-    fh.close()
+    # fh.flush()
+    # fh.close()
 
 
 # done for multi-sample
@@ -186,56 +184,54 @@ def update_tree_params(tssb, fname):
     fh.close()
 
     for p in params:
-        ndict[int(p[0])].params = string_to_list(p[1])
-        ndict[int(p[0])].pi = string_to_list(p[2])
+        ndict[int(p[0])].params = float(p[1])
+        ndict[int(p[0])].pi = float(p[2])
     # params=loadtxt('c_params.txt')
     # for p in params:
     #	ndict[p[0]].params = p[1]
     #	ndict[p[0]].pi = p[2]
 
 
-def string_to_list(p):
-    p = p.strip(',')
-    return array([float(pp) for pp in p.split(',')])
+# def string_to_list(p):
+    # p = p.strip(',')
+    # return array([float(pp) for pp in p.split(',')])
 
 
 # done for multi-sample
 # tree-structured finite-dimensional stick breaking
 
 
-def sample_cons_params(tssb, tp):
-    def descend(root, tp):
+def sample_cons_params(tssb):
+    def descend(root):
 
         if root.parent() is None:
-            root.params1[tp] = 1
-            root.pi1[tp] = root.params1[tp] * rand(1)  # break nu stick
-        r = root.params1[tp] - root.pi1[tp]  # mass assigned to children
+            root.params1 = 1
+            root.pi1 = root.params1 * rand(1)  # break nu stick
+        r = root.params1 - root.pi1  # mass assigned to children
         p = rand(len(root.children()))
         p = r * p * 1. / sum(p)
         index = 0
         for child in root.children():
-            child.params1[tp] = p[index]  # break psi sticks
+            child.params1 = p[index]  # break psi sticks
             # break nu stick
-            child.pi1[tp] = child.params1[tp] * (rand(1)**
+            child.pi1 = child.params1 * (rand(1)**
                                                  (len(child.children()) > 0))
             index += 1
         for child in root.children():
-            descend(child, tp)
+            descend(child)
 
-    descend(tssb.root['node'], tp)
-
-
-# done for multi-sample
+    descend(tssb.root['node'])
 
 
-def update_params(tssb, tp):
-    def descend(root, tp):
+
+def update_params(tssb):
+    def descend(root):
         for child in root.children():
-            descend(child, tp)
-        root.params[tp] = root.params1[tp]
-        root.pi[tp] = root.pi1[tp]
+            descend(child)
+        root.params = root.params1
+        root.pi = root.pi1
 
-    descend(tssb.root['node'], tp)
+    descend(tssb.root['node'])
 
 
 ###### old code, not in use #############

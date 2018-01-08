@@ -173,11 +173,8 @@ void write_params(char fname[], struct node *nodes, struct config conf){
 	ofstream dfile;
 	dfile.open(fname);
 	for(int i=0;i<conf.NNODES;i++){
-		dfile<<nodes[i].id<<'\t';
-		dfile<<nodes[i].param<<',';
-		dfile<<'\t';
-		dfile<<nodes[i].pi<<',';
-		dfile<<'\n';
+		dfile<<nodes[i].id<<'\t'<<nodes[i].param<<'\t'<<nodes[i].pi
+			<<'\n';
 	}
 	dfile.close();
 }
