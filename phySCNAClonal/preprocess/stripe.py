@@ -223,10 +223,9 @@ class DataStripes(object):
 
     def output_txt(self, outFileName):
         with open(outFileName, 'w') as outFile:
-            outFile.write("{0}\t{1}\t{2}\t{3}\n".format(
+            outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
                 "id", "segs_idx", "paired_counts", "tumor_reads_num",
-                "normal_reads_num", "rdr", "baseline_label" , "copy_number",
-                "genotype", "phi"))
+                "normal_reads_num", "baseline_label"))
 
             for s in self.stripes:
                 a_T = s.paired_counts[:,2]
@@ -234,17 +233,13 @@ class DataStripes(object):
                 a_T_strl = np.array_str(a_T).strip("[]").split()
                 b_T_strl = np.array_str(b_T).strip("[]").split()
 
-                outFile.write("{0}\t{1}\t{2}\t{3}\n".format(
+                outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
                     s.stripe_id,
                     ",".join(s.segs_idx),
                     "{0}|{1}".format(",".join(a_T_strl), ",".join(b_T_strl)),
                     s.tumor_reads_num,
                     s.normal_reads_num,
-                    s.rdr,
-                    s.baseline_label,
-                    s.copy_number,
-                    s.genotype,
-                    s.phi)
+                    s.baseline_label)
             pass
 
     def _aggregation(self, y_down, y_up, stripe_num, noise_stripe_num=2):

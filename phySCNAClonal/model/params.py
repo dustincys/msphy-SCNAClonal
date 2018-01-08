@@ -95,16 +95,14 @@ def metropolis(tssb,
 
 # done for multi-sample
 
-
 def write_tree(tssb, n_ssms, fname):
     fh = open(fname, 'w')
     wts, nodes = tssb.get_mixture()
     did_int_dict = dict()
+
+    # 此处stripe的ID应为数值
     for dat in tssb.data:
-        if dat.id[0] == 's':
-            did_int_dict[dat.id] = int(dat.id[1:])
-        else:
-            did_int_dict[dat.id] = n_ssms + int(dat.id[1:])
+        did_int_dict[dat.id] = int(dat.id)
 
     def descend(root):
         for child in root.children():
@@ -125,10 +123,11 @@ def write_tree(tssb, n_ssms, fname):
         if dids == '':
             dids = str(-1)
 
-        line = str(root.id) + '\t' + list_to_string(
-            root.params) + '\t' + list_to_string(root.pi) + '\t' + str(
-                len(root.children())) + '\t' + cids + '\t' + str(
-                    len(root.get_data())) + '\t' + dids + '\t' + str(root.ht)
+        line = str(root.id) + '\t' + str( root.params) + '\t' +\
+            str(root.pi) + '\t' + str(len(root.children())) + '\t' +\
+            cids + '\t' + str(len(root.get_data())) + '\t' + dids +\
+            '\t' + str(root.ht)
+
         fh.write(line)
         fh.write('\n')
         fh.flush()
@@ -136,16 +135,7 @@ def write_tree(tssb, n_ssms, fname):
 
     descend(tssb.root['node'])
     fh.flush()
-
     fh.close()
-
-
-def list_to_string(p):
-    o = ''
-    for pp in p:
-        o += str(pp) + ','
-    return o.strip(',')
-
 
 # no changes for multi-sample
 # data/node state format (parameter independent dot-product weights)
@@ -172,7 +162,6 @@ def write_data_state(tssb, fname):
 
 
 # done for multi-sample
-
 
 def find_most_recent_cnv(dat, nd):
     out = None

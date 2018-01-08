@@ -12,15 +12,13 @@
 using namespace std;
 using namespace Eigen;
 
-void sample_cons_params(struct node nodes[],struct config conf,gsl_rng *rand,int tp);
+void sample_cons_params(struct node nodes[],struct config conf,gsl_rng *rand);
 double multi_param_post(struct node nodes[], struct datum data[], int old,struct config conf);
-double param_post(struct node nodes[], struct datum data[], int old,struct config conf, int tp);
+double param_post(struct node nodes[], struct datum data[], int old,struct config conf);
 void update_params(struct node nodes[], struct config conf);
-void get_pi(struct node nodes[], double pi[], struct config conf, int old, int tp);
+void get_pi(struct node nodes[], double pi[], struct config conf, int old);
 
-void load_ssm_data(char fname[], struct datum data[], struct config conf);
-void load_cnv_data(char fname[], struct datum data[], struct config conf);
-void load_data_states(char fname[], struct datum data[], struct node nodes[], struct config conf);
+void load_stripe_data(char fname[],struct datum *data, struct config conf);
 
 void load_tree(char fname[], struct node nodes[], struct config conf);
 void write_params(char fname[], struct node nodes[], struct config conf);
@@ -30,24 +28,15 @@ void mh_loop(struct node nodes[], struct datum data[], char* fname, struct confi
 struct config{
 	int MH_ITR;
 	float MH_STD;
-
-	int N_SSM_DATA; // no. of data points
-	int N_CNV_DATA; // no. of data points
-
+	int N_STRIPE_DATA; // no. of data points
 	int NNODES; // no. of nodes in the tree
 	int TREE_HEIGHT;
-	int NTPS; // no. of samples / time points
-};
-
-struct state{
-	struct node* nd;
-	int nr,nv;
 };
 
 struct node{
 	int id;
-	vector<double> param,pi;
-	vector<double> param1,pi1; // dummy
+	double param,pi;
+	double param1,pi1; // dummy
 	int ndata;
 	vector<int> dids;
 	int nchild;
@@ -60,7 +49,7 @@ struct datum{
 	int id;
 
 	//用于保存原始seg的索引，用于post process
-	vector<int> segs_idx;
+	//vector<int> segs_idx;
 
 	ArrayXd a;
 	ArrayXd b;
