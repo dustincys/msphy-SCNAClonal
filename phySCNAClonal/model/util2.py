@@ -154,8 +154,7 @@ class CorruptZipFileError(Exception):
 class BackupManager(object):
     def __init__(self, filenames):
         self._filenames = filenames
-        self._backup_filenames = [
-            os.path.realpath(fn) +
+        self._backup_filenames = [os.path.realpath(fn) +
             '.backup' for fn in self._filenames]
 
     def save_backup(self):

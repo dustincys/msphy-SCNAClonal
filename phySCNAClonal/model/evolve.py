@@ -18,7 +18,7 @@ import cPickle as pickle
 from numpy import *
 from numpy.random import *
 from tssb import *
-from alleles import *
+from stripenode import *
 from util import *
 
 import numpy.random
@@ -42,10 +42,22 @@ from datetime import datetime
 # seed automatically.
 
 
-def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
-                  config, params_file, top_k_trees_file,
-                  clonal_freqs_file, burnin_samples, num_samples, mh_itr,
-                  mh_std, write_state_every, write_backups_every, rand_seed,
+def start_new_run(state_manager,
+                  backup_manager,
+                  safe_to_exit,
+                  run_succeeded,
+                  config,
+                  stripe_file,
+                  params_file,
+                  top_k_trees_file,
+                  clonal_freqs_file,
+                  burnin_samples,
+                  num_samples,
+                  mh_itr,
+                  mh_std,
+                  write_state_every,
+                  write_backups_every,
+                  rand_seed,
                   tmp_dir):
     state = {}
 
@@ -70,6 +82,7 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
     with open('random_seed.txt', 'w') as seedf:
         seedf.write('%s\n' % state['rand_seed'])
 
+    state['stripe_file'] = stripe_file
     state['tmp_dir'] = tmp_dir
     state['top_k_trees_file'] = top_k_trees_file
     state['clonal_freqs_file'] = clonal_freqs_file
@@ -78,6 +91,7 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
 
     # 此处载入数据
     stripes, baseline = load_data(state['stripes_file'])
+    n_stripes = len(stripes)
 
     if len(stripes) == 0:
         logmsg('No stripes provided. Exiting.', sys.stderr)
@@ -89,7 +103,7 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
     # state['glist'] = [datum.name for datum in codes if len(datum.name) > 0]
 
     # stripe list
-    state['stripe_list'] = [stripe_name. for stripe in stripes]
+    state['stripe_list'] = [stripe.stripe_name for stripe in stripes]
 
     # MCMC settings
     state['burnin'] = burnin_samples
@@ -108,7 +122,8 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
     state['burnin_cd_llh_traces'] = zeros((state['burnin'], 1))
     state['working_directory'] = os.getcwd()
 
-    root = alleles(conc=0.1, ntps=NTPS)
+    root = StripeNode(conc=0.1)
+
     state['tssb'] = TSSB(
         dp_alpha=state['dp_alpha'],
         dp_gamma=state['dp_gamma'],
@@ -143,8 +158,8 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
         stripe.tssb = state['tssb']
 
     tree_writer = TreeWriter()
-    tree_writer.add_extra_file('cnv_logical_physical_mapping.json',
-                               json.dumps(cnv_logical_physical_mapping))
+    # tree_writer.add_extra_file('cnv_logical_physical_mapping.json',
+                               # json.dumps(cnv_logical_physical_mapping))
 
     if params_file is not None:
         with open(params_file) as F:
@@ -154,6 +169,7 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
     tree_writer.add_extra_file('params.json', json.dumps(params))
 
     state_manager.write_initial_state(state)
+
     logmsg("Starting MCMC run...")
     state['last_iteration'] = -state['burnin'] - 1
 
@@ -162,8 +178,16 @@ def start_new_run(state_manager, backup_manager, safe_to_exit, run_succeeded,
     with open('mcmc_samples.txt', 'w') as mcmcf:
         mcmcf.write('Iteration\tLLH\tTime\n')
 
-    do_mcmc(state_manager, backup_manager, safe_to_exit, run_succeeded, config,
-            state, tree_writer, stripes, tmp_dir)
+    do_mcmc(state_manager,
+            backup_manager,
+            safe_to_exit,
+            run_succeeded,
+            config,
+            state,
+            tree_writer,
+            stripes,
+            n_stripes,
+            tmp_dir)
 
 
 def resume_existing_run(state_manager, backup_manager, safe_to_exit,
@@ -184,16 +208,32 @@ def resume_existing_run(state_manager, backup_manager, safe_to_exit,
         tree_writer = TreeWriter(resume_run=True)
 
     set_state(state['rand_state'])  # Restore NumPy's RNG state.
-    codes, n_ssms, n_cnvs, cnv_logical_physical_mapping = load_data(
-        state['ssm_file'], state['cnv_file'])
-    NTPS = len(codes[0].a)  # number of samples / time point
 
-    do_mcmc(state_manager, backup_manager, safe_to_exit, run_succeeded, config,
-            state, tree_writer, stripes, state['tmp_dir'])
+    stripes, baseline = load_data(state['stripes_file'])
+    n_stripes = len(stripes)
+
+    do_mcmc(state_manager,
+            backup_manager,
+            safe_to_exit,
+            run_succeeded,
+            config,
+            state,
+            tree_writer,
+            stripes,
+            n_stripes,
+            state['tmp_dir'])
 
 
-def do_mcmc(state_manager, backup_manager, safe_to_exit, run_succeeded, config,
-            state, tree_writer, stripes, tmp_dir_parent):
+def do_mcmc(state_manager,
+            backup_manager,
+            safe_to_exit,
+            run_succeeded,
+            config,
+            state,
+            tree_writer,
+            stripes,
+            n_stripes,
+            tmp_dir_parent):
     start_iter = state['last_iteration'] + 1
     unwritten_trees = []
     mcmc_sample_times = []
@@ -231,8 +271,14 @@ def do_mcmc(state_manager, backup_manager, safe_to_exit, run_succeeded, config,
         ##################################################
 
         state['mh_acc'] = metropolis(
-            tssb, state['mh_itr'], state['mh_std'], state['mh_burnin'],
-            n_stripes, state['rand_seed'],config['tmp_dir'])
+            tssb,
+            state['mh_itr'],
+            state['mh_std'],
+            state['mh_burnin'],
+            n_stripes,
+            state['stripe_file'],
+            state['rand_seed'],
+            config['tmp_dir'])
 
         if float(state['mh_acc']) < 0.08 and state['mh_std'] < 10000:
             state['mh_std'] = state['mh_std'] * 2.0
@@ -344,7 +390,7 @@ def test():
 def parse_args():
     parser = argparse.ArgumentParser(
         description=
-        'Run PhyloWGS to infer subclonal composition from SSMs and CNVs',
+        'Run phySCNAClonal to infer subclonal composition from SCNA stripes',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         '-b',
@@ -413,15 +459,9 @@ def parse_args():
         dest='params_file',
         help='JSON file listing run parameters, generated by the parser')
     parser.add_argument(
-        'ssm_file',
+        'stripe_file',
         help=
-        'File listing SSMs (simple somatic mutations, i.e., single nucleotide variants. For proper format, see README.md.'
-    )
-    parser.add_argument(
-        'cnv_file',
-        help=
-        'File listing CNVs (copy number variations). For proper format, see README.md.'
-    )
+        'File listing stripes(SCNA stripes). For proper format, see README.md.')
     args = parser.parse_args()
     return args
 
@@ -439,10 +479,8 @@ def run(safe_to_exit, run_succeeded, config):
         args = parse_args()
         # Ensure input files exist and can be read.
         try:
-            ssm_file = open(args.ssm_file)
-            cnv_file = open(args.cnv_file)
-            ssm_file.close()
-            cnv_file.close()
+            stripe_file = open(args.stripe_file)
+            stripe.close()
         except IOError as e:
             sys.stderr.write(str(e) + '\n')
             sys.exit(1)
@@ -453,8 +491,7 @@ def run(safe_to_exit, run_succeeded, config):
             safe_to_exit,
             run_succeeded,
             config,
-            args.ssm_file,
-            args.cnv_file,
+            args.stripe_file,
             args.params_file,
             top_k_trees_file=args.top_k_trees,
             clonal_freqs_file=args.clonal_freqs,
