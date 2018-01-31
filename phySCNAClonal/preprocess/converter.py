@@ -57,7 +57,7 @@ class BamConverter:
         self.__bedCorrectedPath=bedCorrectedPath
         self.__pklPath = pklPath
 
-        self._tSampleDataL = []
+        self._segmentPoolL = []
 
     def convert(self, method, pkl_flag=False):
 
@@ -72,9 +72,9 @@ class BamConverter:
             print "phySCNAClonal converter converting"
 
             if "auto" == method:
-                self._MCMC_gccorrection()
+                self._MCMC_GC_C()
             elif "visual" == method:
-                self._visual_gccorrection()
+                self._V_GC_C()
                 sys.stdout.flush()
             self._get_counts()
 
@@ -115,15 +115,23 @@ class BamConverter:
             tempSP.load_segments(nBam, tBam, bedName)
             nBam.close()
             tBam.close()
-            self._tSampleDataL.append(tempSP)
+            self._segmentPoolL.append(tempSP)
 
-    def _MCMC_gccorrection(self, subcloneNumberL, data):
+    def _correct_bias(self, method=""):
+        for segmentPool, subcloneNumber in zip(self._segmentPoolL,
+                                               self.__subcloneNumberL):
+            if "auto" == method:
+                self._MCMC_GC_C(SegmentPool, subcloneNumber)
+            elif "visual" == method:
+                self._V_GC_C(SegmentPool, len(SegmentPool.segments))
+
+    def _MCMC_GC_C(self, data, subcloneNumber):
         """
         The interception is irrelevant for correction, set as median
         MCMCLM only returns the m and c, then correct the data here
         """
 
-        mcmclm = MCMCLM(data, 0, subcloneNumberL, self.__maxCopyNumber)
+        mcmclm = MCMCLM(data, 0, subcloneNumber, self.__maxCopyNumber)
         m, c = mcmclm.run()
         print "MCMC slope = {}".format(m)
 
@@ -160,14 +168,30 @@ class BamConverter:
         print "x, y, m, c"
         print x, y, m, c
 
-    def _visual_gccorrection(self):
-        gsp = GCStripePlot(self.data.segments, len(self.data.segments))
-        print "total number: {}".format(self.data.seg_num)
+    def _V_GC_C(self, segmentPool, sampleNumber=10000):
+        gsp = GCStripePlot(segmentPool.segments, sampleNumber)
+        show("total number: {}".format(len(segmentPool.segments)))
         gsp.plot()
-        x, y, m, c = gsp.output()
-        print "x, y, m, c"
-        print x, y, m, c
-        self._correct(m, c)
+        show("x, y, m, c")
+        show(gsp.output())
+
+        x = np.array(map(lambda seg: seg.gc, data.segments))
+        y = np.array(map(lambda seg: np.log(seg.tumor_reads_num + 1) -
+                         np.log(seg.normal_reads_num + 1), data.segments))
+        y_corrected = self._correct(x, y, m, c)
+
+        for i in range(len(y_corrected)):
+            data.segments[i].tumor_reads_num = np.exp(
+                y_corrected[i] +
+                np.log(data.segments[i].normal_reads_num + 1)
+            ) - 1
+            data.segments[i].log_ratio = np.log(
+                (y_corrected[i] + 1.0) /
+                (data.segments[i].normal_reads_num + 1.0)
+            )
+
+        print "gc corrected, with slope = {0}, intercept = {1}".\
+            format(slope, intercept)
 
     def _baseline_selection(self):
         print "begin baseline selection.."
