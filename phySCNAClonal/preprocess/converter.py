@@ -1,12 +1,12 @@
 '''
 # =============================================================================
-#      FileName: BamToDataConverter.py
+#      FileName: converter.py
 #          Desc:
 #        Author: Chu Yanshuo
 #         Email: chu@yanshuo.name
 #      HomePage: http://yanshuo.name
 #       Version: 0.0.1
-#    LastChange: 2016-10-08 10:54:48
+#    LastChange: 2018-01-31 14:07:22
 #       History:
 # =============================================================================
 '''
@@ -22,46 +22,49 @@ from mcmc import MCMCLM
 from phySCNAClonal.preprocess.data import Data
 from phySCNAClonal.preprocess.stripe import Stripe, DataStripes
 from phySCNAClonal.preprocess.iofun import PairedCountsIterator, PairedPileupIterator
-from phySCNAClonal.preprocess.utils import get_BAF_counts, normal_heterozygous_filter
+
+from phySCNAClonal.preprocess.utils import show, get_BAF_counts, normal_heterozygous_filter
 
 from plotGC import GCStripePlot
 
 
-class phySCNAClonal_Converter:
+class BamConverter:
 
-    def __init__(self, normal_bam_filename, tumor_bam_filename,
-                 reference_genome_filename, input_filename_base, segments_bed,
-                 BICseq_bed_fileName_corrected, pkl_path="",
-                 max_copynumber=6, subclone_num=1, baseline_thred_LOH=0.3,
-                 baseline_thred_APM=0.01, min_depth=20, min_bqual=10,
-                 min_mqual=10,  process_num=1):
-        self.normal_bam_filename = normal_bam_filename
-        self.tumor_bam_filename = tumor_bam_filename
-        self.reference_genome_filename = reference_genome_filename
-        self.input_filename_base = input_filename_base
-        self.segments_bed = segments_bed
-        self.BICseq_bed_fileName_corrected = BICseq_bed_fileName_corrected
-        self.pkl_path = pkl_path
+    def __init__(self, nBamName, tBamNameL, bedNameL, refFaName, pathPrefix,
+                 coverageL = [30], subcloneNumberL=1, maxCopyNumber=6,
+                 baselineThredLOH=0.3, baselineThredAPM=0.01, minDepth=20,
+                 minBqual=10, minMqual=10, processNum=1, bedCorrectedPath="",
+                 pklPath=""):
+        self._nBamName = nBamName
+        self._tBamNameL = tBamNameL
+        self._bedNameL = bedNameL
+        self._refFaName = refFaName
 
-        self.max_copynumber = max_copynumber
-        self.subclone_num = subclone_num
-        self.baseline_thred_LOH = baseline_thred_LOH
-        self.baseline_thred_APM = baseline_thred_APM
+        self.__pathPrefix = pathPrefix
 
-        self.min_depth = min_depth
-        self.min_bqual = min_bqual
-        self.min_mqual = min_mqual
-        print "process_num = {}".format(process_num)
-        self.process_num = process_num
+        self.__subcloneNumberL = subcloneNumberL
+        self.__coverageL = coverageL
+        self.__maxCopyNumber = maxCopyNumber
+        self.__baselineThredLOH = baselineThredLOH
+        self.__baselineThredAPM = baselineThredAPM
 
-        self.data = Data()
-        self.stripes = None
+        self.__minDepth = minDepth
+        self.__minBqual = minBqual
+        self.__minMqual = minMqual
+
+        self.__processNum = processNum
+
+        self.__bedCorrectedPath=bedCorrectedPath
+        self.__pklPath = pklPath
+
+        self._tSampleDataL = []
 
     def convert(self, method, pkl_flag=False):
-        if pkl_flag and self.pkl_path != "":
+
+        if pkl_flag and self.__pklPath != "":
             print "load pkl from"
-            print self.pkl_path
-            infile = open(self.pkl_path, 'rb')
+            print self.__pklPath
+            infile = open(self.__pklPath, 'rb')
             self.data = pkl.load(infile)
             infile.close()
         else:
@@ -78,7 +81,7 @@ class phySCNAClonal_Converter:
         self.visualize()
         self._baseline_selection()
 
-        data_file_name = self.input_filename_base + '.phySCNAClonal.input.pkl'
+        data_file_name = self.__pathPrefix + '.phySCNAClonal.input.pkl'
         outfile = open(data_file_name, 'wb')
         pkl.dump(self.data, outfile, protocol=2)
         outfile.close()
@@ -87,47 +90,67 @@ class phySCNAClonal_Converter:
         self.dataStripes = DataStripes(self.data)
         self.dataStripes.get()
 
-        stripes_file_name = self.input_filename_base + '.phySCNAClonal.stripes.input.pkl'
+        stripes_file_name = self.__pathPrefix + '.phySCNAClonal.stripes.input.pkl'
         outfile = open(stripes_file_name, 'wb')
         pkl.dump(self.dataStripes, outfile, protocol=2)
         outfile.close()
 
-        stripes_file_name = self.input_filename_base + '.phySCNAClonal.stripes.input.txt'
+        stripes_file_name = self.__pathPrefix + '.phySCNAClonal.stripes.input.txt'
         self.dataStripes.output_txt(stripes_file_name)
 
-    def _MCMC_gccorrection(self):
+    def _load_segments(self):
+        """
+        load segments for each tumor sample
+        """
+        assert len(self._tBamNameL) == len(self._bedNameL)
+        assert len(self._tBamNameL) == len(self.__subcloneNumberL)
+
+        for tBamName, bedName, coverage, subcloneNumber in zip(self._tBamNameL,
+            self._bedNameL, self.__coverageL, self.__subcloneNumberL):
+            show('Loading segments from bam file:\n{0}\n'.format(tBamName))
+            show('and bed file with gc:\n{0}\n'.format(bedName))
+            tempSP = SegmentPool(self.__maxCopyNumber, coverage)
+            nBam = pysam.Samfile(self._nBamName, 'rb')
+            tBam = pysam.Samfile(tBamName, 'rb')
+            tempSP.load_segments(nBam, tBam, bedName)
+            nBam.close()
+            tBam.close()
+            self._tSampleDataL.append(tempSP)
+
+    def _MCMC_gccorrection(self, subcloneNumberL, data):
         """
         The interception is irrelevant for correction, set as median
         MCMCLM only returns the m and c, then correct the data here
         """
-        mcmclm = MCMCLM(self.data, 0, self.subclone_num, self.max_copynumber)
+
+        mcmclm = MCMCLM(data, 0, subcloneNumberL, self.__maxCopyNumber)
         m, c = mcmclm.run()
         print "MCMC slope = {}".format(m)
-        self._correct(m, c)
 
-    def _correct(self, slope, intercept):
-
-        x = np.array(map(lambda seg: seg.gc, self.data.segments))
+        x = np.array(map(lambda seg: seg.gc, data.segments))
         y = np.array(map(lambda seg: np.log(seg.tumor_reads_num + 1) -
                          np.log(seg.normal_reads_num + 1),
-                         self.data.segments))
+                         data.segments))
 
-        K = np.percentile(y, 50)
-        A = slope * x + intercept
-        y_corrected = y - A + K
+        y_corrected = self._correct(x, y, m, c)
 
         for i in range(len(y_corrected)):
-            self.data.segments[i].tumor_reads_num = np.exp(
+            data.segments[i].tumor_reads_num = np.exp(
                 y_corrected[i] +
-                np.log(self.data.segments[i].normal_reads_num + 1)
+                np.log(data.segments[i].normal_reads_num + 1)
             ) - 1
-            self.data.segments[i].log_ratio = np.log(
+            data.segments[i].log_ratio = np.log(
                 (y_corrected[i] + 1.0) /
-                (self.data.segments[i].normal_reads_num + 1.0)
+                (data.segments[i].normal_reads_num + 1.0)
             )
 
         print "gc corrected, with slope = {0}, intercept = {1}".\
             format(slope, intercept)
+
+    def _correct(self, x, y, slope, intercept):
+        K = np.percentile(y, 50)
+        A = slope * x + intercept
+        return y - A + K
 
     def visualize(self):
         gsp = GCStripePlot(self.data.segments, len(self.data.segments))
@@ -155,15 +178,15 @@ class phySCNAClonal_Converter:
         self._compute_Lambda_S()
 
     def _get_APM_status(self):
-        self.data.get_APM_status(self.baseline_thred_APM)
+        self.data.get_APM_status(self.__baselineThredAPM)
 
     def _get_LOH_status(self):
-        self.data.get_LOH_status(self.baseline_thred_LOH,
+        self.data.get_LOH_status(self.__baselineThredLOH,
                                  flag_runpreprocess=True)
 
     def _compute_Lambda_S(self):
         print "begin compute lambda s .."
-        self.data.compute_Lambda_S_LOH(self.max_copynumber, self.subclone_num,
+        self.data.compute_Lambda_S_LOH(self.__maxCopyNumber, self.__subcloneNumberL,
                                        flag_runpreprocess=True)
 
     def _load_segmentsn(self):
@@ -171,41 +194,31 @@ class phySCNAClonal_Converter:
         :returns: TODO
 
         """
-        normal_bam = pysam.Samfile(self.normal_bam_filename, 'rb')
-        tumor_bam = pysam.Samfile(self.tumor_bam_filename, 'rb')
+        nBam = pysam.Samfile(self._nBamName, 'rb')
+        tBam = pysam.Samfile(self.tBam_filename, 'rb')
 
         print 'Loading normalized segments by {0}...'.format(self.segments_bed)
         sys.stdout.flush()
-        self.data.load_segmentsn(normal_bam, tumor_bam, self.segments_bed)
+        self.data.load_segmentsn(nBam, tBam, self.segments_bed)
 
-        normal_bam.close()
-        tumor_bam.close()
+        nBam.close()
+        tBam.close()
 
-    def _load_segments(self):
-        normal_bam = pysam.Samfile(self.normal_bam_filename, 'rb')
-        tumor_bam = pysam.Samfile(self.tumor_bam_filename, 'rb')
 
+    def _load_segments_bed(self, segments_bed, data):
         print 'Loading segments with gc by {0}...'.format(self.segments_bed)
         sys.stdout.flush()
-        self.data.load_segments(normal_bam, tumor_bam, self.segments_bed)
+        data.load_segments_bed(segments_bed)
 
-        normal_bam.close()
-        tumor_bam.close()
-
-    def _load_segments_bed(self):
-        print 'Loading segments with gc by {0}...'.format(self.segments_bed)
-        sys.stdout.flush()
-        self.data.load_segments_bed(self.segments_bed)
-
-    def _get_counts(self):
+    def _get_counts(self, tBam_filename, data):
         seg_num = self.data.seg_num
-        process_num = self.process_num
-        print "process_num = {}".format(process_num)
+        processNum = self.__processNum
+        print "processNum = {}".format(processNum)
 
-        if process_num > seg_num:
-            process_num = seg_num
+        if processNum > seg_num:
+            processNum = seg_num
 
-        pool = Pool(processes=process_num)
+        pool = Pool(processes=processNum)
 
         args_list = []
 
@@ -222,12 +235,12 @@ class phySCNAClonal_Converter:
                 chrom_idx,
                 start,
                 end,
-                self.normal_bam_filename,
-                self.tumor_bam_filename,
-                self.reference_genome_filename,
-                self.min_depth,
-                self.min_bqual,
-                self.min_mqual)
+                self._nBamName,
+                tBam_filename,
+                self._refFaName,
+                self.__minDepth,
+                self.__minBqual,
+                self.__minMqual)
 
             args_list.append(args_tuple)
 
@@ -236,8 +249,8 @@ class phySCNAClonal_Converter:
         for j in range(0, seg_num):
             paired_counts_j, BAF_counts_j = counts_tuple_list[j]
 
-            self.data.segments[j].paired_counts = paired_counts_j
-            self.data.segments[j].BAF_counts = BAF_counts_j
+            data.segments[j].paired_counts = paired_counts_j
+            data.segments[j].BAF_counts = BAF_counts_j
 
     def _get_LOH_frac(self):
         self.data.get_LOH_frac()
@@ -250,19 +263,19 @@ class phySCNAClonal_Converter:
 
 
 def process_by_segment(args_tuple):
-    seg_name, chrom_name, chrom_idx, start, end, normal_bam_filename,\
-        tumor_bam_filename, reference_genome_filename, min_depth, min_bqual,\
-        min_mqual = args_tuple
+    seg_name, chrom_name, chrom_idx, start, end, nBamName,\
+        tBam_filename, refFaName, minDepth, minBqual,\
+        minMqual = args_tuple
 
     print 'Preprocessing segment {0}...'.format(seg_name)
     sys.stdout.flush()
 
-    normal_bam = pysam.Samfile(normal_bam_filename, 'rb')
-    tumor_bam = pysam.Samfile(tumor_bam_filename, 'rb')
-    ref_genome_fasta = pysam.Fastafile(reference_genome_filename)
+    nBam = pysam.Samfile(nBamName, 'rb')
+    tBam = pysam.Samfile(tBam_filename, 'rb')
+    ref_genome_fasta = pysam.Fastafile(refFaName)
 
-    normal_pileup_iter = normal_bam.pileup(chrom_name, start, end)
-    tumor_pileup_iter = tumor_bam.pileup(chrom_name, start, end)
+    normal_pileup_iter = nBam.pileup(chrom_name, start, end)
+    tumor_pileup_iter = tBam.pileup(chrom_name, start, end)
 
     paired_pileup_iter = PairedPileupIterator(
         normal_pileup_iter, tumor_pileup_iter, start, end)
@@ -271,15 +284,15 @@ def process_by_segment(args_tuple):
         ref_genome_fasta,
         chrom_name,
         chrom_idx,
-        min_depth,
-        min_bqual,
-        min_mqual)
+        minDepth,
+        minBqual,
+        minMqual)
 
     paired_counts_j, BAF_counts_j = iterator_to_counts(paired_counts_iter)
     counts_tuple_j = (paired_counts_j, BAF_counts_j)
 
-    normal_bam.close()
-    tumor_bam.close()
+    nBam.close()
+    tBam.close()
     ref_genome_fasta.close()
 
     return counts_tuple_j
