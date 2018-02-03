@@ -43,13 +43,20 @@ class Segment:
         self.end = -1
         self.normal_reads_num = -1
         self.tumor_reads_num = -1
-        self.sites_num = 0
+        # self.sites_num = 0
         self.LOH_frac = -1
         self.LOH_status = 'NONE'
         self.APM_frac = -1
         self.APM_status = 'NONE'
-        self.baseline_label = 'FALSE'
+
+        # 此处应该设置一下类别
+        # "baseline", "1", "2", "3", "4"
+        # default 1, all the segs belong to the SCNA happens on time 1
+        # self.baseline_label = 'FALSE'
+        self.tag = '1'
+
         self.log2_ratio = 0.0
+
         self.paired_counts = None
         self.BAF_counts = None
         self.copy_number = -1

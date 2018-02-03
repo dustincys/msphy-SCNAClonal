@@ -22,7 +22,9 @@ class Data:
 
     self.seg_num = 0
     self.baseline = -1
+
     self.segments = []
+
 #       peak reange
     self.pr = 0
 

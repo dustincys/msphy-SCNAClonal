@@ -37,6 +37,7 @@ from utils import (get_cn_allele_config, get_loga, get_mu_E_joint,
 class Stripe:
     def __init__(self):
         # 记录对应原始seg的索引
+        self.stripe_name = ""
         self.stripe_id = ""
         self.segs_idx = None
 

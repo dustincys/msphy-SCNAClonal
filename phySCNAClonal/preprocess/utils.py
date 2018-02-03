@@ -22,6 +22,9 @@ from scipy.stats import beta, binom
 
 import constants
 
+def show(*string):
+    print string
+    sys.stdout.flush()
 
 def BEDnParser(bed_file_name):
     """TODO: Docstring for BEDnParser.

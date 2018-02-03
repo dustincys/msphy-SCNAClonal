@@ -118,12 +118,24 @@ class BamConverter:
             self._segmentPoolL.append(tempSP)
 
     def _correct_bias(self, method=""):
+        """
+        correct bias of each tumor sample
+        """
+        assert len(self._segmentPoolL) == len(self.__subcloneNumberL)
         for segmentPool, subcloneNumber in zip(self._segmentPoolL,
                                                self.__subcloneNumberL):
             if "auto" == method:
                 self._MCMC_GC_C(SegmentPool, subcloneNumber)
             elif "visual" == method:
                 self._V_GC_C(SegmentPool, len(SegmentPool.segments))
+
+    def _get_baseline(self):
+        """
+        get the baseline segments
+        calculate baseline of each SegmentPool
+        return: the baseline segments
+        """
+        pass
 
     def _MCMC_GC_C(self, data, subcloneNumber):
         """
