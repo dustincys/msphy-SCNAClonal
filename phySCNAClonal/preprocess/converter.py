@@ -60,43 +60,12 @@ class BamConverter:
         self._segmentPoolL = []
 
     def convert(self, method, pkl_flag=False):
-
-        if pkl_flag and self.__pklPath != "":
-            print "load pkl from"
-            print self.__pklPath
-            infile = open(self.__pklPath, 'rb')
-            self.data = pkl.load(infile)
-            infile.close()
-        else:
-            self._load_segments_bed()
-            print "phySCNAClonal converter converting"
-
-            if "auto" == method:
-                self._MCMC_GC_C()
-            elif "visual" == method:
-                self._V_GC_C()
-                sys.stdout.flush()
-            self._get_counts()
-
-        self.visualize()
-        self._baseline_selection()
-
-        data_file_name = self.__pathPrefix + '.phySCNAClonal.input.pkl'
-        outfile = open(data_file_name, 'wb')
-        pkl.dump(self.data, outfile, protocol=2)
-        outfile.close()
-
-
-        self.dataStripes = DataStripes(self.data)
-        self.dataStripes.get()
-
-        stripes_file_name = self.__pathPrefix + '.phySCNAClonal.stripes.input.pkl'
-        outfile = open(stripes_file_name, 'wb')
-        pkl.dump(self.dataStripes, outfile, protocol=2)
-        outfile.close()
-
-        stripes_file_name = self.__pathPrefix + '.phySCNAClonal.stripes.input.txt'
-        self.dataStripes.output_txt(stripes_file_name)
+        self._load_segments()
+        self._correct_bias()
+        blSegs, nonBlSegs = self._get_baseline()
+        self._mark_timestamp(blSegs, nonBlSegs)
+        self._mark_stripe()
+        self._dump()
 
     def _load_segments(self):
         """

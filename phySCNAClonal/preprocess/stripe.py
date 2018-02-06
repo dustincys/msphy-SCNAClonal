@@ -37,25 +37,23 @@ from utils import (get_cn_allele_config, get_loga, get_mu_E_joint,
 class Stripe:
     def __init__(self):
         # 记录对应原始seg的索引
-        self.stripe_name = ""
-        self.stripe_id = ""
-        self.segs_idx = None
+        self.name = ""
+        self.id = ""
+        self.segIdL = None
 
-        self.paired_counts = None
+        self.pairedCounts = None
 
-        self.tumor_reads_num = -1.0
-        self.normal_reads_num = -1.0
+        self.nReadName = -1.0
+        self.tReadNum = -1.0
 
         # 似乎用不到，实际上就是:
-        # self.tumor_reads_num /self.normal_reads_num
+        # self.tReadNum /self.nReadName
         # self.rdr = -1.0
 
-        self.baseline_label = False
-        # 似乎不应该放在这里
-        self._baseline = -1
+        self.tag = "1"
 
         # 这两个应该放在这里
-        self.copy_number = -1
+        self.copyNumber = -1
         self.genotype = ""
 
         # phi应该放在node结点中
@@ -64,27 +62,27 @@ class Stripe:
         self.tssb = None
         self.node = None  # this is the node where the datum resides
 
-    def init_segs(self, segs_list, segs_idx):
-        self.segs_idx = segs_idx
+    def init_segs(self, segList, segIdL):
+        self.segIdL = segIdL
 
-        self._init_RD(segs_list)
-        self._init_BAF(segs_list)
+        self._init_RD(segList)
+        self._init_BAF(segList)
 
-    def _init_RD(self, segs_list):
+    def _init_RD(self, segList):
         # 获取几何平均值
-        tumor_reads_num = [seg.tumor_reads_num for seg in segs_list]
-        normal_reads_num = [seg.normal_reads_num for seg in segs_list]
+        tReadNum = [seg.tReadNum for seg in segList]
+        nReadName = [seg.nReadName for seg in segList]
 
-        self.tumor_reads_num = gmean(tumor_reads_num)
-        self.normal_reads_num = gmean(normal_reads_num)
+        self.tReadNum = gmean(tReadNum)
+        self.nReadName = gmean(nReadName)
 
-    def _init_BAF(self, segs_list):
-        self.paired_counts = np.array(
+    def _init_BAF(self, segList):
+        self.pairedCounts = np.array(
             [[], [], [], [], [], []], dtype=int).transpose()
 
-        for seg in segs_list:
-            self.paired_counts = np.vstack((self.paired_counts,
-                                            seg.paired_counts))
+        for seg in segList:
+            self.pairedCounts = np.vstack((self.pairedCounts,
+                                            seg.pairedCounts))
 
     def _log_likelihood(self, phi, update_tree=True):
         if update_tree:
@@ -106,165 +104,165 @@ class Stripe:
         return self.__log_likelihood_RD_BAF(phi)
 
 
-    def __log_likelihood_RD_BAF(self, phi):
+    def __log_likelihood_RD_BAF(self, phi, baseline):
         # 此处是否添加记录
-        copy_numbers = None
-        if seg.baseline_label == "True":
-            copy_numbers = [2]
-        elif get_loga(seg) > self._baseline:
-            copy_numbers = range(2, self._max_copy_number + 1)
+        copyNumbers = None
+        if seg.tag == "True":
+            copyNumbers = [2]
+        elif get_loga(seg) > baseline:
+            copyNumbers = range(2, self._maxCopyNumber + 1)
         else:
-            copy_numbers = range(0, 2 + 1)
+            copyNumbers = range(0, 2 + 1)
 
-        ll_pi_s = [self._getLLStripe(copy_number, phi) for copy_number in
-                   copy_numbers]
-        ll, pi = max(ll_pi_s, key=lambda x: x[0])
-        cn = ll_pi_s.index((ll, pi))
+        llPiS = [self._getLLStripe(copyNumber, phi) for copyNumber in
+                   copyNumbers]
+        ll, pi = max(llPiS, key=lambda x: x[0])
+        cn = llPiS.index((ll, pi))
 
-        self.copy_number = cn
+        self.copyNumber = cn
         self.genotype = pi
 
         return ll
 
 
-    def _getLLStripe(self, copy_number, phi):
-        rd_weight = constants.RD_WEIGHT_TSSB
+    def _getLLStripe(self, copyNumber, phi):
+        rdWeight = constants.RD_WEIGHT_TSSB
 
-        ll_stripe = 0
-        ll_rd = self._getRD(copy_number, phi)
-        allele_types = self._allele_config[copy_number]
+        llStripe = 0
+        llRd = self._getRD(copyNumber, phi)
+        alleleTypes = self._allele_config[copyNumber]
 
         # remove the weak baf point
-        self._augBAF(copy_number)
+        self._augBAF(copyNumber)
 
-        if 0 == self.paired_counts.shape[0]:
-            ll_baf = 0
+        if 0 == self.pairedCounts.shape[0]:
+            llBAF = 0
             pi = "*"
         else:
-            ll_baf, pi = self._getBAF(self, copy_number, allele_types, phi)
+            llBAF, pi = self._getBAF(self, copyNumber, alleleTypes, phi)
 
-        ll_stripe = ll_rd * rd_weight + ll_baf * (1 - rd_weight)
+        llStripe = llRd * rdWeight + llBAF * (1 - rdWeight)
 
-        return ll_stripe, pi
+        return llStripe, pi
 
 
-    def _augBAF(self, copy_number):
+    def _augBAF(self, copyNumber):
         # todo: remove the baf point is not a good idea
         threshold = constants.BAF_THRESHOLD * self._coverage
 
-        if copy_number > 2:
-            d_T_j = np.sum(self.paired_counts[:, 2:4], axis=1)
-            idx_rm = tuple(np.where(d_T_j < threshold)[0])
-            self.paired_counts = np.delete(self.paired_counts, idx_rm, axis=0)
+        if copyNumber > 2:
+            dTj = np.sum(self.pairedCounts[:, 2:4], axis=1)
+            idxRm = tuple(np.where(dTj < threshold)[0])
+            self.pairedCounts = np.delete(self.pairedCounts, idxRm, axis=0)
         else:
             pass
 
-    def _getRD(self, copy_number, phi):
-        c_N = constants.COPY_NUMBER_NORMAL
+    def _getRD(self, copyNumber, phi):
+        cN = constants.COPY_NUMBER_NORMAL
 
-        bar_c = phi * copy_number + (1.0 - phi) * c_N
+        barC = phi * copyNumber + (1.0 - phi) * cN
 
-        lambda_possion = (
-            bar_c / c_N) * self._baseline * (seg.normal_reads_num + 1)
-        if lambda_possion < 0:
-            lambda_possion = 0
+        lambdaPossion = (
+            barC / cN) * self._baseline * (seg.nReadName + 1)
+        if lambdaPossion < 0:
+            lambdaPossion = 0
 
-        ll_RD = log_poisson_pdf(seg.tumor_reads_num, lambda_possion)
-        return ll_RD
+        llRD = log_poisson_pdf(seg.tReadNum, lambdaPossion)
+        return llRD
 
-    def _getBAF(self, copy_number, allele_types, phi):
-        c_N = constants.COPY_NUMBER_NORMAL
-        mu_N = constants.MU_N
+    def _getBAF(self, copyNumber, alleleTypes, phi):
+        cN = constants.COPY_NUMBER_NORMAL
+        muN = constants.MU_N
 
-        mu_G = np.array(allele_types.values())
-        mu_E = get_mu_E_joint(mu_N, mu_G, c_N, copy_number, phi)
+        muG = np.array(alleleTypes.values())
+        muE = get_mu_E_joint(muN, muG, cN, copyNumber, phi)
 
-        if seg.paired_counts.shape[0] > 1:
-            b_T_j = np.min(seg.paired_counts[:, 2:4], axis=1)
-            d_T_j = np.sum(seg.paired_counts[:, 2:4], axis=1)
-            baf = b_T_j * 1.0 / d_T_j
+        if seg.pairedCounts.shape[0] > 1:
+            bTj = np.min(seg.pairedCounts[:, 2:4], axis=1)
+            dTj = np.sum(seg.pairedCounts[:, 2:4], axis=1)
+            baf = bTj * 1.0 / dTj
             outlier = mad_based_outlier(baf)
-            BAF = np.delete(seg.paired_counts, list(outlier.astype(int)), axis=0)
-            b_T_j = np.min(BAF[:, 2:4], axis=1)
-            d_T_j = np.sum(BAF[:, 2:4], axis=1)
+            BAF = np.delete(seg.pairedCounts, list(outlier.astype(int)), axis=0)
+            bTj = np.min(BAF[:, 2:4], axis=1)
+            dTj = np.sum(BAF[:, 2:4], axis=1)
 
         else:
-            b_T_j = np.min(seg.paired_counts[:, 2:4], axis=1)
-            d_T_j = np.sum(seg.paired_counts[:, 2:4], axis=1)
+            bTj = np.min(seg.pairedCounts[:, 2:4], axis=1)
+            dTj = np.sum(seg.pairedCounts[:, 2:4], axis=1)
             pass
 
-        ll = log_binomial_likelihood(b_T_j, d_T_j, mu_E)
-        ll_bafs = ll.sum(axis=0)
-        idx_max = ll_bafs.argmax(axis=0)
-        ll_baf = ll_bafs[idx_max]
-        pi = allele_types[allele_types.keys()[idx_max]]
-        return ll_baf, pi
+        ll = log_binomial_likelihood(bTj, dTj, muE)
+        llBAFs = ll.sum(axis=0)
+        idxMax = llBAFs.argmax(axis=0)
+        llBAF = llBAFs[idxMax]
+        pi = alleleTypes[alleleTypes.keys()[idxMax]]
+        return llBAF, pi
 
 
-class DataStripes(object):
+class StripePool(object):
     """The stripe objects, including load, property operations"""
 
-    def __init__(self, data):
-        """import data object
+    def __init__(self, segmentPool):
+        """import segmentPool object
 
-        :data: TODO
+        :segmentPool: TODO
 
         """
-        self._data = data
+        self._segmentPool = segmentPool
         self.stripes = []  # stripes
 
         self.baseline = -1
 
-    def get(self):
+    def get(self, yDown, yUp, stripeNum, noiseStripeNum=2):
         """TODO: Docstring for get.
         :returns: TODO
 
         """
-        self._aggregation(y_down, y_up, stripe_num, noise_stripe_num=2)
+        self._aggregation(yDown, yUp, stripeNum, noiseStripeNum=2)
 
     def output_txt(self, outFileName):
         with open(outFileName, 'w') as outFile:
             outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
-                "id", "segs_idx", "paired_counts", "tumor_reads_num",
-                "normal_reads_num", "baseline_label"))
+                "id", "segIdL", "pairedCounts", "tReadNum",
+                "nReadName", "tag"))
 
             for s in self.stripes:
-                a_T = s.paired_counts[:,2]
-                b_T = s.paired_counts[:,3]
-                a_T_strl = np.array_str(a_T).strip("[]").split()
-                b_T_strl = np.array_str(b_T).strip("[]").split()
+                aT = s.pairedCounts[:,2]
+                bT = s.pairedCounts[:,3]
+                aTstrl = np.array_str(aT).strip("[]").split()
+                bTstrl = np.array_str(bT).strip("[]").split()
 
                 outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
-                    s.stripe_id,
-                    ",".join(s.segs_idx),
-                    "{0}|{1}".format(",".join(a_T_strl), ",".join(b_T_strl)),
-                    s.tumor_reads_num,
-                    s.normal_reads_num,
-                    s.baseline_label)
+                    s.id,
+                    ",".join(s.segIdL),
+                    "{0}|{1}".format(",".join(aTstrl), ",".join(bTstrl)),
+                    s.tReadNum,
+                    s.nReadName,
+                    s.tag)
             pass
 
-    def _aggregation(self, y_down, y_up, stripe_num, noise_stripe_num=2):
+    def _aggregation(self, yDown, yUp, stripeNum, noiseStripeNum=2):
         """The aggregation operations for segments in data
 
         :returns: stripes data structure
 
         """
-        assert stripe_num > 0
+        assert stripeNum > 0
 
-        reads_depth_ratio_log = []
+        rdRaioLog = []
 
         # here should keep idx
-        yc_v = np.array([
-            np.log(seg.tumor_reads_num + 1) - np.log(seg.normal_reads_num + 1)
-            for seg in self._data.segments
+        ycV = np.array([
+            np.log(seg.tReadNum + 1) - np.log(seg.nReadName + 1)
+            for seg in self._segmentPool.segments
         ])
 
         # 记录是否是outlier
-        status_yc_v = np.logical_and(yc_v > y_min, yc_v < y_max)
+        statusYcV = np.logical_and(ycV > y_min, ycV < y_max)
 
-        y_fcd = yc_v.reshape(yc_v.shape[0], 1)
+        yFcd = ycV.reshape(ycV.shape[0], 1)
         clusters = hierarchy.fclusterdata(
-            y_fcd, stripe_num + noise_stripe_num, criterion="distance")
+            yFcd, stripeNum + noiseStripeNum, criterion="distance")
 
         # 此处应该只获取最大和最小值之间的条带，且要保留原始位置，以方便索引
         # 此处获取最小和最大值之间的条带的方法是：直接去除这些位置不列入计算范围
@@ -272,13 +270,13 @@ class DataStripes(object):
         # 此处应该是去除了outlier之后的Counter
 
         mccs = Counter(
-            clusters[status_yc_v]).most_common(stripe_num + noise_stripe_num)
+            clusters[statusYcV]).most_common(stripeNum + noiseStripeNum)
 
-        for c_id, _ in mccs:
+        for cId, _ in mccs:
             # 对每一个条带进行裂解操作，生成子条带, return
-            self._decomposition(c_id, clusters, status_yc_v)
+            self._decomposition(cId, clusters, statusYcV)
 
-    def _decomposition(self, c_id, clusters, status_yc_v):
+    def _decomposition(self, cId, clusters, statusYcV):
         """The decomposition operations for segments in data
 
         :parameters: TODO
@@ -286,10 +284,10 @@ class DataStripes(object):
 
         """
         # 获得该类别的所有结点idx：
-        # 即，clusters 中与c_id相等且，在status_yc_v中的位置
-        ca = np.argwhere(clusters == c_id).flatten()
-        sa = np.argwhere(status_yc_v).flatten()
-        mstrip_seg_idx = np.intersectid(ca, sa)
+        # 即，clusters 中与cId相等且，在statusYcV中的位置
+        ca = np.argwhere(clusters == cId).flatten()
+        sa = np.argwhere(statusYcV).flatten()
+        mSIdx = np.intersectid(ca, sa)
 
         # 这里的基于BAF的归类处理分为3个步骤
 
@@ -298,62 +296,62 @@ class DataStripes(object):
         # 然后返回
 
         # 这里需要有一个记录原始向量中位置的向量
-        segs_list = [self._data.segments[idx] for idx in mstrip_seg_idx]
+        segList = [self._segmentPool.segments[idx] for idx in mSIdx]
 
-        paired_counts_all = np.array(
+        pairedCountsAll = np.array(
             [[], [], [], [], [], []], dtype=int).transpose()
-        for seg in segs_list:
-            paired_counts_all = np.vstack((paired_counts_all,
-                                           seg.paired_counts))
+        for seg in segList:
+            pairedCountsAll = np.vstack((pairedCountsAll,
+                                           seg.pairedCounts))
 
-        a_T = paired_counts_all[:, 2]
-        b_T = paired_counts_all[:, 3]
-        d_T = a_T + b_T
-        l_T = np.min(paired_counts_all[:, 2:4], axis=1)
-        p_T = l_T * 1.0 / d_T
+        aT = pairedCountsAll[:, 2]
+        bT = pairedCountsAll[:, 3]
+        dT = aT + bT
+        lT = np.min(pairedCountsAll[:, 2:4], axis=1)
+        pT = lT * 1.0 / dT
 
-        # status_p_T_v = np.logical_and(p_T > p_T_min, p_T < p_T_max).flatten()
+        # status_p_T_v = np.logical_and(pT > p_T_min, pT < p_T_max).flatten()
 
-        y = np.ones(p_T.shape)
-        p_T_y = np.hstack((p_T, y))
-        bandwidth = estimate_bandwidth(p_T_y, quantile=0.2, n_samples=500)
+        y = np.ones(pT.shape)
+        pTy = np.hstack((pT, y))
+        bandwidth = estimate_bandwidth(pTy, quantile=0.2, n_samples=500)
         ms.fit(X)
         labels = ms.labels_
-        cluster_centers = ms.cluster_centers_
-        labels_unique = np.unique(labels)
-        n_clusters_ = len(labels_unique)
+        clusterCenters = ms.clusterCenters
+        labelsUnique = np.unique(labels)
+        nClusters = len(labelsUnique)
 
-        seg_label = [
-            self._getSegLabl(seg, cluster_centers) for seg in segs_list
+        segLabel = [
+            self._getSegLabl(seg, clusterCenters) for seg in segList
         ]
 
-        for label in set(seg_label):
+        for label in set(segLabel):
             if label == -1:
                 continue
-            sub_seg_list = [
-                seg for seg, idx in enumerate(segs_list)
-                if seg_label[idx] == label
+            subSegList = [
+                seg for seg, idx in enumerate(segList)
+                if segLabel[idx] == label
             ]
-            sub_seg_idx = [
-                mstrip_seg_idx[idx] for seg, idx in enumerate(segs_list)
-                if seg_label[idx] == label
+            subSegIdx = [
+                mSIdx[idx] for seg, idx in enumerate(segList)
+                if segLabel[idx] == label
             ]
-            temp_stripe = Stripe()
-            temp_stripe.stripe_id = "{0}_{1}".format(str(c_id), str(idx))
-            temp_stripe.init_segs(sub_seg_list, sub_seg_idx)
-            self.stripes.append(temp_stripe)
+            tempStripe = Stripe()
+            tempStripe.id = "{0}_{1}".format(str(cId), str(idx))
+            tempStripe.init_segs(subSegList, subSegIdx)
+            self.stripes.append(tempStripe)
 
-    def _getSegLabl(self, seg, cluster_centers):
-        if seg.paired_counts is None:
+    def _getSegLabl(self, seg, clusterCenters):
+        if seg.pairedCounts is None:
             return -1
 
-        a_T_seg = seg.paired_counts[:, 2]
-        b_T_seg = seg.paired_counts[:, 3]
-        d_T_seg = a_T_seg + b_T_seg
-        l_T_seg = np.min(seg.paired_counts[:, 2:4], axis=1)
-        p_T_seg = l_T_seg * 1.0 / d_T_seg
+        aTseg = seg.pairedCounts[:, 2]
+        bTseg = seg.pairedCounts[:, 3]
+        dTseg = aTseg + bTseg
+        lTseg = np.min(seg.pairedCounts[:, 2:4], axis=1)
+        pTseg = lTseg * 1.0 / dTseg
 
-        dis_seg = np.abs(p_T_seg[:, None] - cluster_centers[:, 0])
-        labels_seg = np.argmin(dis_seg, axis=1)
+        disSeg = np.abs(pTseg[:, None] - clusterCenters[:, 0])
+        labelsSeg = np.argmin(disSeg, axis=1)
 
-        return Counter(labels_seg).most_common(1)[0][0]
+        return Counter(labelsSeg).most_common(1)[0][0]

@@ -18,237 +18,236 @@ from scipy.stats.mstats import gmean
 from collections import Counter
 
 
-class Data:
+class SegmentPool:
 
-    self.seg_num = 0
+    self.segNum = 0
     self.baseline = -1
-
     self.segments = []
 
 #       peak reange
     self.pr = 0
 
-    def __init__(self, max_copynumber = 6, coverage = 30):
+    def __init__(self, maxCopyNumber = 6, coverage = 30):
 
-        self.max_copynumber = max_copynumber
+        self.maxCopyNumber = maxCopyNumber
         self.coverage = coverage
 
-        self.allele_config = get_cn_allele_config(max_copy_number)
+        self._alleleConfig = get_cn_allele_config(max_copy_number)
 
 
-    def load_segments_bed(self, bed_file_normalized_name):
+    def load_segments_bed(self, bedName):
         """
 
-        :bed_file_normalized_name: TODO
+        :bedName: TODO
         :returns: TODO
 
         """
 
-        bed_chroms, bed_starts, bed_ends, tumor_reads, normal_reads, gcs =\
-            BEDnParser(bed_file_normalized_name)
-        get_chrom_format(bed_chroms)
-        bed_num = len(bed_chroms)
+        bedChroms, bedStarts, bedEnds, tReadNums, nReadNums, gcs =\
+            BEDnParser(bedName)
+        get_chrom_format(bedChroms)
+        bedNum = len(bedChroms)
 
-        for i in range(0, bed_num):
-            chrom_idx = chrom_name_to_idx(bed_chroms[i])
-            seg_name = get_segment_name(
-                bed_chroms[i], bed_starts[i], bed_ends[i])
+        for i in range(0, bedNum):
+            chromIdx = chrom_name_to_idx(bedChroms[i])
+            segName = get_segment_name(
+                bedChroms[i], bedStarts[i], bedEnds[i])
 
-            normal_reads_num = normal_reads[i]
-            tumor_reads_num = tumor_reads[i]
+            nReadNum = nReadNums[i]
+            tReadNum = tReadNums[i]
 
-            segment_i = Segment()
-            segment_i.name = seg_name
-            segment_i.chrom_idx = chrom_idx
-            segment_i.chrom_name = bed_chroms[i]
-            segment_i.start = bed_starts[i]
-            segment_i.end = bed_ends[i]
-            segment_i.normal_reads_num = normal_reads_num
-            segment_i.tumor_reads_num = tumor_reads_num
+            tempSeg = Segment()
+            tempSeg.name = segName
+            tempSeg.chromIdx = chromIdx
+            tempSeg.chromName = bedChroms[i]
+            tempSeg.start = bedStarts[i]
+            tempSeg.end = bedEnds[i]
+            tempSeg.nReadNum = nReadNum
+            tempSeg.tReadNum = tReadNum
 
-            if 0 == normal_reads_num:
-                segment_i.log2_ratio = -float('Inf')
-            else:
-                segment_i.log2_ratio = np.log2(1.0 *
-                                               tumor_reads_num/normal_reads_num)
+            # if 0 == nReadNum:
+                # tempSeg.log2_ratio = -float('Inf')
+            # else:
+                # tempSeg.log2_ratio = np.log2(1.0 *
+                                               # tReadNum/nReadNum)
 
-            segment_i.log_ratio = np.log(1.0 * (tumor_reads_num + 1.0) /
-                                         (normal_reads_num + 1.0))
-            segment_i.gc = gcs[i]
+            # tempSeg.log_ratio = np.log(1.0 * (tReadNum + 1.0) /
+                                         # (nReadNum + 1.0))
+            tempSeg.gc = gcs[i]
 
-            self.segments.append(segment_i)
-            self.seg_num += 1
+            self.segments.append(tempSeg)
+            self.segNum += 1
 
     def load_segments(self, normal_bam, tumor_bam, bed_file_name):
-        chrom_idx_list = constants.CHROM_IDX_LIST
-        chrom_start = constants.CHROM_START
+        chromIdxL = constants.CHROM_IDX_LIST
+        chromStart = constants.CHROM_START
 
-        sam_SQ = normal_bam.header['SQ']
-        sam_chrom_format = get_chrom_format(map(lambda x: x['SN'], sam_SQ))
-        chrom_lens, chrom_idxs = get_chrom_lens_idxs(chrom_idx_list, sam_SQ)
+        samSQ = normal_bam.header['SQ']
+        samChromFormat = get_chrom_format(map(lambda x: x['SN'], samSQ))
+        chromLens, chromIdxs = get_chrom_lens_idxs(chromIdxL, samSQ)
 
-        bed_chroms, bed_starts, bed_ends, gcs = BEDParser(bed_file_name)
-        get_chrom_format(bed_chroms)
-        bed_num = len(bed_chroms)
+        bedChroms, bedStarts, bedEnds, gcs = BEDParser(bed_file_name)
+        get_chrom_format(bedChroms)
+        bedNum = len(bedChroms)
 
-        for i in range(0, bed_num):
-            chrom_idx = chrom_name_to_idx(bed_chroms[i])
-            chrom_name = chrom_idx_to_name(chrom_idx, sam_chrom_format)
-            seg_name = get_segment_name(chrom_name, bed_starts[i], bed_ends[i])
+        for i in range(0, bedNum):
+            chromIdx = chrom_name_to_idx(bedChroms[i])
+            chromName = chrom_idx_to_name(chromIdx, samChromFormat)
+            segName = get_segment_name(chromName, bedStarts[i], bedEnds[i])
 
-            if chrom_idx not in chrom_idx_list:
+            if chromIdx not in chromIdxL:
                 print 'Chromsome {0} not found, segment {1} excluded...'.format(
-                    bed_chroms[i], seg_name)
+                    bedChroms[i], segName)
                 sys.stdout.flush()
                 continue
 
-            chrom_lst_idx = chrom_idxs.index(chrom_idx)
+            chromListIdx = chromIdxs.index(chromIdx)
 
-            if bed_starts[i] < chrom_start or bed_ends[
-                    i] > chrom_lens[chrom_lst_idx]:
+            if bedStarts[i] < chromStart or bedEnds[
+                    i] > chromLens[chromListIdx]:
                 print 'Out of range chromsome {0}, segment {1} excluded...'.\
-                    format(bed_chroms[i], seg_name)
+                    format(bedChroms[i], segName)
                 sys.stdout.flush()
                 continue
 
-            normal_reads_num = normal_bam.count(
-                chrom_name, bed_starts[i], bed_ends[i])
-            tumor_reads_num = tumor_bam.count(
-                chrom_name, bed_starts[i], bed_ends[i])
+            nReadNum = normal_bam.count(
+                chromName, bedStarts[i], bedEnds[i])
+            tReadNum = tumor_bam.count(
+                chromName, bedStarts[i], bedEnds[i])
 
-            segment_i = Segment()
-            segment_i.name = seg_name
-            segment_i.chrom_idx = chrom_idx
-            segment_i.chrom_name = chrom_name
-            segment_i.start = bed_starts[i]
-            segment_i.end = bed_ends[i]
-            segment_i.normal_reads_num = normal_reads_num
-            segment_i.tumor_reads_num = tumor_reads_num
-            segment_i.log2_ratio = np.log2(1.0 *
-                                           tumor_reads_num/normal_reads_num)
+            tempSeg = Segment()
+            tempSeg.name = segName
+            tempSeg.chromIdx = chromIdx
+            tempSeg.chromName = chromName
+            tempSeg.start = bedStarts[i]
+            tempSeg.end = bedEnds[i]
+            tempSeg.nReadNum = nReadNum
+            tempSeg.tReadNum = tReadNum
+            # tempSeg.log2_ratio = np.log2(1.0 *
+                                           # tReadNum/normal_reads_num)
 
-            segment_i.log_ratio = np.log(1.0 * (tumor_reads_num + 1.0) /
-                                         (normal_reads_num + 1.0))
-            self.segments.append(segment_i)
-            self.seg_num += 1
+            # tempSeg.log_ratio = np.log(1.0 * (tReadNum + 1.0) /
+                                         # (normal_reads_num + 1.0))
+            self.segments.append(tempSeg)
+            self.segNum += 1
 
     def get_LOH_frac(self):
-        for j in range(0, self.seg_num):
-            self.segments[j].LOH_frac = get_LOH_frac(
-                self.segments[j].paired_counts)
+        for j in range(0, self.segNum):
+            self.segments[j].LOHFrac = get_LOH_frac(
+                self.segments[j].pairedCounts)
 
     def get_APM_frac(self):
         """
         :returns: TODO
 
         """
-        for j in range(0, self.seg_num):
-            self.segments[j].APM_frac = get_APM_frac_MAXMIN(
-                self.segments[j].paired_counts)
+        for j in range(0, self.segNum):
+            self.segments[j].APMFrac = get_APM_frac_MAXMIN(
+                self.segments[j].pairedCounts)
 
-    def get_LOH_status(self, baseline_thred, flag_runpreprocess=False):
+    def get_LOH_status(self, baseThred, isPreprocess=False):
 
-        if flag_runpreprocess:
-            LOH_num = 0
-            FLOH_num = 0
-            for j in range(0, self.seg_num):
-                self.segments[j].LOH_status = get_LOH_status(
-                    self.segments[j].LOH_frac, baseline_thred)
-                if self.segments[j].LOH_status == "TRUE":
-                    LOH_num = LOH_num + 1
-                elif self.segments[j].LOH_status == "FALSE":
-                    FLOH_num = FLOH_num + 1
+        if isPreprocess:
+            LOHNum = 0
+            FLOHNum = 0
+            for j in range(0, self.segNum):
+                self.segments[j].LOHStatus = get_LOH_status(
+                    self.segments[j].LOHFrac, baseThred)
+                if self.segments[j].LOHStatus == "TRUE":
+                    LOHNum = LOHNum + 1
+                elif self.segments[j].LOHStatus == "FALSE":
+                    FLOHNum = FLOHNum + 1
 
-            print "LOH_num/seg_num = {0}/{1}".format(LOH_num, self.seg_num)
-            print "FLOH_num/seg_num = {0}/{1}".format(FLOH_num, self.seg_num)
+            print "LOHNum/segNum = {0}/{1}".format(LOHNum, self.segNum)
+            print "FLOHNum/segNum = {0}/{1}".format(FLOHNum, self.segNum)
         else:
             print "get_LOH_status function called from model."
 
-    def get_APM_status(self, baseline_thred_APM):
-        APM_num = 0
-        for j in range(0, self.seg_num):
-            self.segments[j].APM_status = get_APM_status(
-                self.segments[j].APM_frac, baseline_thred_APM)
-            if self.segments[j].APM_status == "TRUE":
-                APM_num = APM_num + 1
+    def get_APM_status(self, baselineThredAPM):
+        APMNum = 0
+        for j in range(0, self.segNum):
+            self.segments[j].APMStatus = get_APM_status(
+                self.segments[j].APMFrac, baselineThredAPM)
+            if self.segments[j].APMStatus == "TRUE":
+                APMNum = APMNum + 1
 
-        print "APM_num/seg_num = {0}/{1}".format(APM_num, self.seg_num)
+        print "APMNum/segNum = {0}/{1}".format(APMNum, self.segNum)
 
-    def compute_Lambda_S_LOH(self, max_copynumber, subclone_num,
-                             flag_runpreprocess=False):
+    def compute_Lambda_S_LOH(self, maxCopyNumber, subcloneNum,
+                             isPreprocess=False):
         """ compute the Lambda S, through hierarchy clustering
         """
-        if not flag_runpreprocess:
+        if not isPreprocess:
             print "compute_Lambda_S function called from model"
             sys.stdout.flush()
             return
 
         thresh = constants.HC_THRESH
 
-        reads_depth_ratio_log = []
-        reads_depth_ratio = []
-        for j in range(0, self.seg_num):
-            if self.segments[j].APM_status == 'TRUE' and\
-                    self.segments[j].LOH_status == 'FALSE':
+        rdRatioLog = []
+        rdRatio = []
+        for j in range(0, self.segNum):
+            if self.segments[j].APMStatus == 'TRUE' and\
+                    self.segments[j].LOHStatus == 'FALSE':
                 ratio = self.segments[
-                    j].tumor_reads_num*1.0/self.segments[j].normal_reads_num
-                reads_depth_ratio_log.append(np.log(ratio))
-                reads_depth_ratio.append(ratio)
+                    j].tReadNum*1.0/self.segments[j].normal_reads_num
+                rdRatioLog.append(np.log(ratio))
+                rdRatio.append(ratio)
 
-        reads_depth_ratio = np.array(reads_depth_ratio)
-        reads_depth_ratio_log = np.array(reads_depth_ratio_log)
-        if reads_depth_ratio_log.shape[0] == 0:
+        rdRatio = np.array(rdRatio)
+        rdRatioLog = np.array(rdRatioLog)
+        if rdRatioLog.shape[0] == 0:
             print 'Error: no APM-LOH position found, existing...'
-            print 'Either the baseline_thred_APM is too large, or the constants\
+            print 'Either the baselineThredAPM is too large, or the constants\
             APM_N_MIN is too large; Or, the baseline_thred_LOH is too small'
             sys.exit(1)
 
-        reads_depth_ratio_log = reads_depth_ratio_log.reshape(
-            reads_depth_ratio_log.shape[0], 1)
-        y = np.ones(reads_depth_ratio_log.shape)
-        reads_depth_ratio_log = np.hstack((reads_depth_ratio_log, y))
+        rdRatioLog = rdRatioLog.reshape(
+            rdRatioLog.shape[0], 1)
+        y = np.ones(rdRatioLog.shape)
+        rdRatioLog = np.hstack((rdRatioLog, y))
         clusters = hcluster.fclusterdata(
-            reads_depth_ratio_log, thresh, criterion="distance")
-        mccs = Counter(clusters).most_common(max_copynumber * subclone_num)
+            rdRatioLog, thresh, criterion="distance")
+        mccs = Counter(clusters).most_common(maxCopyNumber * subcloneNum)
 
-        rdr_min = float('Inf')
+        rdrMin = float('Inf')
         cluster_min = -1
         for i in range(0, len(mccs)):
-            cluster_temp = mccs[i][0]
-            print "cluster temp : {}".format(cluster_temp)
-            rdr_temp = gmean(reads_depth_ratio[clusters == cluster_temp])
-            print "rdr_temp"
-            print "log: {}".format(np.log(rdr_temp))
-            if rdr_min > rdr_temp:
-                rdr_min = rdr_temp
-                cluster_min = cluster_temp
+            clusterTemp = mccs[i][0]
+            print "cluster temp : {}".format(clusterTemp)
+            tempRdr = gmean(rdRatio[clusters == clusterTemp])
+            print "tempRdr"
+            print "log: {}".format(np.log(tempRdr))
+            if rdrMin > tempRdr:
+                rdrMin = tempRdr
+                cluster_min = clusterTemp
 
         print mccs
-        print "log baseline: {}".format(np.log(rdr_min))
+        print "log baseline: {}".format(np.log(rdrMin))
         sys.stdout.flush()
 
-        cluster_flag = (clusters == cluster_min)
-        baseline_num = 0
-        rdr_i = 0
-        for j in range(0, self.seg_num):
-            if self.segments[j].APM_status == 'TRUE' and\
-                    self.segments[j].LOH_status == 'FALSE':
-                if cluster_flag[rdr_i]:
-                    self.segments[j].baseline_label = 'TRUE'
-                    baseline_num = baseline_num + 1
+        clusterFlag = (clusters == cluster_min)
+        baselineNum = 0
+        rdrIdx = 0
+        for j in range(0, self.segNum):
+            if self.segments[j].APMStatus == 'TRUE' and\
+                    self.segments[j].LOHStatus == 'FALSE':
+                if clusterFlag[rdrIdx]:
+                    self.segments[j].baselineLabel = 'TRUE'
+                    baselineNum = baselineNum + 1
                 else:
-                    self.segments[j].baseline_label = 'FALSE'
-                rdr_i = rdr_i + 1
+                    self.segments[j].baselineLabel = 'FALSE'
+                rdrIdx = rdrIdx + 1
             else:
-                self.segments[j].baseline_label = 'FALSE'
+                self.segments[j].baselineLabel = 'FALSE'
 
-        print "baseline_num: {}".format(baseline_num)
+        print "baselineNum: {}".format(baselineNum)
 
-        if baseline_num == 0:
+        if baselineNum == 0:
             print 'Error: No diploid segments found, existing...'
             sys.exit(1)
 
-        self.baseline = rdr_min
+        self.baseline = rdrMin
 
     def _log_likelihood(self, id, phi, update_tree=True, new_state=0):
 
@@ -267,93 +266,93 @@ class Data:
         return ll
 
     def _getSegResData(self, seg, phi):
-        copy_numbers = None
-        if seg.baseline_label == "True":
-            copy_numbers = [2]
+        copyNumbers = None
+        if seg.baselineLabel == "True":
+            copyNumbers = [2]
         elif get_loga(seg) > self.baseline:
-            copy_numbers = range(2, self.max_copy_number + 1)
+            copyNumbers = range(2, self.max_copy_number + 1)
         else:
-            copy_numbers = range(0, 2 + 1)
+            copyNumbers = range(0, 2 + 1)
 
-        ll_pi_s = [self._getLLSeg(seg, copy_number, phi) for copy_number in
-                   copy_numbers]
-        (ll, pi) = max(ll_pi_s, key=lambda x: x[0])
-        cn = ll_pi_s.index((ll, pi))
+        llPiS = [self._getLLSeg(seg, copyNumber, phi) for copyNumber in
+                   copyNumbers]
+        (ll, pi) = max(llPiS, key=lambda x: x[0])
+        cn = llPiS.index((ll, pi))
         return ll, cn, pi
 
-    def _getLLSeg(self, seg, copy_number, phi):
-        ll_seg = 0
-        ll_rd = self._getRD(seg, copy_number, phi)
-        allele_types = self._allele_config[copy_number]
-        self._augBAF(seg, copy_number)
-        if 0 == seg.paired_counts.shape[0]:
-            ll_baf = 0
+    def _getLLSeg(self, seg, copyNumber, phi):
+        llSeg = 0
+        llRd = self._getRD(seg, copyNumber, phi)
+        alleleType = self._alleleConfig[copyNumber]
+        self._augBAF(seg, copyNumber)
+        if 0 == seg.pairedCounts.shape[0]:
+            llBAFs = 0
             pi = "*"
         else:
-            ll_baf, pi = self._getBAF(seg, copy_number, allele_types, phi)
-        ll_seg = ll_baf + ll_rd
-        return ll_seg, pi
+            llBAFs, pi = self._getBAF(seg, copyNumber, alleleType, phi)
+        llSeg = llBAFs + llRd
+        return llSeg, pi
 
-    def _augBAF(self, seg, copy_number):
-        if copy_number > 2:
+    def _augBAF(self, seg, copyNumber):
+        if copyNumber > 2:
             threshold = constants.BAF_THRESHOLD * self._coverage
-            d_T_j = np.sum(seg.BAF[:, 2:4], axis=1)
-            idx_rm = tuple(np.where(d_T_j < threshold)[0])
-            seg.BAF = np.delete(seg.BAF, idx_rm, axis=0)
+            dTj = np.sum(seg.BAF[:, 2:4], axis=1)
+            idxRm = tuple(np.where(dTj < threshold)[0])
+            seg.BAF = np.delete(seg.BAF, idxRm, axis=0)
         else:
             pass
 
-    def _getRD(self, seg, copy_number, phi):
-        c_N = constants.COPY_NUMBER_NORMAL
-        bar_c = phi * copy_number + (1.0 - phi) * c_N
-        print "____>>> _getRD: bar_c, c_N, self._baseline, seg.normal_reads_num____"
-        print bar_c, c_N, self._baseline, seg.normal_reads_num
-        print "_________end _getRD:bar_c, c_N, self._baseline, seg.normal_reads_num______________"
+    def _getRD(self, seg, copyNumber, phi):
+        cN = constants.COPY_NUMBER_NORMAL
+        bar_c = phi * copyNumber + (1.0 - phi) * cN
+        print "____>>> _getRD: bar_c, cN, self._baseline, seg.normal_reads_num____"
+        print bar_c, cN, self._baseline, seg.normal_reads_num
+        print "_________end _getRD:bar_c, cN, self._baseline, seg.normal_reads_num______________"
 
         lambda_possion = (
-            bar_c / c_N) * self._baseline * (seg.normal_reads_num + 1) #not minus 1 ? better
+            bar_c / cN) * self._baseline * (seg.normal_reads_num + 1) #not minus 1 ? better
         if lambda_possion < 0:
             lambda_possion = 0
-        print "____>>> _getRD: seg.tumor_reads_num, lambda_possion____"
-        print seg.tumor_reads_num, lambda_possion
-        print "_________end _getRD:seg.tumor_reads_num, lambda_possion______________"
+        print "____>>> _getRD: seg.tReadNum, lambda_possion____"
+        print seg.tReadNum, lambda_possion
+        print "_________end _getRD:seg.tReadNum, lambda_possion______________"
 
-        ll_RD = log_poisson_pdf(seg.tumor_reads_num, lambda_possion)
+        ll_RD = log_poisson_pdf(seg.tReadNum, lambda_possion)
         return ll_RD
 
-    def _getBAF(self, seg, copy_number, allele_types, phi):
-        c_N = constants.COPY_NUMBER_NORMAL
+    def _getBAF(self, seg, copyNumber, alleleType, phi):
+        cN = constants.COPY_NUMBER_NORMAL
         mu_N = constants.MU_N
         # keys, ppmm values 0.5
-        mu_G = np.array(allele_types.values())
+        mu_G = np.array(alleleType.values())
 
-        print "____>>> _getBAF: mu_N, mu_G, c_N, copy_number, phi____"
-        print mu_N, mu_G, c_N, copy_number, phi
-        print "_________end _getBAF:mu_N, mu_G, c_N, copy_number, phi______________"
+        print "____>>> _getBAF: mu_N, mu_G, cN, copyNumber, phi____"
+        print mu_N, mu_G, cN, copyNumber, phi
+        print "_________end _getBAF:mu_N, mu_G, cN, copyNumber, phi______________"
 
-        mu_E = get_mu_E_joint(mu_N, mu_G, c_N, copy_number, phi)
+        mu_E = get_mu_E_joint(mu_N, mu_G, cN, copyNumber, phi)
 
-        if seg.paired_counts.shape[0] > 1:
-            b_T_j = np.min(seg.paired_counts[:, 2:4], axis=1)
-            d_T_j = np.sum(seg.paired_counts[:, 2:4], axis=1)
-            baf = b_T_j * 1.0 / d_T_j
+        if seg.pairedCounts.shape[0] > 1:
+            b_T_j = np.min(seg.pairedCounts[:, 2:4], axis=1)
+            dTj = np.sum(seg.pairedCounts[:, 2:4], axis=1)
+            baf = b_T_j * 1.0 / dTj
             outlier = mad_based_outlier(baf)
-            BAF = np.delete(seg.paired_counts, list(outlier.astype(int)), axis=0)
+            BAF = np.delete(seg.pairedCounts, list(outlier.astype(int)), axis=0)
             b_T_j = np.min(BAF[:, 2:4], axis=1)
-            d_T_j = np.sum(BAF[:, 2:4], axis=1)
+            dTj = np.sum(BAF[:, 2:4], axis=1)
 
         else:
-            b_T_j = np.min(seg.paired_counts[:, 2:4], axis=1)
-            d_T_j = np.sum(seg.paired_counts[:, 2:4], axis=1)
+            b_T_j = np.min(seg.pairedCounts[:, 2:4], axis=1)
+            dTj = np.sum(seg.pairedCounts[:, 2:4], axis=1)
             pass
 
         # add prior or not?
-        ll = log_binomial_likelihood(b_T_j, d_T_j, mu_E)
+        ll = log_binomial_likelihood(b_T_j, dTj, mu_E)
         ll_bafs = ll.sum(axis=0)
         idx_max = ll_bafs.argmax(axis=0)
-        ll_baf = ll_bafs[idx_max]
-        pi = allele_types[allele_types.keys()[idx_max]]
-        return ll_baf, pi
+        llBAFs = ll_bafs[idx_max]
+        pi = alleleType[alleleType.keys()[idx_max]]
+        return llBAFs, pi
 
     # computes the binomial parameter
     def compute_n_genomes(self, tp, new_state=0):

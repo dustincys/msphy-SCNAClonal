@@ -29,7 +29,6 @@ from utils import get_loga, get_cn_allele_config, get_mu_E_joint,\
     log_binomial_likelihood, mad_based_outlier
 
 
-
 import constants
 
 
@@ -37,37 +36,24 @@ class Segment:
 
     def __init__(self):
         self.name = ""
-        self.chrom_idx = -1
-        self.chrom_name = ""
+        self.chromIdx = -1
+        self.chromName = ""
         self.start = -1
         self.end = -1
-        self.normal_reads_num = -1
-        self.tumor_reads_num = -1
-        # self.sites_num = 0
-        self.LOH_frac = -1
-        self.LOH_status = 'NONE'
-        self.APM_frac = -1
-        self.APM_status = 'NONE'
-
-        # 此处应该设置一下类别
-        # "baseline", "1", "2", "3", "4"
-        # default 1, all the segs belong to the SCNA happens on time 1
-        # self.baseline_label = 'FALSE'
-        self.tag = '1'
-
-        self.log2_ratio = 0.0
-
-        self.paired_counts = None
-        self.BAF_counts = None
-        self.copy_number = -1
-        self.stripe_number = -1
-        self.allele_type = 'NONE'
-        self.subclone_prev = -1
-        self.subclone_cluster = 'NONE'
-
+        self.nReadNum = -1
+        self.tReadNum = -1
         self.gc = -1
-        self.log_ratio = 0
 
-        # save the likelihood of the last phi, {phi: (likelihood, copy_number,
-        # pi)}
-        self.phi_last = None
+        self.LOHFrac = -1
+        self.LOHStatus = 'NONE'
+        self.APMFrac = -1
+        self.APMStatus = 'NONE'
+
+        self.pairedCounts = None
+        self.BAFCounts = None
+
+        self.baselineLabel = 'FALSE'
+        self.stripeIdx = -1
+        self.alleleType = 'NONE'
+
+        self.copyNumber = -1
