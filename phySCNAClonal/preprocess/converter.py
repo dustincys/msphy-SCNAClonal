@@ -53,7 +53,6 @@ class BamConverter:
         self.__minMqual = minMqual
 
         self.__processNum = processNum
-
         self.__bedCorrectedPath=bedCorrectedPath
         self.__pklPath = pklPath
 
@@ -66,6 +65,12 @@ class BamConverter:
         self._mark_timestamp(blSegs, nonBlSegs)
         self._mark_stripe()
         self._dump()
+
+    def _mark_timestamp(self, blSegs, nonBlSegs):
+        """
+        mark tag in final sample
+        """
+        pass
 
     def _load_segments(self):
         """
