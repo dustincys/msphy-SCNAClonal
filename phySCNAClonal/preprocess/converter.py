@@ -23,7 +23,7 @@ from phySCNAClonal.preprocess.data import Data
 from phySCNAClonal.preprocess.stripe import Stripe, DataStripes
 from phySCNAClonal.preprocess.iofun import PairedCountsIterator, PairedPileupIterator
 
-from phySCNAClonal.preprocess.utils import show, get_BAF_counts, normal_heterozygous_filter
+from phySCNAClonal.preprocess.utils import get_BAF_counts, normal_heterozygous_filter
 
 from plotGC import GCStripePlot
 
@@ -63,12 +63,18 @@ class BamConverter:
         self._correct_bias()
         blSegs, nonBlSegs = self._get_baseline()
         self._mark_timestamp(blSegs, nonBlSegs)
+        self._generate_stripe()
         self._mark_stripe()
         self._dump()
 
+    def _generate_stripe(self):
+        """
+        generate stripe from segs
+        """
+
     def _mark_timestamp(self, blSegs, nonBlSegs):
         """
-        mark tag in final sample
+        mark segs in final sample
         """
         pass
 
@@ -81,8 +87,8 @@ class BamConverter:
 
         for tBamName, bedName, coverage, subcloneNumber in zip(self._tBamNameL,
             self._bedNameL, self.__coverageL, self.__subcloneNumberL):
-            show('Loading segments from bam file:\n{0}\n'.format(tBamName))
-            show('and bed file with gc:\n{0}\n'.format(bedName))
+            print >> sys.stdout, 'Loading segments from bam file:\n{0}\n'.format(tBamName)
+            print >> sys.stdout, 'and bed file with gc:\n{0}\n'.format(bedName)
             tempSP = SegmentPool(self.__maxCopyNumber, coverage)
             nBam = pysam.Samfile(self._nBamName, 'rb')
             tBam = pysam.Samfile(tBamName, 'rb')
@@ -156,10 +162,10 @@ class BamConverter:
 
     def _V_GC_C(self, segmentPool, sampleNumber=10000):
         gsp = GCStripePlot(segmentPool.segments, sampleNumber)
-        show("total number: {}".format(len(segmentPool.segments)))
+        print >> sys.stdout, "total number: {}".format(len(segmentPool.segments))
         gsp.plot()
-        show("x, y, m, c")
-        show(gsp.output())
+        print >> sys.stdout, "x, y, m, c"
+        print >> sys.stdout, gsp.output()
 
         x = np.array(map(lambda seg: seg.gc, data.segments))
         y = np.array(map(lambda seg: np.log(seg.tumor_reads_num + 1) -

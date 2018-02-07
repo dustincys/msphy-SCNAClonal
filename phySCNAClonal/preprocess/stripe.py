@@ -218,7 +218,7 @@ class StripePool(object):
         :returns: TODO
 
         """
-        self._aggregation(yDown, yUp, stripeNum, noiseStripeNum=2)
+        self._aggregate(yDown, yUp, stripeNum, noiseStripeNum=2)
 
     def output_txt(self, outFileName):
         with open(outFileName, 'w') as outFile:
@@ -241,7 +241,7 @@ class StripePool(object):
                     s.tag)
             pass
 
-    def _aggregation(self, yDown, yUp, stripeNum, noiseStripeNum=2):
+    def _aggregate(self, yDown, yUp, stripeNum, noiseStripeNum=2):
         """The aggregation operations for segments in data
 
         :returns: stripes data structure
@@ -274,9 +274,9 @@ class StripePool(object):
 
         for cId, _ in mccs:
             # 对每一个条带进行裂解操作，生成子条带, return
-            self._decomposition(cId, clusters, statusYcV)
+            self._decompose(cId, clusters, statusYcV)
 
-    def _decomposition(self, cId, clusters, statusYcV):
+    def _decompose(self, cId, clusters, statusYcV):
         """The decomposition operations for segments in data
 
         :parameters: TODO

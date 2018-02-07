@@ -53,6 +53,7 @@ class Segment:
         self.BAFCounts = None
 
         self.baselineLabel = 'FALSE'
+        self.tag = 'SCNA'
         self.stripeIdx = -1
         self.alleleType = 'NONE'
 
