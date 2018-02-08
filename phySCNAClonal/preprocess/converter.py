@@ -30,8 +30,8 @@ from plotGC import GCStripePlot
 
 class BamConverter:
 
-    def __init__(self, nBamName, tBamNameL, bedNameL, refFaName, pathPrefix,
-                 coverageL = [30], subcloneNumberL=1, maxCopyNumber=6,
+    def __init__(self, nBamName, tBamNameL, bedNameL, refFaName, pathPrefix="",
+                 subcloneNumberL=[2], coverageL = [30], maxCopyNumber=6,
                  baselineThredLOH=0.3, baselineThredAPM=0.01, minDepth=20,
                  minBqual=10, minMqual=10, processNum=1, bedCorrectedPath="",
                  pklPath=""):
@@ -56,10 +56,10 @@ class BamConverter:
         self.__bedCorrectedPath=bedCorrectedPath
         self.__pklPath = pklPath
 
-        self._segmentPoolL = []
+        self._segPoolL = []
 
     def convert(self, method, pkl_flag=False):
-        self._load_segments()
+        self._load_segs()
         self._correct_bias()
         blSegs, nonBlSegs = self._get_baseline()
         self._mark_timestamp(blSegs, nonBlSegs)
@@ -72,13 +72,14 @@ class BamConverter:
         generate stripe from segs
         """
 
+
     def _mark_timestamp(self, blSegs, nonBlSegs):
         """
         mark segs in final sample
         """
         pass
 
-    def _load_segments(self):
+    def _load_segs(self):
         """
         load segments for each tumor sample
         """
@@ -95,14 +96,14 @@ class BamConverter:
             tempSP.load_segments(nBam, tBam, bedName)
             nBam.close()
             tBam.close()
-            self._segmentPoolL.append(tempSP)
+            self._segPoolL.append(tempSP)
 
     def _correct_bias(self, method=""):
         """
         correct bias of each tumor sample
         """
-        assert len(self._segmentPoolL) == len(self.__subcloneNumberL)
-        for segmentPool, subcloneNumber in zip(self._segmentPoolL,
+        assert len(self._segPoolL) == len(self.__subcloneNumberL)
+        for segmentPool, subcloneNumber in zip(self._segPoolL,
                                                self.__subcloneNumberL):
             if "auto" == method:
                 self._MCMC_GC_C(SegmentPool, subcloneNumber)

@@ -38,8 +38,8 @@ class Stripe:
     def __init__(self):
         # 记录对应原始seg的索引
         self.name = ""
-        self.id = ""
-        self.segIdL = None
+        self.sid = ""
+        self.segsIdxL = None
 
         self.pairedCounts = None
 
@@ -62,25 +62,25 @@ class Stripe:
         self.tssb = None
         self.node = None  # this is the node where the datum resides
 
-    def init_segs(self, segList, segIdL):
-        self.segIdL = segIdL
+    def init_segs(self, segsL, segsIdxL):
+        self.segsIdxL = segsIdxL
 
-        self._init_RD(segList)
-        self._init_BAF(segList)
+        self._init_RD(segsL)
+        self._init_BAF(segsL)
 
-    def _init_RD(self, segList):
+    def _init_RD(self, segsL):
         # 获取几何平均值
-        tReadNum = [seg.tReadNum for seg in segList]
-        nReadName = [seg.nReadName for seg in segList]
+        tReadNum = [seg.tReadNum for seg in segsL]
+        nReadName = [seg.nReadName for seg in segsL]
 
         self.tReadNum = gmean(tReadNum)
         self.nReadName = gmean(nReadName)
 
-    def _init_BAF(self, segList):
+    def _init_BAF(self, segsL):
         self.pairedCounts = np.array(
             [[], [], [], [], [], []], dtype=int).transpose()
 
-        for seg in segList:
+        for seg in segsL:
             self.pairedCounts = np.vstack((self.pairedCounts,
                                             seg.pairedCounts))
 
@@ -104,7 +104,7 @@ class Stripe:
         return self.__log_likelihood_RD_BAF(phi)
 
 
-    def __log_likelihood_RD_BAF(self, phi, baseline):
+    def __log_likelihood_RD_BAF(self, phi, baseline=0.0):
         # 此处是否添加记录
         copyNumbers = None
         if seg.tag == "True":
@@ -202,16 +202,18 @@ class Stripe:
 class StripePool(object):
     """The stripe objects, including load, property operations"""
 
-    def __init__(self, segmentPool):
-        """import segmentPool object
+    def __init__(self, segPool, baseline=0.0, yDown, yUp, stripeNum, noiseStripeNum=2):
+        """import segPool object
 
-        :segmentPool: TODO
+        :segPool: TODO
 
         """
-        self._segmentPool = segmentPool
+        self._segPool = segPool
         self.stripes = []  # stripes
 
-        self.baseline = -1
+        self.baseline = baseline
+
+
 
     def get(self, yDown, yUp, stripeNum, noiseStripeNum=2):
         """TODO: Docstring for get.
@@ -223,7 +225,7 @@ class StripePool(object):
     def output_txt(self, outFileName):
         with open(outFileName, 'w') as outFile:
             outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
-                "id", "segIdL", "pairedCounts", "tReadNum",
+                "id", "segsIdxL", "pairedCounts", "tReadNum",
                 "nReadName", "tag"))
 
             for s in self.stripes:
@@ -234,7 +236,7 @@ class StripePool(object):
 
                 outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
                     s.id,
-                    ",".join(s.segIdL),
+                    ",".join(s.segsIdxL),
                     "{0}|{1}".format(",".join(aTstrl), ",".join(bTstrl)),
                     s.tReadNum,
                     s.nReadName,
@@ -243,9 +245,7 @@ class StripePool(object):
 
     def _aggregate(self, yDown, yUp, stripeNum, noiseStripeNum=2):
         """The aggregation operations for segments in data
-
         :returns: stripes data structure
-
         """
         assert stripeNum > 0
 
@@ -254,11 +254,11 @@ class StripePool(object):
         # here should keep idx
         ycV = np.array([
             np.log(seg.tReadNum + 1) - np.log(seg.nReadName + 1)
-            for seg in self._segmentPool.segments
+            for seg in self._segPool.segments
         ])
 
         # 记录是否是outlier
-        statusYcV = np.logical_and(ycV > y_min, ycV < y_max)
+        statusYcV = np.logical_and(ycV > yDown, ycV < yUp)
 
         yFcd = ycV.reshape(ycV.shape[0], 1)
         clusters = hierarchy.fclusterdata(
@@ -266,7 +266,6 @@ class StripePool(object):
 
         # 此处应该只获取最大和最小值之间的条带，且要保留原始位置，以方便索引
         # 此处获取最小和最大值之间的条带的方法是：直接去除这些位置不列入计算范围
-
         # 此处应该是去除了outlier之后的Counter
 
         mccs = Counter(
@@ -296,11 +295,11 @@ class StripePool(object):
         # 然后返回
 
         # 这里需要有一个记录原始向量中位置的向量
-        segList = [self._segmentPool.segments[idx] for idx in mSIdx]
+        segsL = [self._segPool.segments[idx] for idx in mSIdx]
 
         pairedCountsAll = np.array(
             [[], [], [], [], [], []], dtype=int).transpose()
-        for seg in segList:
+        for seg in segsL:
             pairedCountsAll = np.vstack((pairedCountsAll,
                                            seg.pairedCounts))
 
@@ -322,18 +321,18 @@ class StripePool(object):
         nClusters = len(labelsUnique)
 
         segLabel = [
-            self._getSegLabl(seg, clusterCenters) for seg in segList
+            self._getSegLabl(seg, clusterCenters) for seg in segsL
         ]
 
         for label in set(segLabel):
             if label == -1:
                 continue
             subSegList = [
-                seg for seg, idx in enumerate(segList)
+                seg for seg, idx in enumerate(segsL)
                 if segLabel[idx] == label
             ]
             subSegIdx = [
-                mSIdx[idx] for seg, idx in enumerate(segList)
+                mSIdx[idx] for seg, idx in enumerate(segsL)
                 if segLabel[idx] == label
             ]
             tempStripe = Stripe()

@@ -147,6 +147,8 @@ class SegmentPool:
 
     def _get_baseline_stripe(self):
 
+        pass
+
 
     def _calc_baseline(self, maxCopyNumber, subcloneNum, isPreprocess=False):
         """
