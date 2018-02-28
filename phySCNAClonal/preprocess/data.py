@@ -139,7 +139,7 @@ class SegmentPool:
         # 此处转换成了stripe之后再返回
         return self.get_seg_by_tag()
 
-    def get_seg_by_tag(self, tag="baseline"):
+    def get_seg_by_tag(self, tag="BASELINE"):
         """
         return seg list
         """
@@ -178,9 +178,7 @@ class SegmentPool:
         assert targetSP is not None
 
         for idx in targetSP.segsIdxL:
-            self.segments[idx].tag = "NORMAL"
-
-        pass
+            self.segments[idx].tag = "BASELINE"
 
 
     def _calc_baseline(self, maxCopyNumber, subcloneNum, isPreprocess=False):

@@ -77,6 +77,14 @@ class BamConverter:
         """
         mark segs in final sample
         """
+        # 此处应用R来进行求解
+
+        # 首先，求解每相邻数据的基线之差的集合
+
+        # 然后，根据相邻数据的基线之差，映射到数据的非基线之上，确定归宿于哪一个基线之差
+
+        # 最后，所有的数据点中最先落入基线之差的为目标时间戳
+
         pass
 
     def _load_segs(self):
@@ -114,9 +122,21 @@ class BamConverter:
         """
         get the baseline segments
         calculate baseline of each SegmentPool
-        return: the baseline segments
+        return: the baseline segments list of each SegmentPool
         """
-        pass
+
+        blSegs = []
+        nonBlSegs = []
+
+        for segmentPool, idx in zip(self._segPoolL, range(len(self._segPoolL))):
+            tempBL = segmentPool.get_baseline(self,maxCopyNumber,
+                                              self.subcloneNumberL[idx])
+            tempNONBL = list(set(segmentPool.segments) - set(tempBL))
+
+            blSegs.append(tempBL)
+            nonBlSegs.append(tempNONBL)
+
+        return blSegs, nonBlSegs
 
     def _MCMC_GC_C(self, data, subcloneNumber):
         """
