@@ -43,7 +43,7 @@ class Stripe:
 
         self.pairedCounts = None
 
-        self.nReadName = -1.0
+        self.nReadNum = -1.0
         self.tReadNum = -1.0
 
         # 似乎用不到，实际上就是:
@@ -124,7 +124,6 @@ class Stripe:
 
         return ll
 
-
     def _getLLStripe(self, copyNumber, phi):
         rdWeight = constants.RD_WEIGHT_TSSB
 
@@ -144,7 +143,6 @@ class Stripe:
         llStripe = llRd * rdWeight + llBAF * (1 - rdWeight)
 
         return llStripe, pi
-
 
     def _augBAF(self, copyNumber):
         # todo: remove the baf point is not a good idea
@@ -202,25 +200,29 @@ class Stripe:
 class StripePool(object):
     """The stripe objects, including load, property operations"""
 
-    def __init__(self, segPool, baseline=0.0, yDown, yUp, stripeNum, noiseStripeNum=2):
+    def __init__(self, segPool, baseline, yDown, yUp, stripeNum, noiseStripeNum=2):
         """import segPool object
 
         :segPool: TODO
 
         """
         self._segPool = segPool
+        self._baseline = baseline
+        self._yDown = yDown
+        self._yUp = yUp
+        self._stripeNum = stripeNum
+        self._noiseStripeNum = noiseStripeNum
+
         self.stripes = []  # stripes
 
         self.baseline = baseline
 
-
-
-    def get(self, yDown, yUp, stripeNum, noiseStripeNum=2):
+    def get(self):
         """TODO: Docstring for get.
         :returns: TODO
 
         """
-        self._aggregate(yDown, yUp, stripeNum, noiseStripeNum=2)
+        self._aggregate(self._yDown, self._yUp, self._stripeNum, self._noiseStripeNum)
 
     def output_txt(self, outFileName):
         with open(outFileName, 'w') as outFile:

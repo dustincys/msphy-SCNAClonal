@@ -16,7 +16,7 @@ import scipy.cluster.hierarchy as hcluster
 from segment import Segment
 from scipy.stats.mstats import gmean
 from collections import Counter
-from stripe import Stripe
+from stripe import Stripe, StripePool
 
 
 class SegmentPool:
@@ -24,7 +24,8 @@ class SegmentPool:
     self.baseline = -1 // 此处baseline是对数值
     self.segments = []
 
-    def __init__(self, maxCopyNumber = 6, coverage = 30):
+    def __init__(self, idx = 0, maxCopyNumber = 6, coverage = 30):
+        self.idx = idx
 
         self.maxCopyNumber = maxCopyNumber
         self.coverage = coverage
@@ -146,6 +147,38 @@ class SegmentPool:
 
 
     def _get_baseline_stripe(self):
+        # 此处应该获取基线的条带，使用StripePool中的功能获取条带
+        # def __init__(self, segPool, baseline=0.0, yDown, yUp, stripeNum, noiseStripeNum=2):
+
+        # 获取yDown 和yUp 等相应的参数值，此处应该使用手动输入
+        yDown = constants.YDOWNL[self.idx]
+        yUp = constants.YUPL[self.idx]
+        # 此处应该近似为最大拷贝数与亚克隆数的乘积，作为手工输入也可以
+        stripeNum = constants.STRIPENUML[self.idx]
+        noiseStripeNum = constants.NOISESTRIPENUML[self.idx]
+
+        tempSP = StripePool(self, self.baseline, yDown, yUp, stripeNum, noiseStripeNum)
+        tempSP.get()
+
+        # 从条带中找到与基线最接近的条带作为基线条带
+
+        self.nReadName = -1.0
+        self.tReadNum = -1.0
+
+        tempDis = float("Inf")
+        targetSP = None
+        for sp in tempSP.stripes:
+            spr = np.abs(self.baseline - np.log((sp.tReadNum + 1.0) /
+                                                (sp.tReadNum + 1.0)))
+            if tempDis > spr:
+                tempDis = spr
+                targetSP = sp
+
+        # 将该条带之内的所有片段标注标签
+        assert targetSP is not None
+
+        for idx in targetSP.segsIdxL:
+            self.segments[idx].tag = "NORMAL"
 
         pass
 
