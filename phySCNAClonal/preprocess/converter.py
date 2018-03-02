@@ -61,10 +61,15 @@ class BamConverter:
     def convert(self, readFromBed=True, method="auto", pkl_flag=False):
         self._load_segs(readFromBed)
         self._correct_bias(method)
+        self._load_allele_counts()
         blSegsL = self._get_baseline()
         self._mark_timestamp(blSegsL)
         stripePool = self._generate_stripe()
         self._dump(stripePool)
+
+    def _load_allele_counts(self):
+        for tBamName, segPool in zip(self._tBamNameL, self._segPoolL):
+            self._get_counts(tBamName, segPool)
 
     def _dump(self, stripePool):
         fileName = self.__pathPrefix + self.__pklPath
@@ -208,20 +213,19 @@ class BamConverter:
         print "MCMC slope = {}".format(m)
 
         x = np.array(map(lambda seg: seg.gc, segPool.segments))
-        y = np.array(map(lambda seg: np.log(seg.tumor_reads_num + 1) -
-                         np.log(seg.normal_reads_num + 1),
-                         segPool.segments))
+        y = np.array(map(lambda seg: np.log(seg.tReadNum + 1) -
+                         np.log(seg.nReadNum + 1), segPool.segments))
 
-        y_corrected = self._correct(x, y, m, c)
+        yCorrected = self._correct(x, y, m, c)
 
-        for i in range(len(y_corrected)):
-            segPool.segments[i].tumor_reads_num = np.exp(
-                y_corrected[i] +
-                np.log(segPool.segments[i].normal_reads_num + 1)
+        for i in range(len(yCorrected)):
+            segPool.segments[i].tReadNum = np.exp(
+                yCorrected[i] +
+                np.log(segPool.segments[i].nReadNum + 1)
             ) - 1
             segPool.segments[i].log_ratio = np.log(
-                (y_corrected[i] + 1.0) /
-                (segPool.segments[i].normal_reads_num + 1.0)
+                (yCorrected[i] + 1.0) /
+                (segPool.segments[i].nReadNum + 1.0)
             )
 
         print "gc corrected, with slope = {0}, intercept = {1}".\
@@ -248,42 +252,20 @@ class BamConverter:
         print >> sys.stdout, gsp.output()
 
         x = np.array(map(lambda seg: seg.gc, segPool.segments))
-        y = np.array(map(lambda seg: np.log(seg.tumor_reads_num + 1) -
-                         np.log(seg.normal_reads_num + 1), segPool.segments))
-        y_corrected = self._correct(x, y, m, c)
+        y = np.array(map(lambda seg: np.log(seg.tReadNum + 1) -
+                         np.log(seg.nReadNum + 1), segPool.segments))
+        yCorrected = self._correct(x, y, m, c)
 
-        for i in range(len(y_corrected)):
-            segPool.segments[i].tumor_reads_num = np.exp(
-                y_corrected[i] +
-                np.log(segPool.segments[i].normal_reads_num + 1)
-            ) - 1
+        for i in range(len(yCorrected)):
+            segPool.segments[i].tReadNum = np.exp( yCorrected[i] +
+                np.log(segPool.segments[i].nReadNum + 1)) - 1
             segPool.segments[i].log_ratio = np.log(
-                (y_corrected[i] + 1.0) /
-                (segPool.segments[i].normal_reads_num + 1.0)
+                (yCorrected[i] + 1.0) /
+                (segPool.segments[i].nReadNum + 1.0)
             )
 
         print "gc corrected, with slope = {0}, intercept = {1}".\
             format(slope, intercept)
-
-    def _baseline_selection(self):
-        print "begin baseline selection.."
-        self._get_LOH_frac()
-        self._get_LOH_status()
-        self._get_APM_frac()
-        self._get_APM_status()
-        self._compute_Lambda_S()
-
-    def _get_APM_status(self):
-        self.segPool.get_APM_status(self.__baselineThredAPM)
-
-    def _get_LOH_status(self):
-        self.segPool.get_LOH_status(self.__baselineThredLOH,
-                                 flag_runpreprocess=True)
-
-    def _compute_Lambda_S(self):
-        print "begin compute lambda s .."
-        self.segPool.compute_Lambda_S_LOH(self.__maxCopyNumber, self.__subcloneNumberL,
-                                       flag_runpreprocess=True)
 
     def _get_counts(self, tBamName, segPool):
         """
@@ -331,90 +313,85 @@ class BamConverter:
             segPool.segments[j].pairedCounts = pairedCounts_j
             segPool.segments[j].BAFCounts = BAFCounts_j
 
-    def _get_LOH_frac(self):
-        self.segPool.get_LOH_frac()
-
-    def _get_APM_frac(self):
-        self.segPool.get_APM_frac()
 # ===============================================================================
 #  Function
 # ===============================================================================
 
 
 def process_by_segment(argsT):
-    seg_name, chrom_name, chrom_idx, start, end, nBamName,\
+    segName, chromName, chromIdx, start, end, nBamName,\
         tBamName, refFaName, minDepth, minBqual,\
         minMqual = argsT
 
-    print 'Preprocessing segment {0}...'.format(seg_name)
+    print 'Preprocessing segment {0}...'.format(segName)
     sys.stdout.flush()
 
     nBam = pysam.Samfile(nBamName, 'rb')
     tBam = pysam.Samfile(tBamName, 'rb')
-    ref_genome_fasta = pysam.Fastafile(refFaName)
+    refFasta = pysam.Fastafile(refFaName)
 
-    normal_pileup_iter = nBam.pileup(chrom_name, start, end)
-    tumor_pileup_iter = tBam.pileup(chrom_name, start, end)
+    normalPileupIter = nBam.pileup(chromName, start, end)
+    tumorPileupIter = tBam.pileup(chromName, start, end)
 
-    paired_pileup_iter = PairedPileupIterator(
-        normal_pileup_iter, tumor_pileup_iter, start, end)
-    paired_counts_iter = PairedCountsIterator(
-        paired_pileup_iter,
-        ref_genome_fasta,
-        chrom_name,
-        chrom_idx,
+    pairedPileupIter = PairedPileupIterator(
+        normalPileupIter, tumorPileupIter, start, end)
+    pairedCountsIter = PairedCountsIterator(
+        pairedPileupIter,
+        refFasta,
+        chromName,
+        chromIdx,
         minDepth,
         minBqual,
         minMqual)
 
-    paired_counts_j, BAF_counts_j = iterator_to_counts(paired_counts_iter)
-    counts_tuple_j = (paired_counts_j, BAF_counts_j)
+    pairedCounts_j, BAFCounts_j = iterator_to_counts(pairedCountsIter)
+    countsTuple_j = (pairedCounts_j, BAFCounts_j)
 
     nBam.close()
     tBam.close()
-    ref_genome_fasta.close()
+    refFasta.close()
 
-    return counts_tuple_j
+    return countsTuple_j
 
 
-def iterator_to_counts(paired_counts_iter):
+def iterator_to_counts(pairedCountsIter):
     buff = 100000
 
-    paired_counts_j = np.array([[], [], [], [], [], []], dtype=int).transpose()
-    BAF_counts_j = np.zeros((100, 100))
-    buff_counts = []
+    pairedCounts_j = np.array([[], [], [], [], [], []], dtype=int).transpose()
+    BAFCounts_j = np.zeros((100, 100))
+    buffCounts = []
     i = 0
 
-    for counts in paired_counts_iter:
-        buff_counts.append(counts)
+    for counts in pairedCountsIter:
+        buffCounts.append(counts)
         i = i + 1
 
         if i < buff:
             continue
 
-        buff_counts = np.array(buff_counts)
+        buffCounts = np.array(buffCounts)
 
-        if buff_counts.shape[0] != 0:
-            BAF_counts_buff = get_BAF_counts(buff_counts)
-            BAF_counts_j += BAF_counts_buff
+        if buffCounts.shape[0] != 0:
+            BAFCountsBuff = get_BAF_counts(buffCounts)
+            BAFCounts_j += BAFCountsBuff
 
-        buff_counts_filtered = normal_heterozygous_filter(buff_counts)
+        buffCountsFiltered = normal_heterozygous_filter(buffCounts)
 
-        if buff_counts_filtered.shape[0] != 0:
-            paired_counts_j = np.vstack((paired_counts_j, buff_counts_filtered))
+        if buffCountsFiltered.shape[0] != 0:
+            pairedCounts_j = np.vstack((pairedCounts_j, buffCountsFiltered))
 
-        buff_counts = []
+        buffCounts = []
         i = 0
 
-    buff_counts = np.array(buff_counts)
+    buffCounts = np.array(buffCounts)
 
-    if buff_counts.shape[0] != 0:
-        BAF_counts_buff = get_BAF_counts(buff_counts)
-        BAF_counts_j += BAF_counts_buff
+    if buffCounts.shape[0] != 0:
+        BAFCountsBuff = get_BAF_counts(buffCounts)
+        BAFCounts_j += BAFCountsBuff
 
-    buff_counts_filtered = normal_heterozygous_filter(buff_counts)
+    buffCountsFiltered = normal_heterozygous_filter(buffCounts)
 
-    if buff_counts_filtered.shape[0] != 0:
-        paired_counts_j = np.vstack((paired_counts_j, buff_counts_filtered))
+    if buffCountsFiltered.shape[0] != 0:
+        pairedCounts_j = np.vstack((pairedCounts_j, buffCountsFiltered))
 
-    return (paired_counts_j, BAF_counts_j)
+    return (pairedCounts_j, BAFCounts_j)
