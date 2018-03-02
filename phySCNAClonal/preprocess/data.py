@@ -162,7 +162,7 @@ class SegmentPool:
 
         # 从条带中找到与基线最接近的条带作为基线条带
 
-        self.nReadName = -1.0
+        self.nReadNum = -1.0
         self.tReadNum = -1.0
 
         tempDis = float("Inf")

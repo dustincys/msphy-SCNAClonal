@@ -217,12 +217,12 @@ class StripePool(object):
 
         self.baseline = baseline
 
-    def get(self):
+    def get(self, byTag=False):
         """TODO: Docstring for get.
         :returns: TODO
 
         """
-        self._aggregate(self._yDown, self._yUp, self._stripeNum, self._noiseStripeNum)
+        self._aggregate(self._yDown, self._yUp, self._stripeNum, self._noiseStripeNum, byTag)
 
     def output_txt(self, outFileName):
         with open(outFileName, 'w') as outFile:
@@ -245,7 +245,7 @@ class StripePool(object):
                     s.tag)
             pass
 
-    def _aggregate(self, yDown, yUp, stripeNum, noiseStripeNum=2):
+    def _aggregate(self, yDown, yUp, stripeNum, noiseStripeNum=2, byTag=False):
         """The aggregation operations for segments in data
         :returns: stripes data structure
         """
@@ -275,9 +275,9 @@ class StripePool(object):
 
         for cId, _ in mccs:
             # 对每一个条带进行裂解操作，生成子条带, return
-            self._decompose(cId, clusters, statusYcV)
+            self._decompose(cId, clusters, statusYcV, byTag)
 
-    def _decompose(self, cId, clusters, statusYcV):
+    def _decompose(self, cId, clusters, statusYcV, byTag=False):
         """The decomposition operations for segments in data
 
         :parameters: TODO
@@ -326,6 +326,7 @@ class StripePool(object):
             self._getSegLabl(seg, clusterCenters) for seg in segsL
         ]
 
+        # 注意此处要对目标stripe的seg进行tag分类,分类之后在生成条带
         for label in set(segLabel):
             if label == -1:
                 continue
@@ -337,10 +338,24 @@ class StripePool(object):
                 mSIdx[idx] for seg, idx in enumerate(segsL)
                 if segLabel[idx] == label
             ]
-            tempStripe = Stripe()
-            tempStripe.id = "{0}_{1}".format(str(cId), str(idx))
-            tempStripe.init_segs(subSegList, subSegIdx)
-            self.stripes.append(tempStripe)
+            if not byTag:
+                tempStripe = Stripe()
+                tempStripe.id = "{0}_{1}".format(str(cId), str(idx))
+                tempStripe.init_segs(subSegList, subSegIdx)
+                self.stripes.append(tempStripe)
+            else:
+                tempTags = set([seg.tag for seg in subSegList])
+                for tempTag in tempTags:
+                    subSubSegList = [seg for seg in subSegList if seg.tag ==
+                                     tempTag]
+                    subSubSegIdx = [ mSIdx[idx] for seg, idx in enumerate(segsL)
+                                    if segLabel[idx] == label and
+                                    seg.tag == tempTag ]
+                    tempStripe = Stripe()
+                    tempStripe.id = "{0}_{1}_{2}".format(str(cId), str(idx), tempTag)
+                    tempStripe.init_segs(subSubSegList, subSubSegIdx)
+                    tempStripe.tag = tempTag
+                    self.stripes.append(tempStripe)
 
     def _getSegLabl(self, seg, clusterCenters):
         if seg.pairedCounts is None:

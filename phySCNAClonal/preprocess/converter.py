@@ -58,23 +58,39 @@ class BamConverter:
 
         self._segPoolL = []
 
-    def convert(self, method, pkl_flag=False):
+    def convert(self, method="auto", pkl_flag=False):
         self._load_segs()
-        self._correct_bias()
+        self._correct_bias(method)
         blSegsL = self._get_baseline()
         self._mark_timestamp(blSegsL)
-        self._generate_stripe()
-        self._mark_stripe()
-        self._dump()
+        stripePool = self._generate_stripe()
+        self._dump(stripePool)
+
+    def _dump(self, stripePool):
+        fileName = self.__pathPrefix + self.__pklPath
+        outFile = open(fileName, 'wb')
+        pkl.dump(stripePool, outFile, protocol=2)
+        outFile.close()
 
     def _generate_stripe(self):
         """
         generate stripe from segs
         """
-        # generate the stripe according to the tag
+        # 此处应该对每一个tag进行单独的聚类
+        # 也有可能无法确定有多少个条带
+        #
+        # 另一种方案应该是对所有的条带进行聚类，然后从中挑选出目标条带，分解为新
+        # 条带。
 
+        yDown = constants.YDOWNL[self._segPoolL[-1].idx]
+        yUp = constants.YUPL[self._segPoolL[-1].idx]
+        # 此处应该近似为最大拷贝数与亚克隆数的乘积，作为手工输入也可以
+        stripeNum = constants.STRIPENUML[self._segPoolL[-1].idx]
+        noiseStripeNum = constants.NOISESTRIPENUML[self._segPoolL[-1].idx]
 
-
+        tempSP = StripePool(self._segPoolL[-1], self._segPoolL[-1].baseline,
+                            yDown, yUp, stripeNum, noiseStripeNum)
+        tempSP.get(byTag = True)
 
     def _mark_timestamp(self, blSegsL):
         """
@@ -150,12 +166,12 @@ class BamConverter:
             tBam.close()
             self._segPoolL.append(tempSP)
 
-    def _correct_bias(self, method=""):
+    def _correct_bias(self, method="auto"):
         """
         correct bias of each tumor sample
         """
         assert len(self._segPoolL) == len(self.__subcloneNumberL)
-        for segmentPool, subcloneNumber in zip(self._segPoolL,
+        for segPool, subcloneNumber in zip(self._segPoolL,
                                                self.__subcloneNumberL):
             if "auto" == method:
                 self._MCMC_GC_C(SegmentPool, subcloneNumber)
@@ -171,8 +187,8 @@ class BamConverter:
 
         blSegsL = []
 
-        for segmentPool, idx in zip(self._segPoolL, range(len(self._segPoolL))):
-            tempBL = segmentPool.get_baseline(self,maxCopyNumber,
+        for segPool, idx in zip(self._segPoolL, range(len(self._segPoolL))):
+            tempBL = segPool.get_baseline(self,maxCopyNumber,
                                               self.subcloneNumberL[idx])
             blSegsL.append(tempBL)
 
@@ -221,9 +237,9 @@ class BamConverter:
         print "x, y, m, c"
         print x, y, m, c
 
-    def _V_GC_C(self, segmentPool, sampleNumber=10000):
-        gsp = GCStripePlot(segmentPool.segments, sampleNumber)
-        print >> sys.stdout, "total number: {}".format(len(segmentPool.segments))
+    def _V_GC_C(self, segPool, sampleNumber=10000):
+        gsp = GCStripePlot(segPool.segments, sampleNumber)
+        print >> sys.stdout, "total number: {}".format(len(segPool.segments))
         gsp.plot()
         print >> sys.stdout, "x, y, m, c"
         print >> sys.stdout, gsp.output()
