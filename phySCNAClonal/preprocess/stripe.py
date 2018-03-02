@@ -50,7 +50,7 @@ class Stripe:
         # self.tReadNum /self.nReadName
         # self.rdr = -1.0
 
-        self.tag = "1"
+        self.tag = "0"
 
         # 这两个应该放在这里
         self.copyNumber = -1
@@ -107,7 +107,7 @@ class Stripe:
     def __log_likelihood_RD_BAF(self, phi, baseline=0.0):
         # 此处是否添加记录
         copyNumbers = None
-        if seg.tag == "True":
+        if seg.tag == "BASELINE":
             copyNumbers = [2]
         elif get_loga(seg) > baseline:
             copyNumbers = range(2, self._maxCopyNumber + 1)

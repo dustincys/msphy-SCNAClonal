@@ -61,8 +61,8 @@ class BamConverter:
     def convert(self, method, pkl_flag=False):
         self._load_segs()
         self._correct_bias()
-        blSegs, nonBlSegs = self._get_baseline()
-        self._mark_timestamp(blSegs, nonBlSegs)
+        blSegsL = self._get_baseline()
+        self._mark_timestamp(blSegsL)
         self._generate_stripe()
         self._mark_stripe()
         self._dump()
@@ -71,21 +71,65 @@ class BamConverter:
         """
         generate stripe from segs
         """
+        # generate the stripe according to the tag
 
 
-    def _mark_timestamp(self, blSegs, nonBlSegs):
+
+
+    def _mark_timestamp(self, blSegsL):
         """
         mark segs in final sample
         """
         # 此处应用R来进行求解
 
         # 首先，求解每相邻数据的基线之差的集合
+        #
+        # 或直接列出所有基线
 
-        # 然后，根据相邻数据的基线之差，映射到数据的非基线之上，确定归宿于哪一个基线之差
+        # 然后，根据相邻数据的基线之差，映射到数据的非基线之上，确定归宿于哪一个
+        # 基线之差
+        #
+        # 或找出落入基线之中的最大索引
 
         # 最后，所有的数据点中最先落入基线之差的为目标时间戳
+        #
+        # 根据该索引作为时间戳
 
-        pass
+        from rpy2.robjects.packages import importr
+        from rpy2.robjects import IntVector, StrVector, globalenv
+        import rpy2.robjects as robjects
+
+        GR = importr('GenomicRanges')
+        IR = importr('IRanges')
+
+        GRL = GR.GRangesList()
+        globalenv["GRL"] = GRL
+        for blSegs, idx in zip(blSegsL, range(len(blSegsL))):
+            chromNames = StrVector([seg.chromName for seg in blSegs])
+            starts = IntVector([seg.start for seg in blSegs])
+            ends = IntVector([seg.end for seg in blSegs])
+            tempGR = GR.GRanges(seqnames = chromNames, ranges=IR.IRanges(starts, ends))
+            globalenv["tempGR"] = tempGR
+            GRL = robjects.r("GRL[[{0}]]=tempGR".format(idx))
+
+        # 此处由于list中保存的是指向目标Seg的指针，所以更新nonBLSegs即可
+        nonBlSegs = list(set(self._segPoolL[-1].segments) - set(blSegsL[-1]))
+        chromNames = StrVector([seg.chromName for seg in nonBlSegs])
+        starts = IntVector([seg.start for seg in nonBlSegs])
+        ends = IntVector([seg.end for seg in nonBlSegs])
+        nonBlGR = GR.GRanges(seqnames = chromNames, ranges=IR.IRanges(starts, ends))
+        fo = IR.findOverlaps(GR2, GRL)
+        globalenv["fo"] = fo
+        robjects.reval("fom <- as.matrix(fo)")
+        overlapIdx = np.array(list(robjects.r.fom)).reshape(tuple(reversed(robjects.r.fom.dim))) - 1
+        # [[2, 2, 3, 3],
+        # [1, 2, 1, 2]]
+        #
+        for index in set(overlapIdx[0,]):
+            yIdx = np.where(overlapIdx[0,]==index)[0]
+            ts = np.max(re[1,yIdx])
+            # tag = 0, 1, 2, 3, 4, ..., BASELINE
+            nonBlGR[index].tag = str(ts)
 
     def _load_segs(self):
         """
@@ -125,18 +169,14 @@ class BamConverter:
         return: the baseline segments list of each SegmentPool
         """
 
-        blSegs = []
-        nonBlSegs = []
+        blSegsL = []
 
         for segmentPool, idx in zip(self._segPoolL, range(len(self._segPoolL))):
             tempBL = segmentPool.get_baseline(self,maxCopyNumber,
                                               self.subcloneNumberL[idx])
-            tempNONBL = list(set(segmentPool.segments) - set(tempBL))
+            blSegsL.append(tempBL)
 
-            blSegs.append(tempBL)
-            nonBlSegs.append(tempNONBL)
-
-        return blSegs, nonBlSegs
+        return blSegsL
 
     def _MCMC_GC_C(self, data, subcloneNumber):
         """
