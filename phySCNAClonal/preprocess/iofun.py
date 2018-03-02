@@ -31,73 +31,73 @@ ascii_offset = 33
 
 #JointSNVMix
 class PairedCountsIterator:
-    def __init__(self, paired_pileup_iter, ref_genome_fasta, chrom_name, chrom_idx,
-                 min_depth=20, min_bqual=10, min_mqual=10):
-        self.paired_pileup_iter = paired_pileup_iter
-        self.ref_genome_fasta = ref_genome_fasta
-        self.chrom_name = chrom_name
-        self.chrom_idx = chrom_idx
-        self.min_depth = min_depth
-        self.min_bqual = min_bqual
-        self.min_mqual = min_mqual
+    def __init__(self, pairedPileupIter, refGenomeFasta, chromName, chromIdx,
+                 minDepth=20, minBqual=10, minMqual=10):
+        self.pairedPileupIter = pairedPileupIter
+        self.refGenomeFasta = refGenomeFasta
+        self.chromName = chromName
+        self.chromIdx = chromIdx
+        self.minDepth = minDepth
+        self.minBqual = minBqual
+        self.minMqual = minMqual
 
     def __iter__(self):
         return self
 
     def next(self):
-        normal_column, tumor_column = self.paired_pileup_iter.next()
+        normalColumn, tumorColumn = self.pairedPileupIter.next()
 
         while True:
-            if normal_column.n < self.min_depth or tumor_column.n < self.min_depth:
-                normal_column, tumor_column = self.paired_pileup_iter.next()
+            if normalColumn.n < self.minDepth or tumorColumn.n < self.minDepth:
+                normalColumn, tumorColumn = self.pairedPileupIter.next()
                 continue
 
-            pos = normal_column.pos
-            chrom_idx = self.chrom_idx
-            ref_base = self.ref_genome_fasta.fetch(self.chrom_name, pos, pos + 1).upper()
+            pos = normalColumn.pos
+            chromIdx = self.chromIdx
+            refBase = self.refGenomeFasta.fetch(self.chromName, pos, pos + 1).upper()
 
-            if ref_base == '':
+            if refBase == '':
                 print 'Error: %s does not match the reference of the bam files' \
-                % self.ref_genome_fasta.filename
+                % self.refGenomeFasta.filename
                 sys.exit(-1)
 
-            paired_counts = self._get_paired_counts(normal_column, tumor_column, chrom_idx, pos, ref_base)
+            pairedCounts = self._get_paired_counts(normalColumn, tumorColumn, chromIdx, pos, refBase)
 
-            if paired_counts == None:
-                normal_column, tumor_column = self.paired_pileup_iter.next()
+            if pairedCounts == None:
+                normalColumn, tumorColumn = self.pairedPileupIter.next()
                 continue
             else:
-                return paired_counts
+                return pairedCounts
 
-    def _get_paired_counts(self, normal_column, tumor_column, chrom_idx, pos, ref_base):
-        normal_bases = self._parse_pileup_column(normal_column)
-        tumor_bases = self._parse_pileup_column(tumor_column)
+    def _get_paired_counts(self, normalColumn, tumorColumn, chromIdx, pos, refBase):
+        normalBases = self._parse_pileup_column(normalColumn)
+        tumorBases = self._parse_pileup_column(tumorColumn)
 
-        normal_non_ref_base, normal_counts = self._get_counts(ref_base, normal_bases)
-        tumor_non_ref_base, tumor_counts = self._get_counts(ref_base, tumor_bases)
+        normalNonRefBase, normalCounts = self._get_counts(refBase, normalBases)
+        tumorNonRefBase, tumorCounts = self._get_counts(refBase, tumorBases)
 
         # Check again for lines below read depth. The first check above speeds things up, though redundant.
-        normal_depth = normal_counts[0] + normal_counts[1]
-        tumor_depth = tumor_counts[0] + tumor_counts[1]
+        normalDepth = normalCounts[0] + normalCounts[1]
+        tumorDepth = tumorCounts[0] + tumorCounts[1]
 
-        if normal_depth < self.min_depth or tumor_depth < self.min_depth:
+        if normalDepth < self.minDepth or tumorDepth < self.minDepth:
             return None
 
         # Shift index to one based position.
-        one_based_pos = pos + 1
+        oneBasedPos = pos + 1
 
-        paired_counts = []
-        paired_counts.extend(normal_counts)
-        paired_counts.extend(tumor_counts)
-        paired_counts.append(chrom_idx)
-        paired_counts.append(pos)
+        pairedCounts = []
+        pairedCounts.extend(normalCounts)
+        pairedCounts.extend(tumorCounts)
+        pairedCounts.append(chromIdx)
+        pairedCounts.append(pos)
 
-        return paired_counts
+        return pairedCounts
 
-    def _parse_pileup_column(self, pileup_column):
+    def _parse_pileup_column(self, pileupColumn):
         bases = []
 
-        for read in pileup_column.pileups:
+        for read in pileupColumn.pileups:
             if read.is_del:
                 continue
 
@@ -112,10 +112,10 @@ class PairedCountsIterator:
 
             mqual = read.alignment.mapq
 
-            if mqual < self.min_mqual:
+            if mqual < self.minMqual:
                 continue
 
-            if bqual < self.min_bqual:
+            if bqual < self.minBqual:
                 continue
 
             base = read.alignment.seq[qpos].upper()
@@ -123,61 +123,61 @@ class PairedCountsIterator:
 
         return bases
 
-    def _get_counts(self, ref_base, bases, non_ref_base=None):
+    def _get_counts(self, refBase, bases, nonRefBase=None):
         counter = Counter(bases)
 
-        non_ref_base, counts = self._parse_counts(ref_base, counter, non_ref_base)
+        nonRefBase, counts = self._parse_counts(refBase, counter, nonRefBase)
 
-        return non_ref_base, counts
+        return nonRefBase, counts
 
-    def _parse_counts(self, ref_base, counter, non_ref_base=None):
-        ref_counts = counter[ref_base]
+    def _parse_counts(self, refBase, counter, nonRefBase=None):
+        refCounts = counter[refBase]
 
-        del counter[ref_base]
+        del counter[refBase]
         del counter['N']
 
         # Check if there is any non-ref bases.
-        if non_ref_base is not None:
-            non_ref_counts = counter[non_ref_base]
+        if nonRefBase is not None:
+            nonRefCounts = counter[nonRefBase]
         else:
             if len(counter) > 0:
-                non_ref_base, non_ref_counts = counter.most_common(1)[0]
+                nonRefBase, nonRefCounts = counter.most_common(1)[0]
             else:
-                non_ref_base = 'N'
-                non_ref_counts = 0
+                nonRefBase = 'N'
+                nonRefCounts = 0
 
-        counts = (ref_counts, non_ref_counts)
+        counts = (refCounts, nonRefCounts)
 
-        return non_ref_base, counts
+        return nonRefBase, counts
 
 #JointSNVMix
 class PairedPileupIterator:
-    def __init__(self, normal_iter, tumor_iter, segment_start, segment_end):
-        self.normal_iter = normal_iter
-        self.tumor_iter = tumor_iter
-        self.segment_start = segment_start
-        self.segment_end = segment_end
+    def __init__(self, normalIter, tumorIter, segmentStart, segmentEnd):
+        self.normalIter = normalIter
+        self.tumorIter = tumorIter
+        self.segmentStart = segmentStart
+        self.segmentEnd = segmentEnd
 
     def __iter__(self):
         return self
 
     def next(self):
-        normal_column = self.normal_iter.next()
-        tumor_column = self.tumor_iter.next()
+        normalColumn = self.normalIter.next()
+        tumorColumn = self.tumorIter.next()
 
         while True:
-            normal_pos = normal_column.pos
-            tumor_pos = tumor_column.pos
+            normalPos = normalColumn.pos
+            tumorPos = tumorColumn.pos
 
-            if normal_pos == tumor_pos:
-                if normal_pos >= self.segment_start and normal_pos <= self.segment_end:
-                    return normal_column, tumor_column
+            if normalPos == tumorPos:
+                if normalPos >= self.segmentStart and normalPos <= self.segmentEnd:
+                    return normalColumn, tumorColumn
                 else:
-                    normal_column = self.normal_iter.next()
-                    tumor_column = self.tumor_iter.next()
-            elif normal_pos < tumor_pos:
-                normal_column = self.normal_iter.next()
-            elif normal_pos > tumor_pos:
-                tumor_column = self.tumor_iter.next()
+                    normalColumn = self.normalIter.next()
+                    tumorColumn = self.tumorIter.next()
+            elif normalPos < tumorPos:
+                normalColumn = self.normalIter.next()
+            elif normalPos > tumorPos:
+                tumorColumn = self.tumorIter.next()
             else:
                 raise Exception("Error in paired pileup iterator.")

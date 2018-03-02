@@ -27,18 +27,18 @@ class MCMCLM(object):
 
     """The MCMC model for linear regression, return the slope and inlier"""
 
-    def __init__(self, data, n, tau, max_copynumber):
+    def __init__(self, data, n, tau, maxCopyNumber):
         """Initialize the MCMCLM model
 
         :data: the segment data object
         :n: the sampling number
         :tau: the subclone number
-        :max_copynumber: maximum copy number
+        :maxCopyNumber: maximum copy number
         """
         self._data = data
         self._n = n
         self._tau = tau
-        self._max_copynumber = max_copynumber
+        self._maxCopyNumber = maxCopyNumber
 
         # parameters
         self._downGCBoundaryPercentile = constants.DOWN_GC_BOUNDARY_PERCENTILE
@@ -49,19 +49,19 @@ class MCMCLM(object):
         self._upLOGABoundaryPercentile = \
             constants.UP_LOGA_BOUNDARY_PERCENTILE
 
-        self._slope_range = constants.SLOPE_RANGE
+        self._slopeRange = constants.SLOPE_RANGE
 
-        self._zoom_p = constants.ZOOM_P
-        self._x_zoom_in_factor = constants.X_ZOOM_IN_FACTOR
+        self._zoomP = constants.ZOOM_P
+        self._xZoomInFactor = constants.X_ZOOM_IN_FACTOR
 
         self._y, self._x = self._getSampledData()
-        self._x_zoommed = self._zoomx()
-        if self._x_zoommed:
-            self._x = self._x * self._x_zoom_in_factor
+        self._xZoommed = self._zoomx()
+        if self._xZoommed:
+            self._x = self._x * self._xZoomInFactor
 
     def _zoomx(self):
         spanp = (max(self._y) - min(self._y)) / (max(self._x) - min(self._x))
-        if spanp > self._zoom_p:
+        if spanp > self._zoomP:
             return True
         else:
             return False
@@ -70,30 +70,30 @@ class MCMCLM(object):
         """Correct Y
         return: the corrected Y
         """
-        slope_best, intercept_best = self._getMCPosterior(self._y, self._x)
-        if self._x_zoommed:
-            slope_best = slope_best * self._x_zoom_in_factor
+        slopeBest, interceptBest = self._getMCPosterior(self._y, self._x)
+        if self._xZoommed:
+            slopeBest = slopeBest * self._xZoomInFactor
 
-        return slope_best, intercept_best
+        return slopeBest, interceptBest
 
     def _getMCPrior(self, y, x):
-        x_down_ceil = np.percentile(x, self._downGCBoundaryPercentile)
-        x_median = np.percentile(x, 50)
-        x_up_floor = np.percentile(x, self._upGCBoundaryPercentile)
+        xDownCeil = np.percentile(x, self._downGCBoundaryPercentile)
+        xMedian = np.percentile(x, 50)
+        xUpFloor = np.percentile(x, self._upGCBoundaryPercentile)
 
-        y_up = y[np.logical_and(x < x_up_floor, x > x_median)]
-        y_down = y[np.logical_and(x > x_down_ceil, x < x_median)]
-        x_up = x[np.logical_and(x < x_up_floor, x > x_median)]
-        x_down = x[np.logical_and(x > x_down_ceil, x < x_median)]
+        yUp = y[np.logical_and(x < xUpFloor, x > xMedian)]
+        yDown = y[np.logical_and(x > xDownCeil, x < xMedian)]
+        xUp = x[np.logical_and(x < xUpFloor, x > xMedian)]
+        xDown = x[np.logical_and(x > xDownCeil, x < xMedian)]
 
-        y_up_y = np.percentile(y_up, 50)
-        x_up_x = np.percentile(x_up, 50)
+        yUpY = np.percentile(yUp, 50)
+        xUpX = np.percentile(xUp, 50)
 
-        y_down_y = np.percentile(y_down, 50)
-        x_down_x = np.percentile(x_down, 50)
+        yDownY = np.percentile(yDown, 50)
+        xDownX = np.percentile(xDown, 50)
 
-        m = (y_up_y - y_down_y) * 1.0 / (x_up_x - x_down_x)
-        c = y_down_y - m * x_down_x
+        m = (yUpY - yDownY) * 1.0 / (xUpX - xDownX)
+        c = yDownY - m * xDownX
 
         return m, c
 
@@ -102,25 +102,25 @@ class MCMCLM(object):
         A = slope * x + intercept
         return y - A + K
 
-    def _getMCPosterior(self, y_with_outlier, x):
-        m, c = self._getMCPrior(y_with_outlier, x)
-        slope = pymc.Uniform('slope', m-self._slope_range, m+self._slope_range)
+    def _getMCPosterior(self, yWithOutlier, x):
+        m, c = self._getMCPrior(yWithOutlier, x)
+        slope = pymc.Uniform('slope', m-self._slopeRange, m+self._slopeRange)
 
         def log_posterior_likelihood_of_slope(
-                y_with_outlier,
+                yWithOutlier,
                 slope
                 ):
-            y_corrected = self._correctY(y_with_outlier, x, slope, 0)
-            y_density = gaussian_kde(y_corrected)
+            yCorrected = self._correctY(yWithOutlier, x, slope, 0)
+            yDensity = gaussian_kde(yCorrected)
 
-            y_down = min(y_corrected)
-            y_up = max(y_corrected)
-            y_xs = np.linspace(y_down, y_up,
-                               1000*self._tau*self._max_copynumber)
-            y_ys = y_density(y_xs)
-            peaks = argrelextrema(y_ys, np.greater)
+            yDown = min(yCorrected)
+            yUp = max(yCorrected)
+            yXs = np.linspace(yDown, yUp,
+                               1000*self._tau*self._maxCopyNumber)
+            yYs = yDensity(yXs)
+            peaks = argrelextrema(yYs, np.greater)
 
-            prob = sum(heapq.nlargest(self._max_copynumber,  y_ys[peaks[0]]))
+            prob = sum(heapq.nlargest(self._maxCopyNumber,  yYs[peaks[0]]))
 
             return prob
 
@@ -133,21 +133,19 @@ class MCMCLM(object):
         slope_dist = slope_distribution('slope_dist',
                                         slope=slope,
                                         observed=True,
-                                        value=y_with_outlier)
+                                        value=yWithOutlier)
 
-        model = dict(slope_dist=slope_dist,
-                     slope=slope
-                     )
+        model = dict(slope_dist=slope_dist, slope=slope)
 
         M = pymc.MAP(model)
         M.fit()
 
-        slope_best = M.slope.value
-        y_median = np.percentile(y_with_outlier, 50)
-        x_median = x[sum(y_with_outlier < y_median)]
-        intercept_best = y_median - slope_best * x_median
+        slopeBest = M.slope.value
+        y_median = np.percentile(yWithOutlier, 50)
+        xMedian = x[sum(yWithOutlier < y_median)]
+        interceptBest = y_median - slopeBest * xMedian
 
-        return slope_best, intercept_best
+        return slopeBest, interceptBest
 
     def _getSampledData(self):
         if 0 == self._n:
@@ -165,7 +163,7 @@ class MCMCLM(object):
 
         return np.array(y0), np.array(x0)
 
-    def getPeakRange(self, slope_best):
+    def getPeakRange(self, slopeBest):
         """TODO: Docstring for getPeakRange.
 
         :y: TODO
@@ -174,28 +172,28 @@ class MCMCLM(object):
         :returns: TODO
 
         """
-        if self._x_zoommed:
-            slope = slope_best / self._x_zoom_in_factor
-        y_corrected = self._correctY(self._y, self._x, slope, 0)
-        y_density = gaussian_kde(y_corrected)
+        if self._xZoommed:
+            slope = slopeBest / self._xZoomInFactor
+        yCorrected = self._correctY(self._y, self._x, slope, 0)
+        yDensity = gaussian_kde(yCorrected)
 
-        y_down = min(y_corrected)
-        y_up = max(y_corrected)
-        y_xs = np.linspace(y_down, y_up, 1000*self._tau*self._max_copynumber)
-        y_ys = y_density(y_xs)
-        peaks = argrelextrema(y_ys, np.greater)
-        y_ys_nl = np.array(heapq.nlargest(self._max_copynumber,
-                                          y_ys[peaks[0]]))
-        idx = np.nonzero(y_ys_nl[:,None] == y_ys)[1]
-        y_xs_nl = np.sort(y_xs[idx])
+        yDown = min(yCorrected)
+        yUp = max(yCorrected)
+        yXs = np.linspace(yDown, yUp, 1000*self._tau*self._maxCopyNumber)
+        yYs = yDensity(yXs)
+        peaks = argrelextrema(yYs, np.greater)
+        yYsNl = np.array(heapq.nlargest(self._maxCopyNumber,
+                                          yYs[peaks[0]]))
+        idx = np.nonzero(yYsNl[:,None] == yYs)[1]
+        yXsNl = np.sort(yXs[idx])
         pr = 0
-        for i in range(len(y_xs_nl) - 1):
-            pr = pr + y_xs_nl[i+1] - y_xs_nl[i]
-        pr = pr * 1.0 / (len(y_xs_nl) - 1)
+        for i in range(len(yXsNl) - 1):
+            pr = pr + yXsNl[i+1] - yXsNl[i]
+        pr = pr * 1.0 / (len(yXsNl) - 1)
 
         print "idx = "
         print idx
-        print "y_xs_nl = "
-        print y_xs_nl
+        print "yXsNl = "
+        print yXsNl
 
         return pr
