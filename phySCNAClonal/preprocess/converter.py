@@ -19,7 +19,7 @@ import pysam
 
 from mcmc import MCMCLM
 
-from phySCNAClonal.preprocess.data import Data
+from phySCNAClonal.preprocess.data import SegmentPool
 from phySCNAClonal.preprocess.stripe import Stripe, DataStripes
 from phySCNAClonal.preprocess.iofun import PairedCountsIterator, PairedPileupIterator
 
@@ -58,8 +58,8 @@ class BamConverter:
 
         self._segPoolL = []
 
-    def convert(self, method="auto", pkl_flag=False):
-        self._load_segs()
+    def convert(self, readFromBed=True, method="auto", pkl_flag=False):
+        self._load_segs(readFromBed)
         self._correct_bias(method)
         blSegsL = self._get_baseline()
         self._mark_timestamp(blSegsL)
@@ -147,7 +147,7 @@ class BamConverter:
             # tag = 0, 1, 2, 3, 4, ..., BASELINE
             nonBlGR[index].tag = str(ts)
 
-    def _load_segs(self):
+    def _load_segs(self, readFromBed=True):
         """
         load segments for each tumor sample
         """
@@ -159,11 +159,14 @@ class BamConverter:
             print >> sys.stdout, 'Loading segments from bam file:\n{0}\n'.format(tBamName)
             print >> sys.stdout, 'and bed file with gc:\n{0}\n'.format(bedName)
             tempSP = SegmentPool(self.__maxCopyNumber, coverage)
-            nBam = pysam.Samfile(self._nBamName, 'rb')
-            tBam = pysam.Samfile(tBamName, 'rb')
-            tempSP.load_segments(nBam, tBam, bedName)
-            nBam.close()
-            tBam.close()
+            if not readFromBed:
+                nBam = pysam.Samfile(self._nBamName, 'rb')
+                tBam = pysam.Samfile(tBamName, 'rb')
+                tempSP.load_seg_bam(nBam, tBam, bedName)
+                nBam.close()
+                tBam.close()
+            else:
+                tempSP.load_seg_bed (self.segments_bed)
             self._segPoolL.append(tempSP)
 
     def _correct_bias(self, method="auto"):
@@ -194,31 +197,31 @@ class BamConverter:
 
         return blSegsL
 
-    def _MCMC_GC_C(self, data, subcloneNumber):
+    def _MCMC_GC_C(self, segPool, subcloneNumber):
         """
         The interception is irrelevant for correction, set as median
-        MCMCLM only returns the m and c, then correct the data here
+        MCMCLM only returns the m and c, then correct the segPool here
         """
 
-        mcmclm = MCMCLM(data, 0, subcloneNumber, self.__maxCopyNumber)
+        mcmclm = MCMCLM(segPool, 0, subcloneNumber, self.__maxCopyNumber)
         m, c = mcmclm.run()
         print "MCMC slope = {}".format(m)
 
-        x = np.array(map(lambda seg: seg.gc, data.segments))
+        x = np.array(map(lambda seg: seg.gc, segPool.segments))
         y = np.array(map(lambda seg: np.log(seg.tumor_reads_num + 1) -
                          np.log(seg.normal_reads_num + 1),
-                         data.segments))
+                         segPool.segments))
 
         y_corrected = self._correct(x, y, m, c)
 
         for i in range(len(y_corrected)):
-            data.segments[i].tumor_reads_num = np.exp(
+            segPool.segments[i].tumor_reads_num = np.exp(
                 y_corrected[i] +
-                np.log(data.segments[i].normal_reads_num + 1)
+                np.log(segPool.segments[i].normal_reads_num + 1)
             ) - 1
-            data.segments[i].log_ratio = np.log(
+            segPool.segments[i].log_ratio = np.log(
                 (y_corrected[i] + 1.0) /
-                (data.segments[i].normal_reads_num + 1.0)
+                (segPool.segments[i].normal_reads_num + 1.0)
             )
 
         print "gc corrected, with slope = {0}, intercept = {1}".\
@@ -230,8 +233,8 @@ class BamConverter:
         return y - A + K
 
     def visualize(self):
-        gsp = GCStripePlot(self.data.segments, len(self.data.segments))
-        print "total number: {}".format(self.data.seg_num)
+        gsp = GCStripePlot(self.segPool.segments, len(self.segPool.segments))
+        print "total number: {}".format(self.segPool.segNum)
         gsp.plot()
         x, y, m, c = gsp.output()
         print "x, y, m, c"
@@ -244,19 +247,19 @@ class BamConverter:
         print >> sys.stdout, "x, y, m, c"
         print >> sys.stdout, gsp.output()
 
-        x = np.array(map(lambda seg: seg.gc, data.segments))
+        x = np.array(map(lambda seg: seg.gc, segPool.segments))
         y = np.array(map(lambda seg: np.log(seg.tumor_reads_num + 1) -
-                         np.log(seg.normal_reads_num + 1), data.segments))
+                         np.log(seg.normal_reads_num + 1), segPool.segments))
         y_corrected = self._correct(x, y, m, c)
 
         for i in range(len(y_corrected)):
-            data.segments[i].tumor_reads_num = np.exp(
+            segPool.segments[i].tumor_reads_num = np.exp(
                 y_corrected[i] +
-                np.log(data.segments[i].normal_reads_num + 1)
+                np.log(segPool.segments[i].normal_reads_num + 1)
             ) - 1
-            data.segments[i].log_ratio = np.log(
+            segPool.segments[i].log_ratio = np.log(
                 (y_corrected[i] + 1.0) /
-                (data.segments[i].normal_reads_num + 1.0)
+                (segPool.segments[i].normal_reads_num + 1.0)
             )
 
         print "gc corrected, with slope = {0}, intercept = {1}".\
@@ -271,100 +274,83 @@ class BamConverter:
         self._compute_Lambda_S()
 
     def _get_APM_status(self):
-        self.data.get_APM_status(self.__baselineThredAPM)
+        self.segPool.get_APM_status(self.__baselineThredAPM)
 
     def _get_LOH_status(self):
-        self.data.get_LOH_status(self.__baselineThredLOH,
+        self.segPool.get_LOH_status(self.__baselineThredLOH,
                                  flag_runpreprocess=True)
 
     def _compute_Lambda_S(self):
         print "begin compute lambda s .."
-        self.data.compute_Lambda_S_LOH(self.__maxCopyNumber, self.__subcloneNumberL,
+        self.segPool.compute_Lambda_S_LOH(self.__maxCopyNumber, self.__subcloneNumberL,
                                        flag_runpreprocess=True)
 
-    def _load_segmentsn(self):
+    def _get_counts(self, tBamName, segPool):
         """
-        :returns: TODO
-
+        get allele counts of target bam file
+        save the counts into segPool
         """
-        nBam = pysam.Samfile(self._nBamName, 'rb')
-        tBam = pysam.Samfile(self.tBam_filename, 'rb')
 
-        print 'Loading normalized segments by {0}...'.format(self.segments_bed)
-        sys.stdout.flush()
-        self.data.load_segmentsn(nBam, tBam, self.segments_bed)
-
-        nBam.close()
-        tBam.close()
-
-
-    def _load_segments_bed(self, segments_bed, data):
-        print 'Loading segments with gc by {0}...'.format(self.segments_bed)
-        sys.stdout.flush()
-        data.load_segments_bed(segments_bed)
-
-    def _get_counts(self, tBam_filename, data):
-        seg_num = self.data.seg_num
+        segNum = len(self.segPool.segments)
         processNum = self.__processNum
         print "processNum = {}".format(processNum)
 
-        if processNum > seg_num:
-            processNum = seg_num
+        if processNum > segNum:
+            processNum = segNum
 
         pool = Pool(processes=processNum)
 
-        args_list = []
+        argsL = []
 
-        for j in range(0, seg_num):
-            seg_name = self.data.segments[j].name
-            chrom_name = self.data.segments[j].chrom_name
-            chrom_idx = self.data.segments[j].chrom_idx
-            start = self.data.segments[j].start
-            end = self.data.segments[j].end
+        for j in range(0, segNum):
+            segName = self.segPool.segments[j].name
+            chromName = self.segPool.segments[j].chromName
+            chromIdx = self.segPool.segments[j].chromIdx
+            start = self.segPool.segments[j].start
+            end = self.segPool.segments[j].end
 
-            args_tuple = (
-                seg_name,
-                chrom_name,
-                chrom_idx,
+            argsT = (
+                segName,
+                chromName,
+                chromIdx,
                 start,
                 end,
                 self._nBamName,
-                tBam_filename,
+                tBamName,
                 self._refFaName,
                 self.__minDepth,
                 self.__minBqual,
                 self.__minMqual)
 
-            args_list.append(args_tuple)
+            argsL.append(argsT)
 
-        counts_tuple_list = pool.map(process_by_segment, args_list)
+        countsTL = pool.map(process_by_segment, argsL)
 
-        for j in range(0, seg_num):
-            paired_counts_j, BAF_counts_j = counts_tuple_list[j]
-
-            data.segments[j].paired_counts = paired_counts_j
-            data.segments[j].BAF_counts = BAF_counts_j
+        for j in range(0, segNum):
+            pairedCounts_j, BAFCounts_j = countsTL[j]
+            segPool.segments[j].pairedCounts = pairedCounts_j
+            segPool.segments[j].BAFCounts = BAFCounts_j
 
     def _get_LOH_frac(self):
-        self.data.get_LOH_frac()
+        self.segPool.get_LOH_frac()
 
     def _get_APM_frac(self):
-        self.data.get_APM_frac()
+        self.segPool.get_APM_frac()
 # ===============================================================================
 #  Function
 # ===============================================================================
 
 
-def process_by_segment(args_tuple):
+def process_by_segment(argsT):
     seg_name, chrom_name, chrom_idx, start, end, nBamName,\
-        tBam_filename, refFaName, minDepth, minBqual,\
-        minMqual = args_tuple
+        tBamName, refFaName, minDepth, minBqual,\
+        minMqual = argsT
 
     print 'Preprocessing segment {0}...'.format(seg_name)
     sys.stdout.flush()
 
     nBam = pysam.Samfile(nBamName, 'rb')
-    tBam = pysam.Samfile(tBam_filename, 'rb')
+    tBam = pysam.Samfile(tBamName, 'rb')
     ref_genome_fasta = pysam.Fastafile(refFaName)
 
     normal_pileup_iter = nBam.pileup(chrom_name, start, end)
