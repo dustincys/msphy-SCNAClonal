@@ -11,6 +11,14 @@
 #       History:
 # =============================================================================
 '''
+from collections import Counter
+
+import numpy as np
+import scipy.cluster.hierarchy as hierarchy
+from sklearn.cluster import MeanShift, estimate_bandwidth
+
+from phySCNAClonal.preprocess.elements.stripe import Stripe
+
 
 class StripePool(object):
     """The stripe objects, including load, property operations"""
@@ -58,7 +66,6 @@ class StripePool(object):
                     s.tReadNum,
                     s.nReadName,
                     s.tag)
-            pass
 
     def _aggregate(self, yDown, yUp, stripeNum, noiseStripeNum=2, byTag=False):
         """The aggregation operations for segments in data
@@ -103,7 +110,7 @@ class StripePool(object):
         # 即，clusters 中与cId相等且，在statusYcV中的位置
         ca = np.argwhere(clusters == cId).flatten()
         sa = np.argwhere(statusYcV).flatten()
-        mSIdx = np.intersectid(ca, sa)
+        mSIdx = np.intersect1d(ca, sa)
 
         # 这里的基于BAF的归类处理分为3个步骤
 
@@ -126,16 +133,18 @@ class StripePool(object):
         lT = np.min(pairedCountsAll[:, 2:4], axis=1)
         pT = lT * 1.0 / dT
 
+        # 此处决定是否是用最大最小限制
         # status_p_T_v = np.logical_and(pT > p_T_min, pT < p_T_max).flatten()
 
         y = np.ones(pT.shape)
         pTy = np.hstack((pT, y))
         bandwidth = estimate_bandwidth(pTy, quantile=0.2, n_samples=500)
-        ms.fit(X)
+        ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+        ms.fit(pTy)
         labels = ms.labels_
         clusterCenters = ms.clusterCenters
-        labelsUnique = np.unique(labels)
-        nClusters = len(labelsUnique)
+        # labelsUnique = np.unique(labels)
+        # nClusters = len(labelsUnique)
 
         segLabel = [
             self._getSegLabl(seg, clusterCenters) for seg in segsL
