@@ -11,22 +11,23 @@
 # =============================================================================
 '''
 
-import sys
 import pickle as pkl
+import sys
 from multiprocessing import Pool
+
 import numpy as np
 import pysam
 
-from mcmc import MCMCLM
+from phySCNAClonal.preprocess.data.pools.segmentPool import SegmentPool
+from phySCNAClonal.preprocess.data.pools.stripePool import StripePool
+from phySCNAClonal.preprocess.iofun import (PairedCountsIterator,
+                                            PairedPileupIterator)
+from phySCNAClonal.preprocess.mcmc import MCMCLM
+from phySCNAClonal.preprocess.plotGC import GCStripePlot
+from phySCNAClonal.preprocess.utils import (get_BAF_counts,
+                                            normal_heterozygous_filter)
 
-from phySCNAClonal.preprocess.data import SegmentPool
-from phySCNAClonal.preprocess.stripe import Stripe, DataStripes
-from phySCNAClonal.preprocess.iofun import PairedCountsIterator, PairedPileupIterator
-
-from phySCNAClonal.preprocess.utils import get_BAF_counts, normal_heterozygous_filter
-
-from plotGC import GCStripePlot
-
+import phySCNAClonal.preprocess.constants as constants
 
 class BamConverter:
 
@@ -58,7 +59,7 @@ class BamConverter:
 
         self._segPoolL = []
 
-    def convert(self, readFromBed=True, method="auto", pkl_flag=False):
+    def convert(self, readFromBed=True, method="auto", pklFlag=False):
         self._load_segs(readFromBed)
         self._correct_bias(method)
         self._load_allele_counts()
@@ -309,9 +310,9 @@ class BamConverter:
         countsTL = pool.map(process_by_segment, argsL)
 
         for j in range(0, segNum):
-            pairedCounts_j, BAFCounts_j = countsTL[j]
-            segPool.segments[j].pairedCounts = pairedCounts_j
-            segPool.segments[j].BAFCounts = BAFCounts_j
+            pairedCountsJ, BAFCountsJ = countsTL[j]
+            segPool.segments[j].pairedCounts = pairedCountsJ
+            segPool.segments[j].BAFCounts = BAFCountsJ
 
 # ===============================================================================
 #  Function
@@ -344,8 +345,8 @@ def process_by_segment(argsT):
         minBqual,
         minMqual)
 
-    pairedCounts_j, BAFCounts_j = iterator_to_counts(pairedCountsIter)
-    countsTuple_j = (pairedCounts_j, BAFCounts_j)
+    pairedCountsJ, BAFCountsJ = iterator_to_counts(pairedCountsIter)
+    countsTuple_j = (pairedCountsJ, BAFCountsJ)
 
     nBam.close()
     tBam.close()
@@ -357,8 +358,8 @@ def process_by_segment(argsT):
 def iterator_to_counts(pairedCountsIter):
     buff = 100000
 
-    pairedCounts_j = np.array([[], [], [], [], [], []], dtype=int).transpose()
-    BAFCounts_j = np.zeros((100, 100))
+    pairedCountsJ = np.array([[], [], [], [], [], []], dtype=int).transpose()
+    BAFCountsJ = np.zeros((100, 100))
     buffCounts = []
     i = 0
 
@@ -373,12 +374,12 @@ def iterator_to_counts(pairedCountsIter):
 
         if buffCounts.shape[0] != 0:
             BAFCountsBuff = get_BAF_counts(buffCounts)
-            BAFCounts_j += BAFCountsBuff
+            BAFCountsJ += BAFCountsBuff
 
         buffCountsFiltered = normal_heterozygous_filter(buffCounts)
 
         if buffCountsFiltered.shape[0] != 0:
-            pairedCounts_j = np.vstack((pairedCounts_j, buffCountsFiltered))
+            pairedCountsJ = np.vstack((pairedCountsJ, buffCountsFiltered))
 
         buffCounts = []
         i = 0
@@ -387,11 +388,11 @@ def iterator_to_counts(pairedCountsIter):
 
     if buffCounts.shape[0] != 0:
         BAFCountsBuff = get_BAF_counts(buffCounts)
-        BAFCounts_j += BAFCountsBuff
+        BAFCountsJ += BAFCountsBuff
 
     buffCountsFiltered = normal_heterozygous_filter(buffCounts)
 
     if buffCountsFiltered.shape[0] != 0:
-        pairedCounts_j = np.vstack((pairedCounts_j, buffCountsFiltered))
+        pairedCountsJ = np.vstack((pairedCountsJ, buffCountsFiltered))
 
-    return (pairedCounts_j, BAFCounts_j)
+    return (pairedCountsJ, BAFCountsJ)

@@ -12,9 +12,9 @@
 '''
 
 import sys
-from BamToDataConverter import pSCNAClonal_Converter
-
 import time
+
+from phySCNAClonal.preprocess.converter import BamConverter
 
 
 def run_preprocess_pSCNAClonal(args):
@@ -30,29 +30,30 @@ def run_preprocess_pSCNAClonal(args):
     print args.pkl_flag
     time_start = time.time()
 
-    converter = pSCNAClonal_Converter(
-        args.normal_bam,
-        args.tumor_bam,
-        args.reference_genome,
-        args.input_filename_base,
-        args.segments_bed,
-        args.BICseq_bed_corrected,
-        args.pkl_path,
+    converter = BamConverter(
+        args.nBamName,
+        args.tBamNameL,
+        args.refFaName,
+        args.pathPreFix,
+        args.bedNameL,
+        args.bedCorrectedPath,
+        args.pklPath,
 
-        args.max_copynumber,
-        args.subclone_num,
-        args.baseline_thred_LOH,
-        args.baseline_thred_APM,
+        args.maxCopyNumber,
+        args.subcloneNumL,
+        args.baselineThredLOH,
+        args.baselineThredAPM,
 
-        min_depth=args.min_depth,
-        min_bqual=args.min_base_qual,
-        min_mqual=args.min_map_qual,
-        process_num=args.process_num
+        minDepth=args.minDepth,
+        minBqual=args.minBqual,
+        minMqual=args.minMqual,
+        processNum=args.processNum
     )
 
-    print "pilflag"
-    print args.pkl_flag
-    converter.convert(args.gc_correction_method, args.pkl_flag)
+    # print "pilflag"
+    # print args.pkl_flag
+
+    converter.convert(readFromBed = True, method = args.gcCorrectionMethod, pklFlag = args.pklFlag)
 
     time_end = time.time()
 

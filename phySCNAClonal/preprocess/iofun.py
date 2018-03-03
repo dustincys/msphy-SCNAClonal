@@ -1,25 +1,14 @@
 '''
-Created
-
-@author: Andrew Roth
-
-JointSNVMix-0.6.2
-joint_snv_mix.pre_processing.bam_to_jcnt.BamToJcntConverter
-joint_snv_mix.pre_processing.bam_to_jcnt.JointPileupIterator
-
-================================================================================
-
-Modified on 2013-07-20
-
-@author: Yi Li
-
-pyloh.preprocess.io
-
-================================================================================
-
-Modified on 2014-04-09
-
-@author: Yi Li
+# =============================================================================
+#      FileName: iofun.py
+#          Desc: functions for get allele info from bam
+#        Author: Chu Yanshuo
+#         Email: chu@yanshuo.name
+#      HomePage: http://yanshuo.name
+#       Version: 0.0.1
+#    LastChange: 2018-03-03 08:54:49
+#       History: Andrew Roth, Yi Li
+# =============================================================================
 '''
 import sys
 from collections import Counter

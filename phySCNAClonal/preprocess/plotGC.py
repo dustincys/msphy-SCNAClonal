@@ -15,11 +15,10 @@
 
 
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider, Button, LassoSelector
-from matplotlib.path import Path
-from matplotlib.colors import colorConverter
-
 import numpy as np
+from matplotlib.colors import colorConverter
+from matplotlib.path import Path
+from matplotlib.widgets import Button, LassoSelector, Slider
 
 
 class GCStripePlot():

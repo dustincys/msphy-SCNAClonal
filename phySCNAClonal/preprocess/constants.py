@@ -87,3 +87,12 @@ CHROM_IDX_LIST = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
 
 RD_WEIGHT = 0.5
 RD_WEIGHT_TSSB = 0.5
+
+#############################
+#  Stripe range parameters  #
+#############################
+
+YDOWNL = [-0.5]
+YUPL = [5]
+STRIPENUML = [6]
+NOISESTRIPENUML = [2]

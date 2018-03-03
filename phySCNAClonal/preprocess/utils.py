@@ -1,15 +1,14 @@
 '''
-Created on 2013-07-27
-
-@author: Yi Li
-
-pyloh.preprocess.utils
-
-================================================================================
-
-Modified on 2014-04-09
-
-@author: Yi Li
+# =============================================================================
+#      FileName: utils.py
+#          Desc: Functions for preprocess
+#        Author: Chu Yanshuo
+#         Email: chu@yanshuo.name
+#      HomePage: http://yanshuo.name
+#       Version: 0.0.1
+#    LastChange: 2018-03-03 08:55:34
+#       History: Yi Li
+# =============================================================================
 '''
 
 import sys
@@ -231,7 +230,7 @@ def get_APM_frac_MAXMIN(counts):
 
     sitesNumMin = constants.SITES_NUM_MIN
 
-    APMNMin = constants.APMNMin
+    APMNMin = constants.APM_N_MIN
 
     if I < sitesNumMin:
         APMFrac = -1

@@ -8,19 +8,19 @@
 #         Email: chu@yanshuo.name
 #      HomePage: http://yanshuo.name
 #       Version: 0.0.1
-#    LastChange: 2016-11-17 12:00:33
+#    LastChange: 2018-03-03 08:55:12
 #       History:
 # =============================================================================
 '''
 
-import pymc
+import heapq
+
 import numpy as np
+import pymc
+from scipy.signal import argrelextrema
 from scipy.stats import gaussian_kde
 
 import constants
-from scipy.signal import argrelextrema
-
-import heapq
 
 
 class MCMCLM(object):
