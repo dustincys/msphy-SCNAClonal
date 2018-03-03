@@ -9,28 +9,6 @@
 #       History: YI lI
 # =============================================================================
 '''
-import sys
-import numpy as np
-import scipy.cluster.hierarchy as hcluster
-from scipy.stats.mstats import gmean
-from collections import Counter
-
-import util2 as u
-
-
-# from GCBASELINE import constants
-# from GCBASELINE.preprocess.utils import *
-from utils import get_chrom_format, get_chrom_lens_idxs, BEDnParser,\
-    chrom_name_to_idx, chrom_idx_to_name, get_segment_name, BEDParser,\
-    get_LOH_frac, get_APM_frac_MAXMIN, get_LOH_status, get_APM_status
-
-
-from utils import get_loga, get_cn_allele_config, get_mu_E_joint,\
-    log_binomial_likelihood, mad_based_outlier
-
-
-import constants
-
 
 class Segment:
 

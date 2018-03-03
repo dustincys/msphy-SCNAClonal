@@ -14,23 +14,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import heapq
-import sys
-from collections import Counter
-from random import randint
-
 import numpy as np
-from scipy.cluster import hierarchy
-from scipy.signal import argrelextrema
-from scipy.stats import gaussian_kde
 from scipy.stats.mstats import gmean
-from sklearn.cluster import MeanShift, estimate_bandwidth
-from sklearn.datasets.samples_generator import make_blobs
 
-import constants
-from pydp.densities import Density, log_poisson_pdf
-from utils import (get_cn_allele_config, get_loga, get_mu_E_joint,
-                   log_binomial_likelihood, mad_based_outlier)
+import phySCNAClonal.preprocess.constants as constants
+from phySCNAClonal.preprocess.utils import (get_loga, get_mu_E_joint,
+                                            log_binomial_likelihood,
+                                            mad_based_outlier)
+from pydp.densities import log_poisson_pdf
+
 
 # import json
 
