@@ -33,98 +33,87 @@ class SegmentPool:
         self._alleleConfig = get_cn_allele_config(max_copy_number)
 
 
-    def load_seg_bed(self, bedName):
+    def load_seg_bed(self, bedName, containsReadNum=True):
+        """
+        load seg from bed, here, bed could be contains the gc corrected read
+        number
         """
 
-        :bedName: TODO
-        :returns: TODO
+        if containsReadNum:
+            bedChromL, bedStartL, bedEndL, tReadNumL, nReadNumL, gcL =\
+                BEDnParser(bedName)
+        else:
+            bedChromL, bedStartL, bedEndL, gcL = BEDnParser(bedName)
 
-        """
-
-        bedChroms, bedStarts, bedEnds, tReadNums, nReadNums, gcs =\
-            BEDnParser(bedName)
-        get_chrom_format(bedChroms)
-        bedNum = len(bedChroms)
+        get_chrom_format(bedChromL)
+        bedNum = len(bedChromL)
 
         for i in range(0, bedNum):
-            chromIdx = chrom_name_to_idx(bedChroms[i])
+            chromIdx = chrom_name_to_idx(bedChromL[i])
             segName = get_segment_name(
-                bedChroms[i], bedStarts[i], bedEnds[i])
-
-            nReadNum = nReadNums[i]
-            tReadNum = tReadNums[i]
+                bedChromL[i], bedStartL[i], bedEndL[i])
 
             tempSeg = Segment()
             tempSeg.name = segName
             tempSeg.chromIdx = chromIdx
-            tempSeg.chromName = bedChroms[i]
-            tempSeg.start = bedStarts[i]
-            tempSeg.end = bedEnds[i]
-            tempSeg.nReadNum = nReadNum
-            tempSeg.tReadNum = tReadNum
+            tempSeg.chromName = bedChromL[i]
+            tempSeg.start = bedStartL[i]
+            tempSeg.end = bedEndL[i]
 
-            # if 0 == nReadNum:
-                # tempSeg.log2_ratio = -float('Inf')
-            # else:
-                # tempSeg.log2_ratio = np.log2(1.0 *
-                                               # tReadNum/nReadNum)
+            if containsReadNum:
+                tempSeg.nReadNum = nReadNumL[i]
+                tempSeg.tReadNum = tReadNumL[i]
 
-            # tempSeg.log_ratio = np.log(1.0 * (tReadNum + 1.0) /
-                                         # (nReadNum + 1.0))
-            tempSeg.gc = gcs[i]
+            tempSeg.gc = gcL[i]
 
             self.segments.append(tempSeg)
 
-    def load_seg_bam(self, normal_bam, tumor_bam, bed_file_name):
+    def load_seg_bam(self, nBam, tBam, bedName):
         chromIdxL = constants.CHROM_IDX_LIST
         chromStart = constants.CHROM_START
 
-        samSQ = normal_bam.header['SQ']
+        samSQ = nBam.header['SQ']
         samChromFormat = get_chrom_format(map(lambda x: x['SN'], samSQ))
-        chromLens, chromIdxs = get_chrom_lens_idxs(chromIdxL, samSQ)
+        chromLenL, chromIdxL = get_chrom_lens_idxs(chromIdxL, samSQ)
 
-        bedChroms, bedStarts, bedEnds, gcs = BEDParser(bed_file_name)
-        get_chrom_format(bedChroms)
-        bedNum = len(bedChroms)
+        bedChromL, bedStartL, bedEndL, gcL = BEDParser(bedName)
+        get_chrom_format(bedChromL)
+        bedNum = len(bedChromL)
 
         for i in range(0, bedNum):
-            chromIdx = chrom_name_to_idx(bedChroms[i])
+            chromIdx = chrom_name_to_idx(bedChromL[i])
             chromName = chrom_idx_to_name(chromIdx, samChromFormat)
-            segName = get_segment_name(chromName, bedStarts[i], bedEnds[i])
+            segName = get_segment_name(chromName, bedStartL[i], bedEndL[i])
 
             if chromIdx not in chromIdxL:
                 print 'Chromsome {0} not found, segment {1} excluded...'.format(
-                    bedChroms[i], segName)
+                    bedChromL[i], segName)
                 sys.stdout.flush()
                 continue
 
-            chromListIdx = chromIdxs.index(chromIdx)
+            chromListIdx = chromIdxL.index(chromIdx)
 
-            if bedStarts[i] < chromStart or bedEnds[
-                    i] > chromLens[chromListIdx]:
+            if bedStartL[i] < chromStart or bedEndL[
+                    i] > chromLenL[chromListIdx]:
                 print 'Out of range chromsome {0}, segment {1} excluded...'.\
-                    format(bedChroms[i], segName)
+                    format(bedChromL[i], segName)
                 sys.stdout.flush()
                 continue
 
-            nReadNum = normal_bam.count(
-                chromName, bedStarts[i], bedEnds[i])
-            tReadNum = tumor_bam.count(
-                chromName, bedStarts[i], bedEnds[i])
+            nReadNum = nBam.count(
+                chromName, bedStartL[i], bedEndL[i])
+            tReadNum = tBam.count(
+                chromName, bedStartL[i], bedEndL[i])
 
             tempSeg = Segment()
             tempSeg.name = segName
             tempSeg.chromIdx = chromIdx
             tempSeg.chromName = chromName
-            tempSeg.start = bedStarts[i]
-            tempSeg.end = bedEnds[i]
+            tempSeg.start = bedStartL[i]
+            tempSeg.end = bedEndL[i]
             tempSeg.nReadNum = nReadNum
             tempSeg.tReadNum = tReadNum
-            # tempSeg.log2_ratio = np.log2(1.0 *
-                                           # tReadNum/normal_reads_num)
 
-            # tempSeg.log_ratio = np.log(1.0 * (tReadNum + 1.0) /
-                                         # (normal_reads_num + 1.0))
             self.segments.append(tempSeg)
 
     def get_baseline(self, maxCopyNumber, subcloneNum, isPreprocess=False):

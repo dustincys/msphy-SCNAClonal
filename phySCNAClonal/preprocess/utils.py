@@ -23,97 +23,97 @@ from scipy.stats import beta, binom
 import constants
 
 
-def BEDnParser(bed_file_name):
+def BEDnParser(bedName):
     """TODO: Docstring for BEDnParser.
     :returns: TODO
 
     """
-    inbed = open(bed_file_name)
+    inBed = open(bedName)
 
-    chroms = []
-    starts = []
-    ends = []
-    tumorReadsn = []
-    normalReads = []
-    gcs = []
+    chromNameL = []
+    startL = []
+    endL = []
+    tReadNumL = []
+    nReadNumL = []
+    gcL = []
 
-    for line in inbed:
+    for line in inBed:
         fields = line.split('\t')
-        chrom_name = fields[0]
-        chrom_idx = chrom_name_to_idx(chrom_name)
+        chromName = fields[0]
+        chromIdx = chrom_name_to_idx(chromName)
 
-        if chrom_idx == -1:
+        if chromIdx == -1:
             continue
 
-        chrom_name, start, end, tumorrd, normalrd, gc = fields[0:6]
+        chromName, start, end, tReadNum, nReadNum, gc = fields[0:6]
 
-        chroms.append(chrom_name)
-        starts.append(int(start))
-        ends.append(int(end))
-        tumorReadsn.append(int(tumorrd))
-        normalReads.append(int(normalrd))
-        gcs.append(float(gc))
+        chromNameL.append(chromName)
+        startL.append(int(start))
+        endL.append(int(end))
+        tReadNumL.append(int(tReadNum))
+        nReadNumL.append(int(nReadNum))
+        gcL.append(float(gc))
 
-    inbed.close()
+    inBed.close()
 
-    return (chroms, starts, ends, tumorReadsn, normalReads, gcs)
+    return (chromNameL, startL, endL, tReadNumL, nReadNumL, gcL)
 
 
-def BEDParser(bed_file_name):
-    inbed = open(bed_file_name)
+def BEDParser(bedName):
+    inBed = open(bedName)
 
-    chroms = []
-    starts = []
-    ends = []
-    gcs = []
+    chromNameL = []
+    startL = []
+    endL = []
+    gcL = []
 
-    for line in inbed:
+    for line in inBed:
         fields = line.split('\t')
-        chrom_name = fields[0]
-        chrom_idx = chrom_name_to_idx(chrom_name)
+        chromName = fields[0]
+        chromIdx = chrom_name_to_idx(chromName)
 
-        if chrom_idx == -1:
+        if chromIdx == -1:
             continue
 
-        chrom_name, start, end, gc = fields[0:4]
+        chromName, start, end, gc = fields[0:4]
 
-        chroms.append(chrom_name)
-        starts.append(int(start))
-        ends.append(int(end))
-        gcs.append(float(gc))
+        chromNameL.append(chromName)
+        startL.append(int(start))
+        endL.append(int(end))
+        gcL.append(float(gc))
 
-    inbed.close()
+    inBed.close()
 
-    return (chroms, starts, ends, gcs)
+    return (chromNameL, startL, endL, gcL)
 
 
 def chrom_idx_to_name(idx, format):
     if format == 'UCSC':
-        chrom_name = 'chr' + str(idx)
+        chromName = 'chr' + str(idx)
     elif format == 'ENSEMBL':
-        chrom_name = str(idx)
+        chromName = str(idx)
     else:
         print 'Error: %s not supported' % (format)
         sys.exit(1)
 
-    return chrom_name
+    return chromName
 
 
-def chrom_name_to_idx(chrom_name):
+def chrom_name_to_idx(chromName):
     idx = -1
 
     try:
-        idx = int(chrom_name.strip('chr'))
+        idx = int(chromName.strip('chr'))
     except:
         pass
 
     return idx
 
 
-def get_chrom_format(chroms):
+def get_chrom_format(chromNameL):
     format = 'NONE'
 
-    for chrom in chroms:
+    for chrom in chromNameL:
         if chrom[0:3] == 'chr':
             format = 'UCSC'
             break
@@ -132,60 +132,60 @@ def get_chrom_format(chroms):
         return format
 
 
-def get_chrom_lens_idxs(chrom_idx_list, sam_SQ):
-    chrom_lens = []
-    chrom_idxs = []
-    for i in range(0, len(chrom_idx_list)):
-        chrom_idx = chrom_idx_list[i]
+def get_chrom_lens_idxs(chromIdxL, samSQ):
+    chromLenL = []
+    chromIdxL = []
+    for i in range(0, len(chromIdxL)):
+        chromIdx = chromIdxL[i]
 
-        for j in range(0, len(sam_SQ)):
-            if chrom_idx == chrom_name_to_idx(sam_SQ[j]['SN']):
-                chrom_lens.append(int(sam_SQ[j]['LN']))
-                chrom_idxs.append(chrom_idx)
+        for j in range(0, len(samSQ)):
+            if chromIdx == chrom_name_to_idx(samSQ[j]['SN']):
+                chromLenL.append(int(samSQ[j]['LN']))
+                chromIdxL.append(chromIdx)
                 break
 
-    return (chrom_lens, chrom_idxs)
+    return (chromLenL, chromIdxL)
 
 
-def get_segment_name(chrom_name, start, end):
+def get_segment_name(chromName, start, end):
 
-    return '_'.join([chrom_name, 'start', str(start), 'end', str(end)])
+    return '_'.join([chromName, 'start', str(start), 'end', str(end)])
 
 
 def normal_heterozygous_filter(counts):
-    BAF_N_MIN = constants.BAF_N_MIN
+    BAFNMin = constants.BAF_N_MIN
 
     I = counts.shape[0]
-    idx_keep = []
+    idxKeep = []
 
     for i in xrange(0, I):
-        a_N = counts[i, 0] * 1.0
-        b_N = counts[i, 1] * 1.0
-        d_N = a_N + b_N
-        BAF_N = b_N / d_N
+        aN = counts[i, 0] * 1.0
+        bN = counts[i, 1] * 1.0
+        dN = aN + bN
+        BAFN = bN / dN
 
-        if BAF_N >= BAF_N_MIN and BAF_N <= 0.5:
-            idx_keep.append(i)
+        if BAFN >= BAFNMin and BAFN <= 0.5:
+            idxKeep.append(i)
 
-    counts = counts[idx_keep]
+    counts = counts[idxKeep]
 
     return counts
 
 
 def get_BAF_counts(counts):
-    BAF_bins = constants.BAF_BINS
+    BAFbins = constants.BAF_BINS
 
-    a_N = counts[:, 0] * 1.0
-    b_N = counts[:, 1] * 1.0
-    a_T = counts[:, 2] * 1.0
-    b_T = counts[:, 3] * 1.0
+    aN = counts[:, 0] * 1.0
+    bN = counts[:, 1] * 1.0
+    aT = counts[:, 2] * 1.0
+    bT = counts[:, 3] * 1.0
 
-    BAF_N = b_N / (a_N + b_N)
-    BAF_T = b_T / (a_T + b_T)
+    BAFN = bN / (aN + bN)
+    BAFT = bT / (aT + bT)
 
-    BAF_counts, _, _ = np.histogram2d(BAF_N, BAF_T, bins=(BAF_bins, BAF_bins))
+    BAFCounts, _, _ = np.histogram2d(BAFN, BAFT, bins=(BAFbins, BAFbins))
 
-    return BAF_counts
+    return BAFCounts
 
 
 def get_APM_frac_MAXMIN_SNP(counts):
@@ -198,24 +198,24 @@ def get_APM_frac_MAXMIN_SNP(counts):
 
     I = counts.shape[0]
 
-    sites_num_min = 1
+    sitesNumMin = 1
 
-    APM_N_MIN = constants.APM_N_MIN
+    APMNMin = constants.APM_N_MIN
 
-    if I < sites_num_min:
-        APM_frac = -1
-        return APM_frac
+    if I < sitesNumMin:
+        APMFrac = -1
+        return APMFrac
 
-    a_T = counts[:, 2]
-    b_T = counts[:, 3]
-    d_T = a_T + b_T
-    l_T = np.min(counts[:, 2:4], axis=1)
-    p_T = l_T * 1.0 / d_T
+    aT = counts[:, 2]
+    bT = counts[:, 3]
+    dT = aT + bT
+    lT = np.min(counts[:, 2:4], axis=1)
+    pT = lT * 1.0 / dT
 
-    APM_num = np.where(np.logical_and(p_T > APM_N_MIN, p_T <= 0.5))[0].shape[0]
-    APM_frac = APM_num * 1.0 / (I + 1.0)
+    APMNum = np.where(np.logical_and(pT > APMNMin, pT <= 0.5))[0].shape[0]
+    APMFrac = APMNum * 1.0 / (I + 1.0)
 
-    return APM_frac
+    return APMFrac
     pass
 
 
@@ -229,25 +229,25 @@ def get_APM_frac_MAXMIN(counts):
 
     I = counts.shape[0]
 
-    sites_num_min = constants.SITES_NUM_MIN
+    sitesNumMin = constants.SITES_NUM_MIN
 
-    APM_N_MIN = constants.APM_N_MIN
+    APMNMin = constants.APMNMin
 
-    if I < sites_num_min:
-        APM_frac = -1
+    if I < sitesNumMin:
+        APMFrac = -1
 
-        return APM_frac
+        return APMFrac
 
-    a_T = counts[:, 2]
-    b_T = counts[:, 3]
-    d_T = a_T + b_T
-    l_T = np.min(counts[:, 2:4], axis=1)
-    p_T = l_T * 1.0 / d_T
+    aT = counts[:, 2]
+    bT = counts[:, 3]
+    dT = aT + bT
+    lT = np.min(counts[:, 2:4], axis=1)
+    pT = lT * 1.0 / dT
 
-    APM_num = np.where(np.logical_and(p_T > APM_N_MIN, p_T <= 0.5))[0].shape[0]
-    APM_frac = APM_num * 1.0 / I
+    APMNum = np.where(np.logical_and(pT > APMNMin, pT <= 0.5))[0].shape[0]
+    APMFrac = APMNum * 1.0 / I
 
-    return APM_frac
+    return APMFrac
 
     pass
 
@@ -255,48 +255,48 @@ def get_APM_frac_MAXMIN(counts):
 def get_LOH_frac_SNP(counts):
     I = counts.shape[0]
 
-    sites_num_min = 1
+    sitesNumMin = 1
     p = constants.BINOM_TEST_P
     thred = constants.BINOM_TEST_THRED
 
-    if I < sites_num_min:
-        LOH_frac = -1
-        return LOH_frac
+    if I < sitesNumMin:
+        LOHFrac = -1
+        return LOHFrac
 
-    a_T = counts[:, 2]
-    b_T = counts[:, 3]
-    d_T = a_T + b_T
-    l_T = np.min(counts[:, 2:4], axis=1)
-    p_T = binom.cdf(l_T, d_T, p)
+    aT = counts[:, 2]
+    bT = counts[:, 3]
+    dT = aT + bT
+    lT = np.min(counts[:, 2:4], axis=1)
+    pT = binom.cdf(lT, dT, p)
 
-    LOH_num = np.where(p_T < thred)[0].shape[0]
-    LOH_frac = (LOH_num + 1.0) * 1.0 / (I + 1.0)
+    LOHNum = np.where(pT < thred)[0].shape[0]
+    LOHFrac = (LOHNum + 1.0) * 1.0 / (I + 1.0)
 
-    return LOH_frac
+    return LOHFrac
 
 
 def get_LOH_frac(counts):
     I = counts.shape[0]
 
-    sites_num_min = constants.SITES_NUM_MIN
+    sitesNumMin = constants.SITES_NUM_MIN
     p = constants.BINOM_TEST_P
     thred = constants.BINOM_TEST_THRED
 
-    if I < sites_num_min:
-        LOH_frac = -1
+    if I < sitesNumMin:
+        LOHFrac = -1
 
-        return LOH_frac
+        return LOHFrac
 
-    a_T = counts[:, 2]
-    b_T = counts[:, 3]
-    d_T = a_T + b_T
-    l_T = np.min(counts[:, 2:4], axis=1)
-    p_T = binom.cdf(l_T, d_T, p)
+    aT = counts[:, 2]
+    bT = counts[:, 3]
+    dT = aT + bT
+    lT = np.min(counts[:, 2:4], axis=1)
+    pT = binom.cdf(lT, dT, p)
 
-    LOH_num = np.where(p_T < thred)[0].shape[0]
-    LOH_frac = LOH_num * 1.0 / I
+    LOHNum = np.where(pT < thred)[0].shape[0]
+    LOHFrac = LOHNum * 1.0 / I
 
-    return LOH_frac
+    return LOHFrac
 
 
 def get_APM_frac(counts):
@@ -309,92 +309,92 @@ def get_APM_frac(counts):
 
     I = counts.shape[0]
 
-    sites_num_min = constants.SITES_NUM_MIN
+    sitesNumMin = constants.SITES_NUM_MIN
     p = constants.BINOM_TEST_P
     thred = constants.BINOM_TEST_THRED_APM
 
-    if I < sites_num_min:
-        APM_frac = -1
+    if I < sitesNumMin:
+        APMFrac = -1
 
-        return APM_frac
+        return APMFrac
 
-    a_T = counts[:, 2]
-    b_T = counts[:, 3]
-    d_T = a_T + b_T
-    l_T = np.min(counts[:, 2:4], axis=1)
-    p_T = binom.cdf(l_T, d_T, p)
+    aT = counts[:, 2]
+    bT = counts[:, 3]
+    dT = aT + bT
+    lT = np.min(counts[:, 2:4], axis=1)
+    pT = binom.cdf(lT, dT, p)
 
-    APM_num = np.where(p_T > thred)[0].shape[0]
-    APM_frac = APM_num * 1.0 / I
+    APMNum = np.where(pT > thred)[0].shape[0]
+    APMFrac = APMNum * 1.0 / I
 
-    return APM_frac
+    return APMFrac
 
     pass
 
 
-def get_LOH_status(LOH_frac, baseline_thred):
-    LOH_FRAC_MAX = constants.LOH_FRAC_MAX
+def get_LOH_status(LOHFrac, baselineThred):
+    LOHFracMax = constants.LOH_FRAC_MAX
 
-    if LOH_frac < 0:
-        LOH_status = 'NONE'
-    elif LOH_frac < baseline_thred:
-        LOH_status = 'FALSE'
-    elif LOH_frac >= baseline_thred and LOH_frac < LOH_FRAC_MAX:
-        LOH_status = 'UNCERTAIN'
-    elif LOH_frac >= LOH_FRAC_MAX:
-        LOH_status = 'TRUE'
+    if LOHFrac < 0:
+        LOHStatus = 'NONE'
+    elif LOHFrac < baselineThred:
+        LOHStatus = 'FALSE'
+    elif LOHFrac >= baselineThred and LOHFrac < LOH_FRAC_MAX:
+        LOHStatus = 'UNCERTAIN'
+    elif LOHFrac >= LOH_FRAC_MAX:
+        LOHStatus = 'TRUE'
     else:
-        LOH_status = 'ERROR'
+        LOHStatus = 'ERROR'
 
-    return LOH_status
+    return LOHStatus
 
 
-def get_APM_status(APM_frac, baseline_thred_APM):
-    if APM_frac < 0:
-        APM_status = "NONE"
-    elif APM_frac > baseline_thred_APM:
-        APM_status = "TRUE"
+def get_APM_status(APMFrac, baselineThredAPM):
+    if APMFrac < 0:
+        APMStatus = "NONE"
+    elif APMFrac > baselineThredAPM:
+        APMStatus = "TRUE"
     else:
-        APM_status = "FALSE"
+        APMStatus = "FALSE"
 
-    return APM_status
+    return APMStatus
 
 
 def remove_outliers(X):
-    std_thred = 0.05
+    stdThred = 0.05
 
-    idx_keep = []
+    idxKeep = []
 
     n = X.shape[0]
 
     for i in range(0, n):
         if np.abs(X[i] - X.mean()) <= X.std():
-            idx_keep.append(i)
+            idxKeep.append(i)
 
-    if len(idx_keep) == 0 or len(idx_keep) == n:
+    if len(idxKeep) == 0 or len(idxKeep) == n:
         return X
 
-    X = X[idx_keep]
+    X = X[idxKeep]
 
-    if X.std() < std_thred:
+    if X.std() < stdThred:
         return X
     else:
         return remove_outliers(X)
 
 
 def calculate_BAF(tumorData, normalData, chrmsToUse, minSNP, gamma,
-                  process_num):
+                  processNum):
 
     # function to select columns from a 2D list
-    select_col = lambda array, colNum: map(lambda x: x[colNum], array)
+    selectCol = lambda array, colNum: map(lambda x: x[colNum], array)
 
     # vectors of tumor data
-    tumorMutCount = select_col(tumorData, 3)
-    tumorRefCount = select_col(tumorData, 2)
+    tumorMutCount = selectCol(tumorData, 3)
+    tumorRefCount = selectCol(tumorData, 2)
 
     # vectors of normal data
-    normalMutCount = select_col(normalData, 3)
-    normalRefCount = select_col(normalData, 2)
+    normalMutCount = selectCol(normalData, 3)
+    normalRefCount = selectCol(normalData, 2)
 
     # denominators for BAFs
     tumorDenom = map(sum, zip(tumorMutCount, tumorRefCount))
@@ -405,7 +405,7 @@ def calculate_BAF(tumorData, normalData, chrmsToUse, minSNP, gamma,
     newTumorData = []
     newNormalData = []
     print "Determining heterozygosity."
-    p = Pool(process_num)
+    p = Pool(processNum)
     repGamma = [gamma for i in range(len(tumorData))]
     isHet = p.map(is_heterozygous,
                   zip(normalRefCount, normalMutCount, repGamma))
@@ -447,17 +447,17 @@ def calculate_BAF(tumorData, normalData, chrmsToUse, minSNP, gamma,
     return tumorBAF, normalBAF, newTumorData, newNormalData
 
 
-def filter_normal_heterozygous(tumorData, normalData, gamma, process_num):
+def filter_normal_heterozygous(tumorData, normalData, gamma, processNum):
     # function to select columns from a 2D list
-    select_col = lambda array, colNum: map(lambda x: x[colNum], array)
+    selectCol = lambda array, colNum: map(lambda x: x[colNum], array)
 
     # vectors of tumor data
-    tumorMutCount = select_col(tumorData, 3)
-    tumorRefCount = select_col(tumorData, 2)
+    tumorMutCount = selectCol(tumorData, 3)
+    tumorRefCount = selectCol(tumorData, 2)
 
     # vectors of normal data
-    normalMutCount = select_col(normalData, 3)
-    normalRefCount = select_col(normalData, 2)
+    normalMutCount = selectCol(normalData, 3)
+    normalRefCount = selectCol(normalData, 2)
 
     # denominators for BAFs
     tumorDenom = map(sum, zip(tumorMutCount, tumorRefCount))
@@ -470,42 +470,42 @@ def filter_normal_heterozygous(tumorData, normalData, gamma, process_num):
     print "Determining heterozygosity."
     repGamma = [gamma for i in range(len(tumorData))]
     wholeData = zip(normalRefCount, normalMutCount, repGamma)
-    p = Pool(process_num)
+    p = Pool(processNum)
     print wholeData[0]
     isHet = p.map(is_heterozygous, wholeData)
 
-    tumorData_filtered = select_col(
+    tumorData_filtered = selectCol(
         filter(lambda x: x[1], zip(tumorData, isHet)), 0)
-    normalData_filtered = select_col(
+    normalData_filtered = selectCol(
         filter(lambda x: x[1], zip(normalData, isHet)), 0)
 
     return tumorData_filtered, normalData_filtered
 
 
-def is_heterozygous(xxx_todo_changeme):
+def is_heterozygous(xxxTodoChangeme):
     """
     Determines if an allele should be considered heterozygous.
 
     Arguments:
-            n_a (int): number of a alleles counted. Used as alpha parameter for the beta distribution
-            n_b (int): number of b alleles counted. Used as beta parameter for the beta distribution
+            nA (int): number of a alleles counted. Used as alpha parameter for the beta distribution
+            nB (int): number of b alleles counted. Used as beta parameter for the beta distribution
             gamma (float): parameter used for deciding heterozygosity; determined via a beta distribution
                                             with 1 - gamma confidence
 
     Returns:
             A boolean indicating whether or not the allele should be considered heterozygous.
     """
-    (n_a, n_b, gamma) = xxx_todo_changeme
-    if n_a == -1 or n_b == -1:
+    (nA, nB, gamma) = xxxTodoChangeme
+    if nA == -1 or nB == -1:
         return False
-    if n_a == 0 or n_b == 0:
+    if nA == 0 or nB == 0:
         return False
 
-    p_lower = gamma / 2.0
-    p_upper = 1 - p_lower
+    pLower = gamma / 2.0
+    pUpper = 1 - pLower
 
-    [c_lower, c_upper] = beta.ppf([p_lower, p_upper], n_a + 1, n_b + 1)
-    return c_lower <= 0.5 and c_upper >= 0.5
+    [cLower, cUpper] = beta.ppf([pLower, pUpper], nA + 1, nB + 1)
+    return cLower <= 0.5 and cUpper >= 0.5
 
 
 def read_snp_file(filename):
@@ -574,14 +574,14 @@ def get_row_by_segment(tumorData, normalData, segment):
     :returns: TODO
 
     """
-    tumorData_temp = filter(
-        lambda item: item[0] == int(segment.chrom_name) and (item[1] >= segment.start and item[1] <= segment.end),
+    tumorDataTemp = filter(
+        lambda item: item[0] == int(segment.chromName) and (item[1] >= segment.start and item[1] <= segment.end),
         tumorData)
-    normalData_temp = filter(
-        lambda item: item[0] == int(segment.chrom_name) and (item[1] >= segment.start and item[1] <= segment.end),
+    normalDataTemp = filter(
+        lambda item: item[0] == int(segment.chromName) and (item[1] >= segment.start and item[1] <= segment.end),
         normalData)
 
-    return tumorData_temp, normalData_temp
+    return tumorDataTemp, normalDataTemp
 
 
 def get_paired_counts(tumorData, normalData):
@@ -593,9 +593,9 @@ def get_paired_counts(tumorData, normalData):
 
     """
 
-    paired_counts_temp = []
+    pairedCountsTemp = []
     for i in range(len(normalData)):
-        paired_counts_temp.append([
+        pairedCountsTemp.append([
             int(normalData[i][2]),
             int(normalData[i][3]),
             int(tumorData[i][2]),
@@ -603,44 +603,44 @@ def get_paired_counts(tumorData, normalData):
             int(normalData[i][0]),
             int(normalData[i][1])
         ])
-    paired_counts_j = np.array(paired_counts_temp)
+    pairedCountsJ = np.array(pairedCountsTemp)
 
-    return paired_counts_j
+    return pairedCountsJ
 
 
 def get_loga(data):
-    return np.log(data.tumor_reads_num + 1) - np.log(data.normal_reads_num + 1)
+    return np.log(data.tReadNum + 1) - np.log(data.nReadNum + 1)
 
 
 def log_poisson_likelihood(k, Lambda):
     return k * np.log(Lambda) - Lambda - gammaln(k + 1)
 
 
-def get_cn_allele_config(max_copynumber):
-    cn_allele_config = {}
-    for cn in range(0, max_copynumber + 1):
-        allele_config = {}
-        for M_num in range(0, (cn + 2) / 2):
-            P_num = cn - M_num
-            if P_num == 0 and M_num == 0:
-                mu_T = constants.EMPIRI_BAF / (
+def get_cn_allele_config(maxCopyNumber):
+    cnAlleleConfig = {}
+    for cn in range(0, maxCopyNumber + 1):
+        alleleConfig = {}
+        for MNum in range(0, (cn + 2) / 2):
+            PNum = cn - MNum
+            if PNum == 0 and MNum == 0:
+                muT = constants.EMPIRI_BAF / (
                     constants.EMPIRI_AAF + constants.EMPIRI_BAF)
-                pi_T = 'NULL'
-            elif P_num == M_num:
-                mu_T = 0.5
-                pi_T = 'P' * P_num + 'M' * M_num
+                piT = 'NULL'
+            elif PNum == MNum:
+                muT = 0.5
+                piT = 'P' * PNum + 'M' * MNum
             else:
-                mu_T = (M_num * 1.0) / cn
-                pi_T = 'P' * P_num + 'M' * M_num + '/' + 'P' * M_num + 'M' * P_num
-            allele_config[pi_T] = mu_T
-        cn_allele_config[cn] = allele_config
+                muT = (MNum * 1.0) / cn
+                piT = 'P' * PNum + 'M' * MNum + '/' + 'P' * MNum + 'M' * PNum
+            alleleConfig[piT] = muT
+        cnAlleleConfig[cn] = alleleConfig
         # {2:{PP/MM:0, PM:0.5},     3:{...},...}
-    return cn_allele_config
+    return cnAlleleConfig
 
 
-def get_mu_E_joint(mu_N, mu_G, c_N, c_H, phi):
-    return ((1.0 - phi) * c_N * mu_N + phi * c_H * mu_G) / (
-        (1.0 - phi) * c_N + phi * c_H)
+def get_mu_E_joint(muN, muG, cN, cH, phi):
+    return ((1.0 - phi) * cN * muN + phi * cH * muG) / (
+        (1.0 - phi) * cN + phi * cH)
 
 
 def log_binomial_likelihood(k, n, mu):
