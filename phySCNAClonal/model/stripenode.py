@@ -57,19 +57,30 @@ class StripeNode(Node):
         return x[0]._log_likelihood(self.param)
 
     def logprob_restricted(self, x):
+        # 此处添加time stamp 的限制
+        # 在投掷过程中，如果出现一下情况，需要重新投掷
+        #
+        # 如果与该结点内的tag不一致为log(0)
+        #
+        # 如果tag小于其所有父结点任意一个或大于子结点任意一个为log(0)
+        #
+        # 如果出现结点内部的stripe的gap过于靠近
+
+
         lowerNode, upperNode = self.__find_neighbor_datum_n(x)
 
         lFlag = True
         uFlag = True
+
         if lowerNode is not None:
             lFlag = self.__is_good_gap(lowerNode, x, "lower")
         else:
             lFlag = True
-
         if upperNode is not None:
             uFlag = self.__is_good_gap(lowerNode, x, "upper")
         else:
             uFlag = True
+
         if lFlag and uFlag:
             return self.logprob(x)
         else:
@@ -79,6 +90,7 @@ class StripeNode(Node):
         return sum([self.logprob([data]) for data in self.get_data()])
 
     def __find_neighbor_datum_n(self, x):
+        # 对当前node中的stripe进行排序，计算gap
         datums = self.get_data()
         if x not in datums:
             datums.append(x)
