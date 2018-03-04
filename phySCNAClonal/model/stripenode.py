@@ -11,9 +11,9 @@ from phySCNAClonal import constants
 
 class StripeNode(Node):
 
-    init_mean = 0.5
-    min_conc = 0.01
-    max_conc = 0.1
+    initMean = 0.5
+    minConc = 0.01
+    maxConc = 0.1
 
     def __init__(self, parent=None, tssb=None, conc=0.1):
         super(alleles, self).__init__(parent=parent, tssb=tssb)
@@ -57,20 +57,20 @@ class StripeNode(Node):
         return x[0]._log_likelihood(self.param)
 
     def logprob_restricted(self, x):
-        lower_node, upper_node = self.__find_neighbor_datum_n(x)
+        lowerNode, upperNode = self.__find_neighbor_datum_n(x)
 
-        l_flag = True
-        u_flag = True
-        if lower_node is not None:
-            l_flag = self.__is_good_gap(lower_node, x, "lower")
+        lFlag = True
+        uFlag = True
+        if lowerNode is not None:
+            lFlag = self.__is_good_gap(lowerNode, x, "lower")
         else:
-            l_flag = True
+            lFlag = True
 
-        if upper_node is not None:
-            u_flag = self.__is_good_gap(lower_node, x, "upper")
+        if upperNode is not None:
+            uFlag = self.__is_good_gap(lowerNode, x, "upper")
         else:
-            u_flag = True
-        if l_flag and u_flag:
+            uFlag = True
+        if lFlag and uFlag:
             return self.logprob(x)
         else:
             return -float('Inf')
@@ -83,28 +83,28 @@ class StripeNode(Node):
         if x not in datums:
             datums.append(x)
 
-        datums_sorted = sorted(datums,
-            key=lambda item: 1.0*item.tumor_reads_num/item.normal_reads_num)
+        datumsSortedL = sorted(datums,
+            key=lambda item: 1.0*item.tReadNum/item.nReadNum)
 
-        idx = datums_sorted.index(x)
+        idx = datumsSortedL.index(x)
         if 0 == idx:
-            return (None, datums_sorted[1])
-        elif len(datums_sorted) - 1 == idx:
-            return (datums_sorted[idx-1], None)
+            return (None, datumsSortedL[1])
+        elif len(datumsSortedL) - 1 == idx:
+            return (datumsSortedL[idx-1], None)
         else:
-            return (datums_sorted[idx-1], datums_sorted[idx+1])
+            return (datumsSortedL[idx-1], datumsSortedL[idx+1])
 
-    def __is_good_gap(self, lower_node, upper_node, position):
+    def __is_good_gap(self, lowerNode, upperNode, position):
         varpi = constants.VARPI
 
-        rdr_lower = 1.0*lower_node.tumor_reads_num/lower_node.normal_reads_num
-        rdr_upper = 1.0*upper_node.tumor_reads_num/upper_node.normal_reads_num
-        L = np.exp(rdr_upper - rdr_lower)
+        rdrLower = 1.0*lowerNode.tReadNum/lowerNode.nReadNum
+        rdrUpper = 1.0*upperNode.tReadNum/upperNode.nReadNum
+        L = np.exp(rdrUpper - rdrLower)
 
         if "lower" == position:
-            cn = lower_node.copy_number
+            cn = lowerNode.copyNumber
         elif "upper" == position:
-            cn = upper_node.copy_number - 1
+            cn = upperNode.copyNumber - 1
 
         if cn < 0:
             return False

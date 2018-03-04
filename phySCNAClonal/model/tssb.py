@@ -20,77 +20,77 @@ from util import *
 
 
 class TSSB(object):
-    min_dp_alpha = 1.0
-    max_dp_alpha = 50.0
-    min_dp_gamma = 1.0
-    max_dp_gamma = 10.0
-    min_alpha_decay = 0.05
-    max_alpha_decay = 0.80
+    minDpAlpha = 1.0
+    maxDpAlpha = 50.0
+    minDpGamma = 1.0
+    maxDpGamma = 10.0
+    minAlphaDecay = 0.05
+    maxAlphaDecay = 0.80
 
     def __init__(self,
-                 dp_alpha=1.0,
-                 dp_gamma=1.0,
-                 root_node=None,
+                 dpAlpha=1.0,
+                 dpGamma=1.0,
+                 rootNode=None,
                  data=None,
-                 min_depth=0,
-                 max_depth=15,
-                 alpha_decay=1.0):
-        if root_node is None:
+                 minDepth=0,
+                 maxDepth=15,
+                 alphaDecay=1.0):
+        if rootNode is None:
             raise Exception("Root node must be specified.")
 
-        self.min_depth = min_depth
-        self.max_depth = max_depth
-        self.dp_alpha = dp_alpha
-        self.dp_gamma = dp_gamma
-        self.alpha_decay = alpha_decay
+        self.minDepth = minDepth
+        self.maxDepth = maxDepth
+        self.dpAlpha = dpAlpha
+        self.dpGamma = dpGamma
+        self.alphaDecay = alphaDecay
         self.data = data
-        self.num_data = 0 if data is None else len(
+        self.dataNum = 0 if data is None else len(
             data)  # data.shape[0] #shankar
         self.root = {
-            'node': root_node,
-            'main': boundbeta(1.0, dp_alpha) if self.min_depth == 0 else 0.0,
+            'node': rootNode,
+            'main': boundbeta(1.0, dpAlpha) if self.minDepth == 0 else 0.0,
             'sticks': empty((0, 1)),
             'children': []
         }
-        root_node.tssb = self
+        rootNode.tssb = self
 
         if False:
-            data_u = rand(self.num_data)
+            dataU = rand(self.dataNum)
             self.assignments = []
-            for n in range(self.num_data):
-                (c, path) = self.find_node(data_u[n])
+            for n in range(self.dataNum):
+                (c, path) = self.find_node(dataU[n])
                 c.add_datum(n)
                 self.assignments.append(c)
         else:
             self.assignments = []
-            for n in range(self.num_data):
+            for n in range(self.dataNum):
                 self.root['node'].add_datum(n)
                 self.assignments.append(self.root['node'])
 
     def add_data(self, data):
         (weights, nodes) = self.get_mixture()
-        num_new_data = len(data)  # data.shape[0] #shankar
-        for n in range(num_new_data):
+        newDataNum = len(data)  # data.shape[0] #shankar
+        for n in range(newDataNum):
             logprobs = []
             for k, node in enumerate(nodes):
                 logprobs.append(log(weights[k]) + node.logprob(data[n]))
             logprobs = array(logprobs)
             probs = exp(logprobs - logsumexp(logprobs))
             best_k = sum(rand() > cumsum(probs))
-            nodes[best_k].add_datum(n + self.num_data)
+            nodes[best_k].add_datum(n + self.dataNum)
             self.assignments.append(nodes[best_k])
         self.data = vstack([self.data, data])
-        self.num_data += num_new_data
+        self.dataNum += newDataNum
 
         # shankar
 
     #    def clear_data(self):
     #        dims = self.data.shape[1]
-    #        for n in range(self.num_data):
+    #        for n in range(self.dataNum):
     #            self.assignments[n].remove_datum(n)
     #        self.assignments = []
     #        self.data        = empty((0,dims))
-    #        self.num_data    = 0
+    #        self.dataNum    = 0
 
     def resample_node_params(self, iters=1):
         for iter in range(iters):
@@ -117,8 +117,8 @@ class TSSB(object):
 
         epsilon = finfo(float64).eps
         lengths = []
-        for n in range(self.num_data):
-            llhmap = {}
+        for n in range(self.dataNum):
+            llhMapD = {}
             # Get an initial uniform variate.
             ancestors = self.assignments[n].get_ancestors()
             current = self.root
@@ -129,51 +129,51 @@ class TSSB(object):
                 current = current['children'][index]
                 indices.append(index)
 
-            max_u = 1.0
-            min_u = 0.0
-            old_llh = self.assignments[n].logprob(self.data[n:n + 1])
-            llhmap[self.assignments[n]] = old_llh
-            llh_s = log(rand()) + old_llh
+            maxU = 1.0
+            minU = 0.0
+            oldLlh = self.assignments[n].logprob(self.data[n:n + 1])
+            llhMapD[self.assignments[n]] = oldLlh
+            llhS = log(rand()) + oldLlh
 
             while True:
-                new_u = (max_u - min_u) * rand() + min_u
-                (new_node, new_path) = self.find_node(new_u)
-                if new_node.parent() is None:
+                newU = (maxU - minU) * rand() + minU
+                (newNode, newPath) = self.find_node(newU)
+                if newNode.parent() is None:
                     # shankar: to make root node empty
-                    new_node = new_node.children()[0]
-                    new_path = [0]
-                old_node = self.assignments[n]
-                old_node.remove_datum(n)
-                new_node.add_datum(n)
-                self.assignments[n] = new_node
-                if new_node in llhmap:
-                    new_llh = llhmap[new_node]
+                    newNode = newNode.children()[0]
+                    newPath = [0]
+                oldNode = self.assignments[n]
+                oldNode.remove_datum(n)
+                newNode.add_datum(n)
+                self.assignments[n] = newNode
+                if newNode in llhMapD:
+                    newLlh = llhMapD[newNode]
                 else:
                     ####################################
                     #  Record most likely copy number  #
                     ####################################
-                    new_llh = new_node.logprob_restricted(self.data[n:n + 1])
-                    llhmap[new_node] = new_llh
-                if new_llh > llh_s:
+                    newLlh = newNode.logprob_restricted(self.data[n:n + 1])
+                    llhMapD[newNode] = newLlh
+                if newLlh > llhS:
                     break
-                elif abs(max_u - min_u) < epsilon:
-                    new_node.remove_datum(n)
-                    old_node.add_datum(n)
-                    self.assignments[n] = old_node
+                elif abs(maxU - minU) < epsilon:
+                    newNode.remove_datum(n)
+                    oldNode.add_datum(n)
+                    self.assignments[n] = oldNode
                     print >> sys.stderr, "Slice sampler shrank down.  Keep current state."
                     break
                 else:
-                    new_node.remove_datum(n)
-                    old_node.add_datum(n)
-                    self.assignments[n] = old_node
-                    path_comp = path_lt(indices, new_path)
-                    if path_comp < 0:
-                        min_u = new_u
-                    elif path_comp >= 0:  # temporary fix only!!!!!!
-                        max_u = new_u
+                    newNode.remove_datum(n)
+                    oldNode.add_datum(n)
+                    self.assignments[n] = oldNode
+                    pathComp = path_lt(indices, newPath)
+                    if pathComp < 0:
+                        minU = newU
+                    elif pathComp >= 0:  # temporary fix only!!!!!!
+                        maxU = newU
                     else:
                         raise Exception("Slice sampler weirdness.")
-            lengths.append(len(new_path))
+            lengths.append(len(newPath))
         lengths = array(lengths)
 
     def cull_tree(self):
@@ -195,29 +195,29 @@ class TSSB(object):
     def resample_sticks(self):
         def descend(root, depth=0):
 
-            data_down = 0
+            dataDown = 0
             indices = range(len(root['children']))
             indices.reverse()
             for i in indices:
                 child = root['children'][i]
-                child_data = descend(child, depth + 1)
-                post_alpha = 1.0 + child_data
-                post_beta = self.dp_gamma + data_down
+                childData = descend(child, depth + 1)
+                postAlpha = 1.0 + childData
+                postBeta = self.dpGamma + dataDown
                 root['sticks'][i] = boundbeta(
-                    post_alpha,
-                    post_beta) if depth != 0 else .999999  # shankar
-                data_down += child_data
+                    postAlpha,
+                    postBeta) if depth != 0 else .999999  # shankar
+                dataDown += childData
 
             # Resample the main break.
-            data_here = root['node'].num_local_data()
-            post_alpha = 1.0 + data_here
-            post_beta = (self.alpha_decay**depth) * self.dp_alpha + data_down
+            dataHere = root['node'].num_local_data()
+            postAlpha = 1.0 + dataHere
+            postBeta = (self.alphaDecay**depth) * self.dpAlpha + dataDown
             root['main'] = boundbeta(
-                post_alpha, post_beta) if self.min_depth <= depth else 0.0
+                postAlpha, postBeta) if self.minDepth <= depth else 0.0
             if depth == 0:
                 root['main'] = 1e-30  # to make root node empty (shankar)
 
-            return data_here + data_down
+            return dataHere + dataDown
 
         descend(self.root)
 
@@ -226,66 +226,66 @@ class TSSB(object):
             if not root['children']:
                 return
 
-            new_order = []
+            newOrder = []
             represented = set(
                 filter(lambda i: root['children'][i]['node'].has_data(),
                        range(len(root['children']))))
             # 每一phi stick 的实际长度
-            all_weights = diff(hstack([0.0, sticks_to_edges(root['sticks'])]))
+            allWeights = diff(hstack([0.0, sticks_to_edges(root['sticks'])]))
             while True:
                 if not represented:
                     break
 
                 u = rand()
                 while True:
-                    sub_indices = filter(lambda i: i not in new_order,
+                    subIndices = filter(lambda i: i not in newOrder,
                                          range(root['sticks'].shape[0]))
                     # 此处添加了剩余空间的长度
-                    sub_weights = hstack(
-                        [all_weights[sub_indices], 1.0 - sum(all_weights)])
+                    subWeights = hstack(
+                        [allWeights[subIndices], 1.0 - sum(allWeights)])
                     # 每一个空间所占用的比重
-                    sub_weights = sub_weights / sum(sub_weights)
+                    subWeights = subWeights / sum(subWeights)
                     # 随机获得一个位置，此位置之前完整空间的个数
-                    index = sum(u > cumsum(sub_weights))
+                    index = sum(u > cumsum(subWeights))
 
-                    if index == len(sub_indices):
+                    if index == len(subIndices):
                         root['sticks'] = vstack(
                             [root['sticks'],
-                             boundbeta(1, self.dp_gamma)])
+                             boundbeta(1, self.dpGamma)])
                         root['children'].append({
                             'node':
                             root['node'].spawn(),
                             'main':
                             boundbeta(
                                 1.0,
-                                (self.alpha_decay**(depth + 1)) *
-                                # 此处min_depth 应该是手动控制的
-                                self.dp_alpha)
-                            if self.min_depth <= (depth + 1) else 0.0,
+                                (self.alphaDecay**(depth + 1)) *
+                                # 此处minDepth 应该是手动控制的
+                                self.dpAlpha)
+                            if self.minDepth <= (depth + 1) else 0.0,
                             'sticks':
                             empty((0, 1)),
                             'children': []
                         })
-                        all_weights = diff(
+                        allWeights = diff(
                             hstack([0.0, sticks_to_edges(root['sticks'])]))
                     else:
-                        index = sub_indices[index]
+                        index = subIndices[index]
                         break
-                new_order.append(index)
+                newOrder.append(index)
                 represented.discard(index)
 
-            new_children = []
-            for k in new_order:
+            newChildren = []
+            for k in newOrder:
                 child = root['children'][k]
-                new_children.append(child)
+                newChildren.append(child)
                 descend(child, depth + 1)
 
-            for k in filter(lambda k: k not in new_order,
+            for k in filter(lambda k: k not in newOrder,
                             range(root['sticks'].shape[0])):
                 root['children'][k]['node'].kill()
                 del root['children'][k]['node']
 
-            root['children'] = new_children
+            root['children'] = newChildren
             root['sticks'] = zeros((len(root['children']), 1))
 
         descend(self.root)
@@ -293,93 +293,93 @@ class TSSB(object):
         # Immediately resample sticks.
         self.resample_sticks()
 
-    def resample_hypers(self, dp_alpha=True, alpha_decay=True, dp_gamma=True):
-        def dp_alpha_llh(dp_alpha, alpha_decay):
-            def descend(dp_alpha, root, depth=0):
-                llh = betapdfln(root['main'], 1.0, (alpha_decay**depth) *
-                                dp_alpha) if self.min_depth <= depth else 0.0
+    def resample_hypers(self, dpAlpha=True, alphaDecay=True, dpGamma=True):
+        def dp_alpha_llh(dpAlpha, alphaDecay):
+            def descend(dpAlpha, root, depth=0):
+                llh = betapdfln(root['main'], 1.0, (alphaDecay**depth) *
+                                dpAlpha) if self.minDepth <= depth else 0.0
                 for child in root['children']:
-                    llh += descend(dp_alpha, child, depth + 1)
+                    llh += descend(dpAlpha, child, depth + 1)
                 return llh
 
-            return descend(dp_alpha, self.root)
+            return descend(dpAlpha, self.root)
 
-        if dp_alpha:
-            upper = self.max_dp_alpha
-            lower = self.min_dp_alpha
-            llh_s = log(rand()) + dp_alpha_llh(self.dp_alpha, self.alpha_decay)
+        if dpAlpha:
+            upper = self.maxDpAlpha
+            lower = self.minDpAlpha
+            llhS = log(rand()) + dp_alpha_llh(self.dpAlpha, self.alphaDecay)
             while True:
-                new_dp_alpha = (upper - lower) * rand() + lower
-                new_llh = dp_alpha_llh(new_dp_alpha, self.alpha_decay)
-                if new_llh > llh_s:
+                newDpAlpha = (upper - lower) * rand() + lower
+                newLlh = dp_alpha_llh(newDpAlpha, self.alphaDecay)
+                if newLlh > llhS:
                     break
-                elif new_dp_alpha < self.dp_alpha:
-                    lower = new_dp_alpha
-                elif new_dp_alpha > self.dp_alpha:
-                    upper = new_dp_alpha
+                elif newDpAlpha < self.dpAlpha:
+                    lower = newDpAlpha
+                elif newDpAlpha > self.dpAlpha:
+                    upper = newDpAlpha
                 else:
                     raise Exception("Slice sampler shrank to zero!")
-            self.dp_alpha = new_dp_alpha
+            self.dpAlpha = newDpAlpha
 
-        if alpha_decay:
-            upper = self.max_alpha_decay
-            lower = self.min_alpha_decay
-            llh_s = log(rand()) + dp_alpha_llh(self.dp_alpha, self.alpha_decay)
+        if alphaDecay:
+            upper = self.maxAlphaDecay
+            lower = self.minAlphaDecay
+            llhS = log(rand()) + dp_alpha_llh(self.dpAlpha, self.alphaDecay)
             while True:
-                new_alpha_decay = (upper - lower) * rand() + lower
-                new_llh = dp_alpha_llh(self.dp_alpha, new_alpha_decay)
-                if new_llh > llh_s:
+                newAlphaDecay = (upper - lower) * rand() + lower
+                newLlh = dp_alpha_llh(self.dpAlpha, newAlphaDecay)
+                if newLlh > llhS:
                     break
-                elif new_alpha_decay < self.alpha_decay:
-                    lower = new_alpha_decay
-                elif new_alpha_decay > self.alpha_decay:
-                    upper = new_alpha_decay
+                elif newAlphaDecay < self.alphaDecay:
+                    lower = newAlphaDecay
+                elif newAlphaDecay > self.alphaDecay:
+                    upper = newAlphaDecay
                 else:
                     raise Exception("Slice sampler shrank to zero!")
-            self.alpha_decay = new_alpha_decay
+            self.alphaDecay = newAlphaDecay
 
-        def dp_gamma_llh(dp_gamma):
-            def descend(dp_gamma, root):
+        def dp_gamma_llh(dpGamma):
+            def descend(dpGamma, root):
                 llh = 0
                 for i, child in enumerate(root['children']):
-                    llh += betapdfln(root['sticks'][i], 1.0, dp_gamma)
-                    llh += descend(dp_gamma, child)
+                    llh += betapdfln(root['sticks'][i], 1.0, dpGamma)
+                    llh += descend(dpGamma, child)
                 return llh
 
-            return descend(dp_gamma, self.root)
+            return descend(dpGamma, self.root)
 
-        if dp_gamma:
-            upper = self.max_dp_gamma
-            lower = self.min_dp_gamma
-            llh_s = log(rand()) + dp_gamma_llh(self.dp_gamma)
+        if dpGamma:
+            upper = self.maxDpGamma
+            lower = self.minDpGamma
+            llhS = log(rand()) + dp_gamma_llh(self.dpGamma)
             while True:
-                new_dp_gamma = (upper - lower) * rand() + lower
-                new_llh = dp_gamma_llh(new_dp_gamma)
-                if new_llh > llh_s:
+                newDpGamma = (upper - lower) * rand() + lower
+                newLlh = dp_gamma_llh(newDpGamma)
+                if newLlh > llhS:
                     break
-                elif new_dp_gamma < self.dp_gamma:
-                    lower = new_dp_gamma
-                elif new_dp_gamma > self.dp_gamma:
-                    upper = new_dp_gamma
+                elif newDpGamma < self.dpGamma:
+                    lower = newDpGamma
+                elif newDpGamma > self.dpGamma:
+                    upper = newDpGamma
                 else:
                     raise Exception("Slice sampler shrank to zero!")
-            self.dp_gamma = new_dp_gamma
+            self.dpGamma = newDpGamma
 
-    def draw_data(self, num_data=1, **args):
+    def draw_data(self, dataNum=1, **args):
         self.data = []
         self.assignments = []
-        for n in range(num_data):
+        for n in range(dataNum):
             u = rand()
             (node, path) = self.find_node(u)
             self.data.append(node.sample(args))
             self.assignments.append(node)
             node.add_datum(n)
-            self.num_data += 1
+            self.dataNum += 1
         self.data = concatenate(self.data)
         return self.data
 
     def resample_data(self, **args):
-        for n in range(self.num_data):
+        for n in range(self.dataNum):
             u = rand()
             (node, path) = self.find_node(u)
             self.assignments[n].remove_datum(n)
@@ -389,7 +389,7 @@ class TSSB(object):
 
     def find_node(self, u):
         def descend(root, u, depth=0):
-            if depth >= self.max_depth:
+            if depth >= self.maxDepth:
                 # print >>sys.stderr, "WARNING: Reached maximum depth."
                 return (root['node'], [])
             elif u < root['main']:
@@ -404,15 +404,15 @@ class TSSB(object):
                             1.0 - prod(1.0 - root['sticks'])) < u:
                         root['sticks'] = vstack([
                             root['sticks'],
-                            boundbeta(1, self.dp_gamma) if depth != 0 else .999
+                            boundbeta(1, self.dpGamma) if depth != 0 else .999
                         ])  # shankar
                         root['children'].append({
                             'node':
                             root['node'].spawn(),
                             'main':
-                            boundbeta(1.0, (self.alpha_decay**
-                                            (depth + 1)) * self.dp_alpha)
-                            if self.min_depth <= (depth + 1) else 0.0,
+                            boundbeta(1.0, (self.alphaDecay**
+                                            (depth + 1)) * self.dpAlpha)
+                            if self.minDepth <= (depth + 1) else 0.0,
                             'sticks':
                             empty((0, 1)),
                             'children': []
@@ -475,33 +475,33 @@ class TSSB(object):
     def complete_log_likelihood(self):
         weights, nodes = self.get_mixture()
         llhs = [
-            self.dp_alpha_llh(self.dp_alpha, self.alpha_decay),
-            self.dp_gamma_llh(self.dp_gamma)
+            self.dp_alpha_llh(self.dpAlpha, self.alphaDecay),
+            self.dp_gamma_llh(self.dpGamma)
         ]
         for i, node in enumerate(nodes):
             if node.num_local_data():
                 llhs.append(node.data_log_likelihood())
         return sum(array(llhs))
 
-    def dp_alpha_llh(self, dp_alpha, alpha_decay):
-        def descend(dp_alpha, root, depth=0):
-            llh = betapdfln(root['main'], 1.0, (alpha_decay**depth) *
-                            dp_alpha) if self.min_depth <= depth else 0.0
+    def dp_alpha_llh(self, dpAlpha, alphaDecay):
+        def descend(dpAlpha, root, depth=0):
+            llh = betapdfln(root['main'], 1.0, (alphaDecay**depth) *
+                            dpAlpha) if self.minDepth <= depth else 0.0
             for child in root['children']:
-                llh += descend(dp_alpha, child, depth + 1)
+                llh += descend(dpAlpha, child, depth + 1)
             return llh
 
-        return descend(dp_alpha, self.root)
+        return descend(dpAlpha, self.root)
 
-    def dp_gamma_llh(self, dp_gamma):
-        def descend(dp_gamma, root):
+    def dp_gamma_llh(self, dpGamma):
+        def descend(dpGamma, root):
             llh = 0
             for i, child in enumerate(root['children']):
-                llh += betapdfln(root['sticks'][i], 1.0, dp_gamma)
-                llh += descend(dp_gamma, child)
+                llh += betapdfln(root['sticks'][i], 1.0, dpGamma)
+                llh += descend(dpGamma, child)
             return llh
 
-        return descend(dp_gamma, self.root)
+        return descend(dpGamma, self.root)
 
     def print_graph(self, fh, base_width=5000, min_width=5):
         print >> fh, """graph: { title:            "TSSB Graph"  \
@@ -520,14 +520,14 @@ class TSSB(object):
             edges = sticks_to_edges(root['sticks'])
             weights = diff(hstack([0.0, edges]))
             for i, child in enumerate(root['children']):
-                child_name = "%s-%d" % (name, i)
-                child_mass = mass * weights[i] * child['main']
+                childName = "%s-%d" % (name, i)
+                childMass = mass * weights[i] * child['main']
                 print >> fh, """node: {  label:"%0.5f" title:"%s" width:%d}""" % (
-                    child_mass, child_name,
-                    max(int(child_mass * base_width), min_width))
+                    childMass, childName,
+                    max(int(childMass * base_width), min_width))
                 print >> fh, """edge: { source:"%s" target:"%s" anchor:1}""" % (
-                    name, child_name)
-                total += child_mass + descend(child, child_name,
+                    name, childName)
+                total += childMass + descend(child, childName,
                                               mass * weights[i] *
                                               (1.0 - child['main']))
             return total

@@ -43,7 +43,7 @@ def logsumexp(X, axis=None):
 
 
 def parse_physical_cnvs(pcnvs):
-    physical_cnvs = []
+    physicalCnvs = []
 
     for physical_cnv in pcnvs.split(';'):
         fields = physical_cnv.split(',')
@@ -51,9 +51,9 @@ def parse_physical_cnvs(pcnvs):
         for key in ('start', 'end', 'major_cn', 'minor_cn'):
             cnv[key] = int(cnv[key])
         cnv['cell_prev'] = [float(C) for C in cnv['cell_prev'].split('|')]
-        physical_cnvs.append(cnv)
+        physicalCnvs.append(cnv)
 
-    return physical_cnvs
+    return physicalCnvs
 
 
 def load_data(fname1, fname2):
@@ -154,63 +154,63 @@ class CorruptZipFileError(Exception):
 class BackupManager(object):
     def __init__(self, filenames):
         self._filenames = filenames
-        self._backup_filenames = [os.path.realpath(fn) +
+        self._backupFileNameL = [os.path.realpath(fn) +
             '.backup' for fn in self._filenames]
 
     def save_backup(self):
-        for fn, backup_fn in zip(self._filenames, self._backup_filenames):
-            shutil.copy2(fn, backup_fn)
+        for fn, backupFn in zip(self._filenames, self._backupFileNameL):
+            shutil.copy2(fn, backupFn)
 
     def restore_backup(self):
-        for fn, backup_fn in zip(self._filenames, self._backup_filenames):
-            shutil.copy2(backup_fn, fn)
+        for fn, backupFn in zip(self._filenames, self._backupFileNameL):
+            shutil.copy2(backupFn, fn)
 
     def remove_backup(self):
-        for backup_fn in self._backup_filenames:
+        for backupFn in self._backupFileNameL:
             try:
-                os.remove(backup_fn)
+                os.remove(backupFn)
             except OSError:
                 pass
 
 
 class StateManager(object):
-    default_last_state_fn = 'state.last.pickle'
-    default_initial_state_fn = 'state.initial.pickle'
+    defaultLastStateFn = 'state.last.pickle'
+    defaultInitialStateFn = 'state.initial.pickle'
 
     def __init__(self):
-        self._initial_state_fn = StateManager.default_initial_state_fn
-        self._last_state_fn = StateManager.default_last_state_fn
+        self._initialStateFn = StateManager.defaultInitialStateFn
+        self._lastStateFn = StateManager.defaultLastStateFn
 
     def _write_state(self, state, state_fn):
         with open(state_fn, 'w') as state_file:
             pickle.dump(state, state_file, protocol=pickle.HIGHEST_PROTOCOL)
 
     def write_state(self, state):
-        self._write_state(state, self._last_state_fn)
+        self._write_state(state, self._lastStateFn)
 
     def load_state(self):
-        with open(self._last_state_fn) as state_file:
+        with open(self._lastStateFn) as state_file:
             return pickle.load(state_file)
 
     def load_initial_state(self):
-        with open(self._initial_state_fn) as state_file:
+        with open(self._initialStateFn) as state_file:
             return pickle.load(state_file)
 
     def write_initial_state(self, state):
-        self._write_state(state, self._initial_state_fn)
+        self._write_state(state, self._initialStateFn)
 
     def delete_state_file(self):
-        rm_safely(self._last_state_fn)
+        rm_safely(self._lastStateFn)
 
     def state_exists(self):
-        return os.path.isfile(self._last_state_fn)
+        return os.path.isfile(self._lastStateFn)
 
 
 class TreeWriter(object):
-    default_archive_fn = 'trees.zip'
+    defaultArchiveFn = 'trees.zip'
 
     def __init__(self, resume_run=False):
-        self._archive_fn = TreeWriter.default_archive_fn
+        self._archiveFn = TreeWriter.defaultArchiveFn
         if resume_run:
             self._ensure_archive_is_valid()
         else:
@@ -220,7 +220,7 @@ class TreeWriter(object):
             # the file; otherwise, if the file is already a zip, additional
             # files will be written into the zip. On a new run, neither case is
             # something we want.
-            rm_safely(self._archive_fn)
+            rm_safely(self._archiveFn)
 
     def add_extra_file(self, filename, data):
         self._open_archive()
@@ -228,15 +228,15 @@ class TreeWriter(object):
         self._close_archive()
 
     def _ensure_archive_is_valid(self):
-        with zipfile.ZipFile(self._archive_fn) as zipf:
+        with zipfile.ZipFile(self._archiveFn) as zipf:
             if zipf.testzip() is not None:
                 raise CorruptZipFileError(
                     'Corrupt zip file: %s' %
-                    self._archive_fn)
+                    self._archiveFn)
 
     def _open_archive(self):
         self._archive = zipfile.ZipFile(
-            self._archive_fn,
+            self._archiveFn,
             'a',
             compression=zipfile.ZIP_DEFLATED,
             allowZip64=True)
@@ -244,9 +244,9 @@ class TreeWriter(object):
     def _close_archive(self):
         self._archive.close()
 
-    def write_trees(self, serialized_trees):
+    def write_trees(self, serializedTrees):
         self._open_archive()
-        for serialized_tree, idx, llh in serialized_trees:
+        for serialized_tree, idx, llh in serializedTrees:
             is_burnin = idx < 0
             prefix = is_burnin and 'burnin' or 'tree'
             treefn = '%s_%s_%s' % (prefix, idx, llh)
@@ -258,30 +258,30 @@ class TreeReader(object):
     def __init__(self, archive_fn):
         self._archive = zipfile.ZipFile(archive_fn)
         infolist = self._archive.infolist()
-        tree_info = [t for t in infolist if t.filename.startswith('tree_')]
-        burnin_info = [t for t in infolist if t.filename.startswith('burnin_')]
+        treeInfoL = [t for t in infolist if t.filename.startswith('tree_')]
+        burninInfoL = [t for t in infolist if t.filename.startswith('burnin_')]
 
         # Sort by index
-        tree_info.sort(key=lambda tinfo: self._extract_metadata(tinfo)[0])
-        burnin_info.sort(key=lambda tinfo: self._extract_burnin_idx(tinfo))
+        treeInfoL.sort(key=lambda tinfo: self._extract_metadata(tinfo)[0])
+        burninInfoL.sort(key=lambda tinfo: self._extract_burnin_idx(tinfo))
 
-        self._trees = []
-        self._burnin_trees = []
+        self._treeL = []
+        self._burninTreeL = []
 
-        for info in tree_info:
+        for info in treeInfoL:
             idx, llh = self._extract_metadata(info)
-            assert idx == len(self._trees)
-            self._trees.append((idx, llh, info))
-        for info in burnin_info:
+            assert idx == len(self._treeL)
+            self._treeL.append((idx, llh, info))
+        for info in burninInfoL:
             idx = self._extract_burnin_idx(info)
-            assert len(burnin_info) + idx == len(self._burnin_trees)
-            self._burnin_trees.append((idx, info))
+            assert len(burninInfoL) + idx == len(self._burninTreeL)
+            self._burninTreeL.append((idx, info))
 
     def read_extra_file(self, filename):
         return self._archive.read(filename)
 
     def num_trees(self):
-        return len(self._trees)
+        return len(self._treeL)
 
     def close(self):
         self._archive.close()
@@ -304,7 +304,7 @@ class TreeReader(object):
         return tree
 
     def load_tree(self, idx, remove_empty_vertices=False):
-        tidx, llh, zinfo = self._trees[idx]
+        tidx, llh, zinfo = self._treeL[idx]
         assert tidx == idx
         return self._parse_tree(zinfo, remove_empty_vertices)
 
@@ -314,10 +314,10 @@ class TreeReader(object):
             yield tree
 
     def load_trees_and_burnin(self, remove_empty_vertices=False):
-        for tidx, zinfo in self._burnin_trees:
+        for tidx, zinfo in self._burninTreeL:
             tree = self._parse_tree(zinfo, remove_empty_vertices)
             yield (tidx, tree)
-        for tidx, llh, zinfo in self._trees:
+        for tidx, llh, zinfo in self._treeL:
             tree = self._parse_tree(zinfo, remove_empty_vertices)
             yield (tidx, tree)
 
@@ -327,7 +327,7 @@ class TreeReader(object):
             remove_empty_vertices=False):
         # Sort by LLH
         trees = sorted(
-            self._trees,
+            self._treeL,
             key=lambda tidx_llh_zinfo: tidx_llh_zinfo[1],
             reverse=True)
 

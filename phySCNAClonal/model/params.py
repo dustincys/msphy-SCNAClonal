@@ -95,11 +95,11 @@ def metropolis(tssb,
 def write_tree(tssb, fname):
     fh = open(fname, 'w')
     wts, nodes = tssb.get_mixture()
-    did_int_dict = dict()
+    didIntD = dict()
 
     # 此处stripe的ID应为数值
     for dat in tssb.data:
-        did_int_dict[dat.id] = int(dat.id)
+        didIntD[dat.id] = int(dat.id)
 
     def descend(root):
         for child in root.children():
@@ -115,7 +115,7 @@ def write_tree(tssb, fname):
 
         dids = ''
         for dat in root.get_data():
-            dids += str(did_int_dict[dat.id]) + ','
+            dids += str(didIntD[dat.id]) + ','
         dids = dids.strip(',')
         if dids == '':
             dids = str(-1)
