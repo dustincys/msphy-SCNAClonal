@@ -93,3 +93,9 @@ class Node(object):
             ancestors = self._parent.get_ancestors()
             ancestors.append(self)
             return ancestors
+
+    def get_offsprings(self):
+        offsprings = [self]
+        for child in self._children:
+            offsprings.extend(child.get_offsprings())
+        return offsprings

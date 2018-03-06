@@ -156,6 +156,9 @@ class TSSB(object):
                     llhMapD[newNode] = newLlh
                 if newLlh > llhS:
                     break
+                elif -float("Inf") == newLlh:
+                    # here -float("Inf") means the situation restricted
+                    continue
                 elif abs(maxU - minU) < epsilon:
                     newNode.remove_datum(n)
                     oldNode.add_datum(n)

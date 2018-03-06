@@ -184,8 +184,8 @@ class StripePool(object):
                     tempStripe.tag = tempTag
                     self.stripes.append(tempStripe)
 
-        # merge baseline
-        if byTag:
+        # merge baseline, or not baseline in the stripe? toggle
+        if False and byTag:
             blSegL = [seg for seg in self._segPool.segments if "BASELINE" ==
                     seg.tag]
             blSegIdxL = [idx for idx, seg in enumerate(self._segPool.segments) if "BASELINE" ==

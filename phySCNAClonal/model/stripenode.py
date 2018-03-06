@@ -66,7 +66,39 @@ class StripeNode(Node):
         #
         # 如果出现结点内部的stripe的gap过于靠近
 
+        if self.__is_good_tags():
+            if self.__is_good_pedigree():
+                if self.__is_good_gaps(x):
+                    return self.logprob(x)
 
+        #######################################################
+        #  here -float("Inf") means the situation restricted  #
+        #######################################################
+        return -float('Inf')
+
+    def __is_good_pedigree(self):
+        """is the time tag descending along the pedigree?
+
+        @return:  Flag
+        @rtype :  bool
+        """
+        ancestors = self.get_ancestors()
+        timeTag = [int(n.get_data()[0].tag) for n in ancestors if 0 > len(n.data)]
+        if timeTag[-1] < max(timeTag[0:-1]):
+            return False
+
+        offsprings = self.get_offsprings()
+        timeTag = [int(n.get_data()[0].tag) for n in offsprings if 0 > len(n.data)]
+        if timeTag[0] > min(timeTag[1:]):
+            return False
+
+        return True
+
+    def __is_good_tags(self):
+        datums = self.get_data()
+        return 1 == len(set([int(datum.tag), for datum in datums]))
+
+    def __is_good_gaps(self, x):
         lowerNode, upperNode = self.__find_neighbor_datum_n(x)
 
         lFlag = True
@@ -81,10 +113,7 @@ class StripeNode(Node):
         else:
             uFlag = True
 
-        if lFlag and uFlag:
-            return self.logprob(x)
-        else:
-            return -float('Inf')
+        return lFlag and uFlag
 
     def complete_logprob(self):
         return sum([self.logprob([data]) for data in self.get_data()])
