@@ -1,13 +1,22 @@
-from scipy.stats import beta, binom
+'''
+# =============================================================================
+#      FileName: stripenode.py
+#        Author: Chu Yanshuo
+#         Email: chu@yanshuo.name
+#      HomePage: http://yanshuo.name
+#       Version: 0.0.1
+#    LastChange: 2018-03-08 15:21:59
+#       History:
+# =============================================================================
+'''
 import scipy.stats as stat
-from scipy.misc import comb
-from util import *
 from numpy import *
-from node import *
+from scipy.misc import comb
+from scipy.stats import beta, binom
 
-from util2 import *
+import phySCNAClonal.constants as constants
+from phySCNAClonal.model.node import Node
 
-from phySCNAClonal import constants
 
 class StripeNode(Node):
 
