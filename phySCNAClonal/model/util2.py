@@ -56,7 +56,7 @@ def parse_physical_cnvs(pcnvs):
     return physicalCnvs
 
 
-def load_data(fname1, fname2):
+def load_data(inputFilePath):
     # load stripes data
 
     inputFile = open(inputFilePath, 'rb')
@@ -159,6 +159,7 @@ class BackupManager(object):
 
     def save_backup(self):
         for fn, backupFn in zip(self._filenames, self._backupFileNameL):
+            # 文件复制
             shutil.copy2(fn, backupFn)
 
     def restore_backup(self):
@@ -181,20 +182,20 @@ class StateManager(object):
         self._initialStateFn = StateManager.defaultInitialStateFn
         self._lastStateFn = StateManager.defaultLastStateFn
 
-    def _write_state(self, state, state_fn):
-        with open(state_fn, 'w') as state_file:
-            pickle.dump(state, state_file, protocol=pickle.HIGHEST_PROTOCOL)
+    def _write_state(self, state, stateFn):
+        with open(stateFn, 'w') as stateFile:
+            pickle.dump(state, stateFile, protocol=pickle.HIGHEST_PROTOCOL)
 
     def write_state(self, state):
         self._write_state(state, self._lastStateFn)
 
     def load_state(self):
-        with open(self._lastStateFn) as state_file:
-            return pickle.load(state_file)
+        with open(self._lastStateFn) as stateFile:
+            return pickle.load(stateFile)
 
     def load_initial_state(self):
-        with open(self._initialStateFn) as state_file:
-            return pickle.load(state_file)
+        with open(self._initialStateFn) as stateFile:
+            return pickle.load(stateFile)
 
     def write_initial_state(self, state):
         self._write_state(state, self._initialStateFn)
@@ -209,9 +210,9 @@ class StateManager(object):
 class TreeWriter(object):
     defaultArchiveFn = 'trees.zip'
 
-    def __init__(self, resume_run=False):
+    def __init__(self, resumeRun=False):
         self._archiveFn = TreeWriter.defaultArchiveFn
-        if resume_run:
+        if resumeRun:
             self._ensure_archive_is_valid()
         else:
             # Remove file to avoid unwanted behaviour. By the zipfile module's
@@ -246,11 +247,11 @@ class TreeWriter(object):
 
     def write_trees(self, serializedTrees):
         self._open_archive()
-        for serialized_tree, idx, llh in serializedTrees:
-            is_burnin = idx < 0
-            prefix = is_burnin and 'burnin' or 'tree'
+        for st, idx, llh in serializedTrees:
+            isBurnin = idx < 0
+            prefix = isBurnin and 'burnin' or 'tree'
             treefn = '%s_%s_%s' % (prefix, idx, llh)
-            self._archive.writestr(treefn, serialized_tree)
+            self._archive.writestr(treefn, st)
         self._close_archive()
 
 
@@ -280,7 +281,7 @@ class TreeReader(object):
     def read_extra_file(self, filename):
         return self._archive.read(filename)
 
-    def num_trees(self):
+    def numTrees(self):
         return len(self._treeL)
 
     def close(self):
@@ -296,45 +297,45 @@ class TreeReader(object):
         idx = int(zinfo.filename.split('_')[1])
         return idx
 
-    def _parse_tree(self, zinfo, remove_empty_vertices=False):
+    def _parse_tree(self, zinfo, removeEmptyVertices=False):
         pickled = self._archive.read(zinfo)
         tree = pickle.loads(pickled)
-        if remove_empty_vertices:
+        if removeEmptyVertices:
             remove_empty_nodes(tree.root)
         return tree
 
-    def load_tree(self, idx, remove_empty_vertices=False):
+    def load_tree(self, idx, removeEmptyVertices=False):
         tidx, llh, zinfo = self._treeL[idx]
         assert tidx == idx
-        return self._parse_tree(zinfo, remove_empty_vertices)
+        return self._parse_tree(zinfo, removeEmptyVertices)
 
-    def load_trees(self, num_trees=None, remove_empty_vertices=False):
+    def load_trees(self, numTrees=None, removeEmptyVertices=False):
         for idx, llh, tree in self.load_trees_and_metadata(
-                num_trees, remove_empty_vertices):
+                numTrees, removeEmptyVertices):
             yield tree
 
-    def load_trees_and_burnin(self, remove_empty_vertices=False):
+    def load_trees_and_burnin(self, removeEmptyVertices=False):
         for tidx, zinfo in self._burninTreeL:
-            tree = self._parse_tree(zinfo, remove_empty_vertices)
+            tree = self._parse_tree(zinfo, removeEmptyVertices)
             yield (tidx, tree)
         for tidx, llh, zinfo in self._treeL:
-            tree = self._parse_tree(zinfo, remove_empty_vertices)
+            tree = self._parse_tree(zinfo, removeEmptyVertices)
             yield (tidx, tree)
 
     def load_trees_and_metadata(
             self,
-            num_trees=None,
-            remove_empty_vertices=False):
+            numTrees=None,
+            removeEmptyVertices=False):
         # Sort by LLH
         trees = sorted(
             self._treeL,
             key=lambda tidx_llh_zinfo: tidx_llh_zinfo[1],
             reverse=True)
 
-        if num_trees is not None:
-            num_trees = min(num_trees, len(trees))
-            trees = trees[:num_trees]
+        if numTrees is not None:
+            numTrees = min(numTrees, len(trees))
+            trees = trees[:numTrees]
 
         for tidx, llh, zinfo in trees:
-            tree = self._parse_tree(zinfo, remove_empty_vertices)
+            tree = self._parse_tree(zinfo, removeEmptyVertices)
             yield (tidx, llh, tree)

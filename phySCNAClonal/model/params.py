@@ -22,7 +22,7 @@ from numpy.random import dirichlet
 import util2 as u2
 from data import Datum
 from tssb import *
-from util import dirichletpdfln
+from util import dirichletpdfln, write_tree
 
 
 def get_c_fnames(tmp_dir):

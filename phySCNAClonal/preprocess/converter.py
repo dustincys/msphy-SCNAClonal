@@ -27,7 +27,7 @@ from phySCNAClonal.preprocess.plotGC import GCStripePlot
 from phySCNAClonal.preprocess.utils import (get_BAF_counts,
                                             normal_heterozygous_filter)
 
-import phySCNAClonal.preprocess.constants as constants
+import phySCNAClonal.constants as constants
 
 class BamConverter:
 

@@ -15,7 +15,7 @@ from collections import Counter
 import numpy as np
 import scipy.cluster.hierarchy as hcluster
 
-import phySCNAClonal.preprocess.constants
+import phySCNAClonal.constants as constants
 from phySCNAClonal.preprocess.elements.segment import Segment
 from phySCNAClonal.preprocess.elements.stripe import Stripe
 from phySCNAClonal.preprocess.pools.stripePool import StripePool

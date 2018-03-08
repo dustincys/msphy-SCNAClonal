@@ -19,7 +19,7 @@ from scipy.misc import comb
 from scipy.special import gammaln
 from scipy.stats import beta, binom
 
-import constants
+import phySCNAClonal.constants as constants
 
 
 def BEDnParser(bedName):

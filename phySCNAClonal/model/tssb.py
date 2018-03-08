@@ -16,7 +16,7 @@ import scipy.stats
 from numpy import *
 from numpy.random import *
 
-from util import *
+from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
 
 
 class TSSB(object):

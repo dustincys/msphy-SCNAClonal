@@ -20,7 +20,7 @@ import pymc
 from scipy.signal import argrelextrema
 from scipy.stats import gaussian_kde
 
-import constants
+import phySCNAClonal.constants as constants
 
 
 class MCMCLM(object):
