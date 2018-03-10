@@ -32,9 +32,9 @@ from phySCNAClonal.model.printo import print_top_trees
 from phySCNAClonal.model.stripenode import StripeNode
 from phySCNAClonal.model.tssb import TSSB
 from phySCNAClonal.model.util import boundbeta
-from phySCNAClonal.model.util2 import TreeWriter, StateManager
+from phySCNAClonal.model.util2 import TreeWriter, StateManager, load_data
 
-# numSamples: number of MCMC samples
+# sampleNum: number of MCMC samples
 # mhItr: number of metropolis-hasting iterations
 # randSeed: random seed (initialization). Set to None to choose random
 # seed automatically.
@@ -48,8 +48,8 @@ def start_new_run(stateManager,
                   paramsFile,
                   topKTreesFile,
                   clonalFreqsFile,
-                  burninSamples,
-                  numSamples,
+                  burninSampleNum,
+                  sampleNum,
                   mhItr,
                   mhStd,
                   writeStateEvery,
@@ -59,7 +59,7 @@ def start_new_run(stateManager,
     state = {}
 
     try:
-        state['randSeed'] = int(randSeed)
+        state['rand_seed'] = int(randSeed)
     except TypeError:
         # If randSeed is not provided as command-line arg, it will be None,
         # meaning it will hit this code path.
@@ -69,25 +69,25 @@ def start_new_run(stateManager,
         #   2. Otherwise, if `randomSeed.txt` exists, use the seed stored there.
         #   3. Otherwise, choose a new random seed and write to randomSeed.txt.
         try:
-            with open('randomSeed.txt') as seedf:
-                state['randSeed'] = int(seedf.read().strip())
+            with open('random_seed.txt') as seedf:
+                state['rand_seed'] = int(seedf.read().strip())
         except (TypeError, IOError) as E:
             # Can seed with [0, 2**32).
-            state['randSeed'] = randint(2**32)
+            state['rand_seed'] = randint(2**32)
 
-    seed(state['randSeed'])
-    with open('randomSeed.txt', 'w') as seedf:
-        seedf.write('%s\n' % state['randSeed'])
+    seed(state['rand_seed'])
+    with open('random_seed.txt', 'w') as seedf:
+        seedf.write('%s\n' % state['rand_seed'])
 
-    state['stripesFile'] = stripesFile
-    state['tmpDir'] = tmpDir
-    state['topKTreesFile'] = topKTreesFile
-    state['clonalFreqsFile'] = clonalFreqsFile
-    state['writeStateEvery'] = writeStateEvery
-    state['writeBackupsEvery'] = writeBackupsEvery
+    state['stripes_file'] = stripesFile
+    state['tmp_dir'] = tmpDir
+    state['top_k_trees_file'] = topKTreesFile
+    state['clonal_freqs_file'] = clonalFreqsFile
+    state['write_state_every'] = writeStateEvery
+    state['write_backups_every'] = writeBackupsEvery
 
     # 此处载入数据
-    stripes, baseline = load_data(state['stripesFile'])
+    stripes, baseline = load_data(state['stripes_file'])
     stripeNum = len(stripes)
 
     if len(stripes) == 0:
@@ -100,31 +100,31 @@ def start_new_run(stateManager,
     # state['glist'] = [datum.name for datum in codes if len(datum.name) > 0]
 
     # stripe list
-    state['stripeL'] = [stripe.stripe_name for stripe in stripes]
+    state['stripe_list'] = [stripe.stripe_name for stripe in stripes]
 
     # MCMC settings
-    state['burnin'] = burninSamples
-    state['numSamples'] = numSamples
-    state['dpAlpha'] = 25.0
-    state['dpGamma'] = 1.0
-    state['alphaDecay'] = 0.25
-    state['topK'] = 5
+    state['burnin_sample_number'] = burninSampleNum
+    state['sample_number'] = sampleNum
+    state['dp_alpha'] = 25.0
+    state['dp_gamma'] = 1.0
+    state['alpha_decay'] = 0.25
+    state['top_k'] = 5
 
     # Metropolis-Hastings settings
-    state['mhBurnin'] = 0
-    state['mhItr'] = mhItr  # No. of iterations in metropolis-hastings
-    state['mhStd'] = mhStd
+    state['mh_burnin'] = 0
+    state['mh_itr'] = mhItr  # No. of iterations in metropolis-hastings
+    state['mh_std'] = mhStd
 
-    state['cdLlhTraces'] = zeros((state['numSamples'], 1))
-    state['burninCdLlhTraces'] = zeros((state['burnin'], 1))
-    state['workingDirectory'] = os.getcwd()
+    state['cd_llh_traces'] = zeros((state['sample_number'], 1))
+    state['burnin_cd_llh_traces'] = zeros((state['burnin_sample_number'], 1))
+    state['working_directory'] = os.getcwd()
 
     root = StripeNode(conc=0.1)
 
     state['tssb'] = TSSB(
-        dpAlpha=state['dpAlpha'],
-        dpGamma=state['dpGamma'],
-        alphaDecay=state['alphaDecay'],
+        dpAlpha=state['dp_alpha'],
+        dpGamma=state['dp_gamma'],
+        alphaDecay=state['alpha_decay'],
         rootNode=root,
         data=stripes)
     # hack...
@@ -171,11 +171,11 @@ def start_new_run(stateManager,
     stateManager.write_initial_state(state)
 
     logmsg("Starting MCMC run...")
-    state['lastIteration'] = -state['burnin'] - 1
+    state['last_iteration'] = -state['burnin_sample_number'] - 1
 
     # This will overwrite file if it already exists, which is the desired
     # behaviour for a fresh run.
-    with open('mcmcSamples.txt', 'w') as mcmcf:
+    with open('mcmc_samples.txt', 'w') as mcmcf:
         mcmcf.write('Iteration\tLLH\tTime\n')
 
     do_mcmc(stateManager,
@@ -207,9 +207,9 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
         state = stateManager.load_state()
         treeWriter = TreeWriter(resumeRun=True)
 
-    set_state(state['randState'])  # Restore NumPy's RNG state.
+    set_state(state['rand_state'])  # Restore NumPy's RNG state.
 
-    stripes, baseline = load_data(state['stripesFile'])
+    stripes, baseline = load_data(state['stripes_file'])
     stripeNum = len(stripes)
 
     do_mcmc(stateManager,
@@ -221,7 +221,7 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
             treeWriter,
             stripes,
             stripeNum,
-            state['tmpDir'])
+            state['tmp_dir'])
 
 
 def do_mcmc(stateManager,
@@ -234,7 +234,7 @@ def do_mcmc(stateManager,
             stripes,
             stripeNum,
             tmpDir):
-    startIter = state['lastIteration'] + 1
+    startIter = state['last_iteration'] + 1
     unwrittenTreeL = []
     mcmcSampleTimesL = []
     lastMcmcSampleTime = time.time()
@@ -242,9 +242,9 @@ def do_mcmc(stateManager,
     # If --tmp-dir is not specified on the command line, it will by default be
     # None, which will cause mkdtemp() to place this directory under the system's
     # temporary directory. This is the desired behaviour.
-    config['tmpDir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmpDir)
+    config['tmp_dir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmpDir)
 
-    for iteration in range(startIter, state['numSamples']):
+    for iteration in range(startIter, state['sample_number']):
         safeToExit.set()
         if iteration < 0:
             logmsg(iteration)
@@ -269,22 +269,22 @@ def do_mcmc(stateManager,
         map_datum_to_node(tssb)
         ##################################################
 
-        state['mhAcc'] = metropolis(
+        state['mh_acc'] = metropolis(
             tssb,
-            state['mhItr'],
-            state['mhStd'],
-            state['mhBurnin'],
+            state['mh_itr'],
+            state['mh_std'],
+            state['mh_burnin'],
             stripeNum,
-            state['stripesFile'],
-            state['randSeed'],
-            config['tmpDir'])
+            state['stripes_file'],
+            state['rand_seed'],
+            config['tmp_dir'])
 
-        if float(state['mhAcc']) < 0.08 and state['mhStd'] < 10000:
-            state['mhStd'] = state['mhStd'] * 2.0
-            logmsg("Shrinking MH proposals. Now %f" % state['mhStd'])
-        if float(state['mhAcc']) > 0.5 and float(state['mhAcc']) < 0.99:
-            state['mhStd'] = state['mhStd'] / 2.0
-            logmsg("Growing MH proposals. Now %f" % state['mhStd'])
+        if float(state['mh_acc']) < 0.08 and state['mh_std'] < 10000:
+            state['mh_std'] = state['mh_std'] * 2.0
+            logmsg("Shrinking MH proposals. Now %f" % state['mh_std'])
+        if float(state['mh_acc']) > 0.5 and float(state['mh_acc']) < 0.99:
+            state['mh_std'] = state['mh_std'] / 2.0
+            logmsg("Growing MH proposals. Now %f" % state['mh_std'])
 
         tssb.resample_sticks()
         tssb.resample_stick_orders()
@@ -292,22 +292,22 @@ def do_mcmc(stateManager,
 
         lastLlh = tssb.complete_data_log_likelihood()
         if iteration >= 0:
-            state['cdLlhTraces'][iteration] = lastLlh
+            state['cd_llh_traces'][iteration] = lastLlh
             if True or mod(iteration, 10) == 0:
                 weights, nodes = tssb.get_mixture()
                 logmsg(' '.join([
                     str(v)
                     for v in (iteration, len(nodes),
-                              state['cdLlhTraces'][iteration],
-                              state['mhAcc'], tssb.dpAlpha, tssb.dpGamma,
+                              state['cd_llh_traces'][iteration],
+                              state['mh_acc'], tssb.dpAlpha, tssb.dpGamma,
                               tssb.alphaDecay)
                 ]))
-            if argmax(state['cdLlhTraces'][:iteration + 1]) == iteration:
+            if argmax(state['cd_llh_traces'][:iteration + 1]) == iteration:
                 logmsg("%f is best per-data complete data likelihood so far." %
-                       (state['cdLlhTraces'][iteration]))
+                       (state['cd_llh_traces'][iteration]))
         else:
-            state['burninCdLlhTraces'][iteration
-                                          + state['burnin']] = lastLlh
+            state['burnin_cd_llh_traces'][iteration
+                                          + state['burnin_sample_number']] = lastLlh
 
         # Can't just put tssb in unwrittenTreeL, as this object will be modified
         # on subsequent iterations, meaning any stored references in
@@ -315,8 +315,8 @@ def do_mcmc(stateManager,
         serialized = pickle.dumps(tssb, protocol=pickle.HIGHEST_PROTOCOL)
         unwrittenTreeL.append((serialized, iteration, lastLlh))
         state['tssb'] = tssb
-        state['randState'] = get_state()
-        state['lastIteration'] = iteration
+        state['rand_state'] = get_state()
+        state['last_iteration'] = iteration
 
         if len([
                 C for C in state['tssb'].root['children']
@@ -333,15 +333,15 @@ def do_mcmc(stateManager,
         # trees.zip or the computation state file to become corrupted from an
         # interrupted write.
         safeToExit.clear()
-        shouldWriteBackup = iteration % state['writeBackupsEvery'] == 0 and iteration != startIter
-        shouldWriteState = iteration % state['writeStateEvery'] == 0
-        isLastIteration = (iteration == state['numSamples'] - 1)
+        shouldWriteBackup = iteration % state['write_backups_every'] == 0 and iteration != startIter
+        shouldWriteState = iteration % state['write_state_every'] == 0
+        isLastIteration = (iteration == state['sample_number'] - 1)
 
         # If backup is scheduled to be written, write both it and full program
         # state regardless of whether we're scheduled to write state this
         # iteration.
         if shouldWriteBackup or shouldWriteState or isLastIteration:
-            with open('mcmcSamples.txt', 'a') as mcmcf:
+            with open('mcmc_samples.txt', 'a') as mcmcf:
                 llhsAndTimes = [
                     (itr, llh, itr_time)
                     for (tssb, itr, llh
@@ -362,15 +362,15 @@ def do_mcmc(stateManager,
     backupManager.remove_backup()
     safeToExit.clear()
     # save the best tree
-    print_top_trees(TreeWriter.defaultArchiveFn, state['topKTreesFile'],
-                    state['topK'])
+    print_top_trees(TreeWriter.defaultArchiveFn, state['top_k_trees_file'],
+                    state['top_k'])
 
     # save clonal frequencies
-    freq = dict([(g, []) for g in state['stripeL']])
+    freq = dict([(g, []) for g in state['stripe_list']])
     stripeL = array(freq.keys(), str)
     stripeL.shape = (1, len(stripeL))
     savetxt(
-        state['clonalFreqsFile'],
+        state['clonal_freqs_file'],
         vstack((stripeL, array([freq[g] for g in freq.keys()]).T)),
         fmt='%s',
         delimiter=', ')
@@ -423,14 +423,14 @@ def parse_args():
     parser.add_argument(
         '-B',
         '--burnin-samples',
-        dest='burninSamples',
+        dest='burninSampleNum',
         default=1000,
         type=int,
         help='Number of burnin samples')
     parser.add_argument(
         '-s',
         '--mcmc-samples',
-        dest='mcmcSamples',
+        dest='mcmcSampleNum',
         default=2500,
         type=int,
         help='Number of MCMC samples')
@@ -494,8 +494,8 @@ def run(safeToExit, runSucceeded, config):
             args.paramsFile,
             topKTreesFile=args.topKTrees,
             clonalFreqsFile=args.clonalFreqs,
-            burninSamples=args.burninSamples,
-            numSamples=args.mcmcSamples,
+            burninSampleNum=args.burninSampleNum,
+            sampleNum=args.mcmcSampleNum,
             mhItr=args.mhIterations,
             mhStd=100,
             writeStateEvery=args.writeStateEvery,
@@ -547,12 +547,12 @@ def main():
     # objects, it's thread safe and doesn't require the use of a mutex. See
     # http://effbot.org/pyfaq/what-kinds-of-global-value-mutation-are-thread-safe.htm.
     # If more complex values are stored here, we must introduce a mutex.
-    config = {'tmpDir': None}
+    config = {'tmp_dir': None}
 
     def sigterm_handler(_signo, _stack_frame):
         logmsg('Signal %s received.' % _signo, sys.stderr)
         safeToExit.wait()
-        remove_tmp_files(config['tmpDir'])
+        remove_tmp_files(config['tmp_dir'])
         logmsg('Exiting now.')
         # Exit with non-zero to indicate run didn't finish.
         sys.exit(3)
@@ -583,7 +583,7 @@ def main():
         # has expired.
         runThread.join(10)
 
-    remove_tmp_files(config['tmpDir'])
+    remove_tmp_files(config['tmp_dir'])
     if runSucceeded.is_set():
         logmsg('Run succeeded.')
         sys.exit(0)

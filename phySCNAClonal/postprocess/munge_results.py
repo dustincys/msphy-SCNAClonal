@@ -8,8 +8,7 @@ from pwgsresults.json_writer import JsonWriter
 def munge(treesummfn, mutlistfn, mutassfn):
     loader = ResultLoader(treesummfn, mutlistfn, mutassfn)
     dataset_name = loader.dataset_name
-    treesumm, mutlist, mutass = loader.tree_summary, loader.mutlist, loader.load_all_mut_assignments_into_memory(
-    )
+    treesumm, mutlist, mutass = loader.tree_summary, loader.mutlist, loader.load_all_mut_assignments_into_memory()
 
     munger = ResultMunger(treesumm, mutlist, mutass)
     munger.remove_superclones()

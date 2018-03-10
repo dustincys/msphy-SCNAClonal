@@ -12,12 +12,12 @@ def main():
     )
     parser.add_argument(
         '--include-stripe-names',
-        dest='include_stripe_names',
+        dest='includeStripeNames',
         action='store_true',
         help='Include stripe names in output (which may be sensitive data)')
     parser.add_argument(
-        '--include_segment_list',
-        dest='include_segment_list',
+        '--includeSegmentList',
+        dest='includeSegmentList',
         action='store_true',
         help='Include segment list in output (which may be sensitive data)')
     # 此处可以设置为最小Data
@@ -27,23 +27,23 @@ def main():
         # type=float,
         # default=0.01,
         # help='Minimum number or percent of SSMs to retain a subclone')
-    parser.add_argument('dataset_name', help='Name identifying dataset')
-    parser.add_argument('tree_file', help='File containing sampled trees')
+    parser.add_argument('datasetName', help='Name identifying dataset')
+    parser.add_argument('treeFile', help='File containing sampled trees')
     parser.add_argument(
-        'tree_summary_output',
+        'treeSummaryOutput',
         help='Output file for JSON-formatted tree summaries')
     parser.add_argument(
-        'mutlist_output',
+        'mutlistOutput',
         help='Output file for JSON-formatted list of mutations')
     parser.add_argument(
-        'mutass_output',
+        'mutassOutput',
         help=
         'Output file for JSON-formatted list of SSMs and CNVs assigned to each subclone'
     )
     args = parser.parse_args()
 
     summaries, mutlist, mutass, params = ResultGenerator().generate(
-        args.tree_file, include_stripe_names, include_segment_list)
+        args.treeFile, args.includeStripeNames, args.includeSegmentList)
 
     munger = ResultMunger(summaries, mutlist, mutass)
 
@@ -53,10 +53,10 @@ def main():
     munger.remove_superclones()
     munger.remove_polyclonal_trees()
 
-    writer = JsonWriter(args.dataset_name)
-    writer.write_summaries(summaries, params, args.tree_summary_output)
-    writer.write_mutlist(mutlist, args.mutlist_output)
-    writer.write_mutass(mutass, args.mutass_output)
+    writer = JsonWriter(args.datasetName)
+    writer.write_summaries(summaries, params, args.treeSummaryOutput)
+    writer.write_mutlist(mutlist, args.mutlistOutput)
+    writer.write_mutass(mutass, args.mutassOutput)
 
 
 if __name__ == '__main__':
