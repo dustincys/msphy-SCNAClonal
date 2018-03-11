@@ -14,62 +14,62 @@ class ResultMunger(object):
             dic[int(key)] = dic[key]
             del dic[key]
 
-    def remove_small_nodes(self, min_stripes):
-        for tree_idx, tree_features in self._tree_summaries.items():
-            small_nodes = self._find_small_nodes(
-                tree_idx, tree_features['populations'], min_stripes)
-            self._remove_nodes(small_nodes, tree_idx, mut_destination='best')
+    def remove_small_nodes(self, minStripes):
+        for treeIdx, treeFeatures in self._tree_summaries.items():
+            smallNodes = self._find_small_nodes(
+                treeIdx, treeFeatures['populations'], minStripes)
+            self._remove_nodes(smallNodes, treeIdx, mutDestination='best')
 
         return (self._tree_summaries, self._mutass)
 
     def remove_superclones(self):
-        for tree_idx in self._tree_summaries.keys():
-            pops = self._tree_summaries[tree_idx]['populations']
-            structure = self._tree_summaries[tree_idx]['structure']
+        for treeIdx in self._tree_summaries.keys():
+            pops = self._tree_summaries[treeIdx]['populations']
+            structure = self._tree_summaries[treeIdx]['structure']
 
-            root_idx = 0
-            assert len(structure[root_idx]) > 0
-            if len(structure[root_idx]) != 1:
+            rootIdx = 0
+            assert len(structure[rootIdx]) > 0
+            if len(structure[rootIdx]) != 1:
                 # Ignore polyclonal trees, since it's not clear how to handle them.
                 continue
-            clonal_idx = structure[root_idx][0]
+            clonalIdx = structure[rootIdx][0]
             # Check assumption about node numbering (which isn't really important).
-            assert clonal_idx == 1
+            assert clonalIdx == 1
 
-            if clonal_idx not in structure or len(structure[clonal_idx]) != 1:
+            if clonalIdx not in structure or len(structure[clonalIdx]) != 1:
                 # Either tree doesn't have subclones, or it has multiple subclones.
                 # Ignore trees with >1 child coming off clonal node, since they don't
                 # fit our definition of superclonal.
                 continue
-            child_idx = structure[clonal_idx][0]
+            childIdx = structure[clonalIdx][0]
             # Check assumption about node numbering (which isn't really important).
-            assert child_idx == 2
+            assert childIdx == 2
 
             # At this point, "clone" is the superclone to remove, and "child" will be
             # the new clonal node.
-            clone, child = pops[clonal_idx], pops[child_idx]
-            if child['num_stripes'] == 0:
+            clone, child = pops[clonalIdx], pops[childIdx]
+            if child['stripe_number'] == 0:
                 # Prevent division by zero.
                 continue
             # 注意，此处不将data个数作为考虑
             # if not (float(clone['num_ssms']) / child['num_ssms'] <= 0.33):
                 # Child must have at least 3 times the number of SSMs as parent to be
                 # considered superclonal tree.
-                #print(tree_idx, 'differential in num_ssms too small', clone['num_ssms'], child['num_ssms'])
+                #print(treeIdx, 'differential in num_ssms too small', clone['num_ssms'], child['num_ssms'])
                 continue
             if not (np.mean(
                     np.abs(
                         np.array(clone['cellular_prevalence']) - np.array(
                             child['cellular_prevalence']))) <= 0.1):
                 # Cellular prevalences of clusters must be within 10%.
-                #print(tree_idx, 'CPs too dissimilar', clone['num_ssms'], child['num_ssms'])
+                #print(treeIdx, 'CPs too dissimilar', clone['num_ssms'], child['num_ssms'])
                 continue
 
-            print(tree_idx, 'Superclone:', clone, 'actual clone:', child)
+            print(treeIdx, 'Superclone:', clone, 'actual clone:', child)
             # Revise cellular prevalence to be weighted mean of both nodes.
-            clonal_stripes, clonal_cp = clone['num_stripes'], np.array(
+            clonal_stripes, clonal_cp = clone['stripe_number'], np.array(
                 clone['cellular_prevalence'])
-            child_stripes, child_cp = child['num_stripes'], np.array(
+            child_stripes, child_cp = child['stripe_number'], np.array(
                 child['cellular_prevalence'])
             total_stripes = clonal_stripes + child_stripes
             # Cellular prevalence is a vector, so we must brought it into NumPy so we
@@ -84,8 +84,8 @@ class ResultMunger(object):
             # points to the same node, and this function doesn't refer to any other
             # nodes. Otherwise, I'd be referring to the clonal idx=2 node, which
             # becomes idx=1 partway through.
-            self._remove_nodes([child_idx], tree_idx, mut_destination='clonal')
-            print(tree_idx, 'New clonal node:', clone)
+            self._remove_nodes([childIdx], treeIdx, mutDestination='clonal')
+            print(treeIdx, 'New clonal node:', clone)
 
     def remove_polyclonal_trees(self):
         polyidxs = set()
@@ -127,9 +127,9 @@ class ResultMunger(object):
                 del self._tree_summaries[tidx]
                 del self._mutass[tidx]
 
-    def _renumber_nodes(self, tree_idx, subclone_idx_map):
+    def _renumber_nodes(self, treeIdx, subclone_idx_map):
         subclone_idxs = sorted(
-            self._tree_summaries[tree_idx]['populations'].keys())
+            self._tree_summaries[treeIdx]['populations'].keys())
 
         num_removed = 0
         # We may have removed populations beyond max(subclone_idxs), but as these
@@ -137,7 +137,7 @@ class ResultMunger(object):
         # renumbering is not necessary for them -- i.e., nothing in the tree is
         # affected by their removal.
         for subclone_idx in range(1, max(subclone_idxs) + 1):
-            if subclone_idx not in self._tree_summaries[tree_idx][
+            if subclone_idx not in self._tree_summaries[treeIdx][
                     'populations']:
                 # Node was removed.
                 num_removed += 1
@@ -157,85 +157,85 @@ class ResultMunger(object):
             # Node remains, so must renumber it.
             new_idx = subclone_idx_map[subclone_idx]
 
-            self._tree_summaries[tree_idx]['populations'][
-                new_idx] = self._tree_summaries[tree_idx]['populations'][
+            self._tree_summaries[treeIdx]['populations'][
+                new_idx] = self._tree_summaries[treeIdx]['populations'][
                     subclone_idx]
-            del self._tree_summaries[tree_idx]['populations'][subclone_idx]
+            del self._tree_summaries[treeIdx]['populations'][subclone_idx]
 
-            if subclone_idx in self._tree_summaries[tree_idx]['structure']:
-                self._tree_summaries[tree_idx]['structure'][
-                    new_idx] = self._tree_summaries[tree_idx]['structure'][
+            if subclone_idx in self._tree_summaries[treeIdx]['structure']:
+                self._tree_summaries[treeIdx]['structure'][
+                    new_idx] = self._tree_summaries[treeIdx]['structure'][
                         subclone_idx]
-                del self._tree_summaries[tree_idx]['structure'][subclone_idx]
+                del self._tree_summaries[treeIdx]['structure'][subclone_idx]
 
         # We must also renumber children in the structure -- just renumbering
         # parents isn't enough.
-        for subclone_idx, children in self._tree_summaries[tree_idx][
+        for subclone_idx, children in self._tree_summaries[treeIdx][
                 'structure'].items():
-            self._tree_summaries[tree_idx]['structure'][subclone_idx] = [
+            self._tree_summaries[treeIdx]['structure'][subclone_idx] = [
                 subclone_idx_map[c] if c in subclone_idx_map else c
                 for c in children
             ]
 
-    def _correct_mut_counts(self, populations, tree_idx):
+    def _correct_mut_counts(self, populations, treeIdx):
         for sidx, subclone in populations.items():
             # Note that only mutass entries for subclones with (> 0 SSMs or > 0
             # CNVs) will exist. Thus, no mutass entry will exist for node 0, as it
             # never has SSMs or CNVs.
             if sidx == 0:
                 continue
-            subclone["num_stripes"] = len(self._mutass[tree_idx][sidx])
+            subclone["num_stripes"] = len(self._mutass[treeIdx][sidx])
 
-    def _remove_nodes(self, nodes, tree_idx, mut_destination):
+    def _remove_nodes(self, nodes, treeIdx, mutDestination):
         subclone_idx_map = {}
-        tree_features = self._tree_summaries[tree_idx]
+        treeFeatures = self._tree_summaries[treeIdx]
 
         # Remove summary stats about population.
         for node_idx in nodes:
-            del tree_features['populations'][node_idx]
+            del treeFeatures['populations'][node_idx]
             # Mark node as removed. Use subclone_idx_map to track both node removals
             # and renumberings.
             subclone_idx_map[node_idx] = None
 
         self._remove_nodes_from_tree_structure(subclone_idx_map,
-                                               tree_features['structure'])
-        self._renumber_nodes(tree_idx, subclone_idx_map)
-        self._reassign_muts(tree_idx, subclone_idx_map, mut_destination)
-        self._correct_mut_counts(tree_features['populations'], tree_idx)
+                                               treeFeatures['structure'])
+        self._renumber_nodes(treeIdx, subclone_idx_map)
+        self._reassign_muts(treeIdx, subclone_idx_map, mutDestination)
+        self._correct_mut_counts(treeFeatures['populations'], treeIdx)
 
-    def _find_small_nodes(self, tree_idx, populations, min_stripes):
-        small_nodes = set()
+    def _find_small_nodes(self, treeIdx, populations, minStripes):
+        smallNodes = set()
 
         subclone_idxs = sorted(populations.keys())
         last_phi = None
         last_idx = None
 
-        if min_stripes >= 1:
+        if minStripes >= 1:
             # This is a count of SSMs, so use it without adjustment (but ensure it's an int).
-            min_stripes = int(min_stripes)
+            minStripes = int(minStripes)
         else:
             # This is a fraction of total SSMs.
             num_ssms = len(self._mutlist['ssms'])
-            min_stripes = int(round(float(min_stripes) * num_ssms))
+            minStripes = int(round(float(minStripes) * num_ssms))
 
         for subclone_idx in subclone_idxs:
-            for p, children in self._tree_summaries[tree_idx][
+            for p, children in self._tree_summaries[treeIdx][
                     'structure'].items():
                 if subclone_idx in children:
                     parent = p
                     break
             subclone = populations[subclone_idx]
             # Ensure this node's phi is <= the phi of its preceding sibling node, if any exists.
-            if subclone_idx > 0 and last_idx in self._tree_summaries[tree_idx]['structure'][parent]:
+            if subclone_idx > 0 and last_idx in self._tree_summaries[treeIdx]['structure'][parent]:
                 assert np.mean(subclone['cellular_prevalence']) <= last_phi
             last_phi = np.mean(subclone['cellular_prevalence'])
             last_idx = subclone_idx
 
-            if subclone_idx == 0 or subclone['num_ssms'] >= min_stripes:
+            if subclone_idx == 0 or subclone['num_ssms'] >= minStripes:
                 continue
-            small_nodes.add(subclone_idx)
+            smallNodes.add(subclone_idx)
 
-        return small_nodes
+        return smallNodes
 
     def _remove_nodes_from_tree_structure(self, subclonal_idx_map,
                                           tree_structure):
@@ -292,15 +292,15 @@ class ResultMunger(object):
                 mutass[best_node][mut_type].append(mut_id)
 
     def _move_muts_to_clonal_node(self, muts, mutass, populations, structure):
-        root_idx = 0
-        clonal_idx = 1
-        assert clonal_idx in structure[root_idx]
+        rootIdx = 0
+        clonalIdx = 1
+        assert clonalIdx in structure[rootIdx]
         for mut_type in ('ssms', 'cnvs'):
-            mutass[clonal_idx][mut_type] += muts[mut_type]
+            mutass[clonalIdx][mut_type] += muts[mut_type]
 
-    def _reassign_muts(self, tree_idx, subclone_idx_map, destination='best'):
+    def _reassign_muts(self, treeIdx, subclone_idx_map, destination='best'):
         deleted_muts = []
-        mutass = self._mutass[tree_idx]
+        mutass = self._mutass[treeIdx]
 
         for sidx in sorted(subclone_idx_map.keys()):
             new_idx = subclone_idx_map[sidx]
@@ -317,10 +317,10 @@ class ResultMunger(object):
         for dm in deleted_muts:
             if destination == 'best':
                 self._move_muts_to_best_node(
-                    dm, mutass, self._tree_summaries[tree_idx]['populations'])
+                    dm, mutass, self._tree_summaries[treeIdx]['populations'])
             elif destination == 'clonal':
                 self._move_muts_to_clonal_node(
-                    dm, mutass, self._tree_summaries[tree_idx]['populations'],
-                    self._tree_summaries[tree_idx]['structure'])
+                    dm, mutass, self._tree_summaries[treeIdx]['populations'],
+                    self._tree_summaries[treeIdx]['structure'])
             else:
                 raise Exception('Unknown destination: %s' % destination)

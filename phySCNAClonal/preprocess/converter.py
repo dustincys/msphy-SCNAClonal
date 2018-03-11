@@ -66,16 +66,18 @@ class BamConverter:
         blSegsL = self._get_baseline()
         self._mark_timestamp(blSegsL)
         stripePool = self._generate_stripe()
-        self._dump(stripePool)
+        self._dump(stripePool, self.__pklPath)
+
+        self._dump(self._segPoolL, "segPoolL")
 
     def _load_allele_counts(self):
         for tBamName, segPool in zip(self._tBamNameL, self._segPoolL):
             self._get_counts(tBamName, segPool)
 
-    def _dump(self, stripePool):
-        fileName = self.__pathPrefix + self.__pklPath
+    def _dump(self, data, dpFileName):
+        fileName = self.__pathPrefix + dpFileName
         outFile = open(fileName, 'wb')
-        pkl.dump(stripePool, outFile, protocol=2)
+        pkl.dump(data, outFile, protocol=2)
         outFile.close()
 
     def _generate_stripe(self):
@@ -97,6 +99,10 @@ class BamConverter:
         tempSP = StripePool(self._segPoolL[-1], self._segPoolL[-1].baseline,
                             yDown, yUp, stripeNum, noiseStripeNum)
         tempSP.get(byTag = True)
+
+        tempSP.stripes.sort(key = lambda item: int(item.tag))
+
+        return tempSP
 
     def _mark_timestamp(self, blSegsL):
         """

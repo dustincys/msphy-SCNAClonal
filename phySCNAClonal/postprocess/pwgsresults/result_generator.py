@@ -10,7 +10,10 @@ import json
 
 
 class ResultGenerator(object):
-    def generate(self, treeFile, includeStripeNames, includeSegmentList):
+    def generate(self, treeFile, segPoolLFile, includeStripeNames):
+        """
+        segPoolL: load the segment information
+        """
         reader = util2.TreeReader(treeFile)
         firstTree = next(reader.load_trees())
         # cnv_logical_physical_mapping = json.loads(reader.read_extra_file('cnv_logical_physical_mapping.json'))
@@ -22,9 +25,10 @@ class ResultGenerator(object):
             params = {}
         reader.close()
 
+        segPool = self.__load_segPoolL_from_pkl(segPoolLFile)
+
         # 注意此处是否添加add stripe name
-        mutList = self._list_mutations(firstTree, includeStripeNames,
-                                       includeSegmentList)
+        mutList = self._list_mutations(firstTree, segPool, includeStripeNames)
         summaries = {}
         allMutAss = {}
         for idx, llh, pops, mutAss, structure in self._summarize_all_pops(
@@ -90,21 +94,41 @@ class ResultGenerator(object):
         _traverse_r(tree.root['node'], None)
         return (pops, mutAssignments, structure)
 
-    def _list_mutations(self, tree, includeStripeNames,
-                        includeSegmentList):
+    def _list_mutations(self, tree, segPool, includeStripeNames,
+                        includeSegmentList=True):
         stripes = {}
+
+        def _getSegInfo(segIdxL, segL):
+            segs = []
+            for idx in segIdxL:
+                info = {
+                    'name':segL[idx].name,
+                    'chrom_name':segL[idx].chrom_name,
+                    'start':segL[idx].start,
+                    'end':segL[idx].end,
+                    'tumor_read_number': segL[idx].tReadNum,
+                    'normal_read_number': segL[idx].nNeadNum,
+                    'gc': segL[idx].gc,
+                }
+                segs.append(info)
+
+            return segs
 
         def _traverse(node):
             for mut in node['node'].get_data():
                 stripes[mut.sid] = {
-                    'tReadNum': mut.tReadNum,
-                    'nReadNum': mut.nNeadNum,
+                    'tumor_read_number': mut.tReadNum,
+                    'normal_read_number': mut.nNeadNum,
+                    'copy_number': mut.copyNumber,
+                    'genotype': mut.genotype,
                     'tag': mut.tag,
                 }
                 if includeStripeNames:
                     stripes[mut.sid]['name'] = mut.name
                 if includeSegmentList:
-                    stripes[mut.sid]['segsIdxL'] = mut.segsIdxL.split(",")
+                    stripes[mut.sid]['segment_index'] = mut.segIdxL.split(",")
+                    stripes[mut.sid]['segment_info'] = _getSegInfo(mut.segIdxL.split(","), segL)
+
 
             for child in node['children']:
                 _traverse(child)
@@ -112,3 +136,10 @@ class ResultGenerator(object):
         _traverse(tree.root)
 
         return { 'stripes': stripes }
+
+    def __load_segPoolL_from_pkl(self, inputFilePath):
+
+        inputFile = open(inputFilePath, 'rb')
+        segPoolL = pkl.load(inputFile)
+
+        return segPoolL[-1]
