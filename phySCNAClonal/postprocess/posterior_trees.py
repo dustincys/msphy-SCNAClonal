@@ -3,8 +3,9 @@ import cPickle
 
 from numpy import *
 from numpy.random import *
-from tssb import *
-from util2 import *
+
+from phySCNAClonal.model.tssb import TSSB
+from phySCNAClonal.model.util2 import TreeReader
 
 from ete2 import *
 import heapq

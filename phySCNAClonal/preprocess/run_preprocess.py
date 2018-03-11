@@ -6,7 +6,7 @@
 #         Email: chu@yanshuo.name
 #      HomePage: http://yanshuo.name
 #       Version: 0.0.1
-#    LastChange: 2016-10-11 10:57:17
+#    LastChange: 2018-03-11 22:40:41
 #       History: Yi Li
 # =============================================================================
 '''
@@ -17,7 +17,7 @@ import time
 from phySCNAClonal.preprocess.converter import BamConverter
 
 
-def run_preprocess_pSCNAClonal(args):
+def run(args):
     '''
     args.gc_correction_method: manual, auto
     args.baseline_selection_method: manual, auto

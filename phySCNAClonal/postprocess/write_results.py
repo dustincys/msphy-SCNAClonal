@@ -1,8 +1,8 @@
 #!/usr/bin/env python2
 import argparse
-from pwgsresults.result_generator import ResultGenerator
-from pwgsresults.result_munger import ResultMunger
-from pwgsresults.json_writer import JsonWriter
+from phySCNAClonal.postprocess.pwgsresults.result_generator import ResultGenerator
+from phySCNAClonal.postprocess.pwgsresults.result_munger import ResultMunger
+from phySCNAClonal.postprocess.pwgsresults.json_writer import JsonWriter
 
 
 def main():
@@ -15,20 +15,9 @@ def main():
         dest='includeStripeNames',
         action='store_true',
         help='Include stripe names in output (which may be sensitive data)')
-    parser.add_argument(
-        '--includeSegmentList',
-        dest='includeSegmentList',
-        action='store_true',
-        help='Include segment list in output (which may be sensitive data)')
-    # 此处可以设置为最小Data
-    # parser.add_argument(
-        # '--min-ssms',
-        # dest='min_ssms',
-        # type=float,
-        # default=0.01,
-        # help='Minimum number or percent of SSMs to retain a subclone')
     parser.add_argument('datasetName', help='Name identifying dataset')
     parser.add_argument('treeFile', help='File containing sampled trees')
+    parser.add_argument('segPoolFile', help='File containing segment pool')
     parser.add_argument(
         'treeSummaryOutput',
         help='Output file for JSON-formatted tree summaries')
@@ -42,8 +31,9 @@ def main():
     )
     args = parser.parse_args()
 
+    # 此处应该生成关于目标的copyNumber, phi等信息
     summaries, mutlist, mutass, params = ResultGenerator().generate(
-        args.treeFile, args.includeStripeNames, args.includeSegmentList)
+        args.treeFile, args.segPoolFile, args.includeStripeNames)
 
     munger = ResultMunger(summaries, mutlist, mutass)
 
@@ -53,6 +43,7 @@ def main():
     munger.remove_superclones()
     munger.remove_polyclonal_trees()
 
+    # 此处将生成关于目标的copyNumber, phi等信息输出到文件
     writer = JsonWriter(args.datasetName)
     writer.write_summaries(summaries, params, args.treeSummaryOutput)
     writer.write_mutlist(mutlist, args.mutlistOutput)
