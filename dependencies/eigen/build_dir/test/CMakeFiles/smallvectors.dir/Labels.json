@@ -1,0 +1,16 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/media/d/github/phy-SCNAClonal/dependencies/eigen/test/smallvectors.cpp"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"BuildOfficial"
+		],
+		"name" : "smallvectors"
+	}
+}

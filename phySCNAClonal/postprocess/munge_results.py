@@ -1,8 +1,8 @@
 #!/usr/bin/env python2
 import argparse
-from pwgsresults.result_munger import ResultMunger
-from pwgsresults.result_loader import ResultLoader
-from pwgsresults.json_writer import JsonWriter
+from phySCNAClonal.postprocess.pwgsresults.result_munger import ResultMunger
+from phySCNAClonal.postprocess.pwgsresults.result_loader import ResultLoader
+from phySCNAClonal.postprocess.pwgsresults.json_writer import JsonWriter
 
 
 def munge(treesummfn, mutlistfn, mutassfn):
