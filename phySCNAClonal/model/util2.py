@@ -281,7 +281,7 @@ class TreeReader(object):
     def read_extra_file(self, filename):
         return self._archive.read(filename)
 
-    def numTrees(self):
+    def num_trees(self):
         return len(self._treeL)
 
     def close(self):
