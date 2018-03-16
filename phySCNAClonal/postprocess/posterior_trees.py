@@ -261,21 +261,14 @@ def print_tree_latex(tssb, fout, score, freqs):
     fout.close()
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description='Plot posterior trees resulting from phy-SCNAClonal run',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument(
-        '--num-trees',
-        '-n',
-        dest='treeNumPrint',
-        type=int,
-        help='Only output given number of trees')
-    parser.add_argument(
-        '--stripePool-file',
-        '-s',
-        dest='stripePoolFilePath',
-        help='stipe pool file to extract')
-    args = parser.parse_args()
+def process(args):
     compute_lineages(TreeWriter.defaultArchiveFn, args.treeNumPrint,
                      args.stripePoolFilePath)
+
+
+def main():
+    process()
+
+
+if __name__ == "__main__":
+    main()

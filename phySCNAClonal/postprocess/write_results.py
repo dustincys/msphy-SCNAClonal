@@ -25,5 +25,9 @@ def process(args):
     writer.write_mutass(mutass, args.mutassOutput)
 
 
+def main():
+    process(args)
+
+
 if __name__ == '__main__':
     main()

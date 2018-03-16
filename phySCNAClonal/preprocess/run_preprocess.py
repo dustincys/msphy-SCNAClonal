@@ -17,7 +17,7 @@ import time
 from phySCNAClonal.preprocess.converter import BamConverter
 
 
-def run(args):
+def process(args):
     '''
     args.gc_correction_method: manual, auto
     args.baseline_selection_method: manual, auto
