@@ -15,7 +15,7 @@
 
 import argparse
 
-from phySCNAClonal.preprocess.run_preprocess import run_preprocess
+from phySCNAClonal.preprocess.run_preprocess import process as run_process
 from phySCNAClonal.model.evolve import process
 
 parser = argparse.ArgumentParser(
@@ -101,7 +101,7 @@ parserPreprocess.add_argument('--gcCorrectionMethod', default="auto",
 parserPreprocess.add_argument('--pklFlag', default=False, type=bool,
                                help='''The pkl flag''')
 
-parserPreprocess.set_defaults(func=process)
+parserPreprocess.set_defaults(func=run_process)
 
 ###################
 #  model process  #
@@ -161,47 +161,47 @@ parserModel.set_defaults(func=process)
 #################
 
 
-parserPostprocess = subparsers.add_parser('postprocess',
-                                help='''Output postprocess parameters format''')
-
-parserPostprocess.add_argument( '--include-stripe-names',
-                               dest='includeStripeNames', action='store_true',
-                               help='Include stripe names in output \(which may\
-                               be sensitive data\)')
-
-parserPostprocess.add_argument('datasetName', help='Name identifying dataset')
-
-parserPostprocess.add_argument('treeFile', help='File containing sampled trees')
-
-parserPostprocess.add_argument('segPoolFile', help='File containing segment\
-                               pool')
-
-parserPostprocess.add_argument('treeSummaryOutput', help='Output file for\
-                               JSON-formatted tree summaries')
-
-parserPostprocess.add_argument('mutlistOutput', help='Output file for\
-                               JSON-formatted list of mutations')
-
-parserPostprocess.add_argument('mutassOutput', help= 'Output file for\
-                               JSON-formatted list of SSMs and CNVs assigned to\
-                               each subclone')
-
-###########################
-#  postprocess draw tree  #
-###########################
-
-
-parserPostDraw = subparsers.add_parser('postdraw', help='''Output post draw\
-                                       parameters format.  Plot posterior trees\
-                                       resulting from phy-SCNAClonal run''')
-
-parserPostDraw.add_argument( '--num-trees', '-n', dest='treeNumPrint',
-                            type=int, help='Only output given number of\
-                            trees')
-
-parserPostDraw.add_argument('--stripePool-file', '-s',
-                            dest='stripePoolFilePath', help='stipe pool file to\
-                            extract')
+# parserPostprocess = subparsers.add_parser('postprocess',
+#                                 help='''Output postprocess parameters format''')
+#
+# parserPostprocess.add_argument( '--include-stripe-names',
+#                                dest='includeStripeNames', action='store_true',
+#                                help='Include stripe names in output \(which may\
+#                                be sensitive data\)')
+#
+# parserPostprocess.add_argument('datasetName', help='Name identifying dataset')
+#
+# parserPostprocess.add_argument('treeFile', help='File containing sampled trees')
+#
+# parserPostprocess.add_argument('segPoolFile', help='File containing segment\
+#                                pool')
+#
+# parserPostprocess.add_argument('treeSummaryOutput', help='Output file for\
+#                                JSON-formatted tree summaries')
+#
+# parserPostprocess.add_argument('mutlistOutput', help='Output file for\
+#                                JSON-formatted list of mutations')
+#
+# parserPostprocess.add_argument('mutassOutput', help= 'Output file for\
+#                                JSON-formatted list of SSMs and CNVs assigned to\
+#                                each subclone')
+#
+# ###########################
+# #  postprocess draw tree  #
+# ###########################
+#
+#
+# parserPostDraw = subparsers.add_parser('postdraw', help='''Output post draw\
+#                                        parameters format.  Plot posterior trees\
+#                                        resulting from phy-SCNAClonal run''')
+#
+# parserPostDraw.add_argument( '--num-trees', '-n', dest='treeNumPrint',
+#                             type=int, help='Only output given number of\
+#                             trees')
+#
+# parserPostDraw.add_argument('--stripePool-file', '-s',
+#                             dest='stripePoolFilePath', help='stipe pool file to\
+#                             extract')
 
 
 args = parser.parse_args()
