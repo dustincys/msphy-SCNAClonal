@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
 # =============================================================================
 #      FileName: stripe.py
@@ -17,7 +19,7 @@
 import numpy as np
 from scipy.stats.mstats import gmean
 
-import phySCNAClonal.preprocess.constants as constants
+import phySCNAClonal.constants as constants
 from phySCNAClonal.preprocess.utils import (get_loga, get_mu_E_joint,
                                             log_binomial_likelihood,
                                             mad_based_outlier)

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
 # =============================================================================
 #      FileName: stripenode.py
@@ -105,7 +107,7 @@ class StripeNode(Node):
 
     def __is_good_tags(self):
         datums = self.get_data()
-        return 1 == len(set([int(datum.tag), for datum in datums]))
+        return 1 == len(set([int(datum.tag) for datum in datums]))
 
     def __is_good_gaps(self, x):
         lowerNode, upperNode = self.__find_neighbor_datum_n(x)

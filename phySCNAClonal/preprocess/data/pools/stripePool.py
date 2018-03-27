@@ -17,7 +17,7 @@ import numpy as np
 import scipy.cluster.hierarchy as hierarchy
 from sklearn.cluster import MeanShift, estimate_bandwidth
 
-from phySCNAClonal.preprocess.elements.stripe import Stripe
+from phySCNAClonal.preprocess.data.elements.stripe import Stripe
 
 
 class StripePool(object):
@@ -64,7 +64,7 @@ class StripePool(object):
                     "{0}|{1}".format(",".join(aTstrl), ",".join(bTstrl)),
                     s.tReadNum,
                     s.nReadName,
-                    s.tag)
+                    s.tag))
 
     def _aggregate(self, yDown, yUp, stripeNum, noiseStripeNum=2, byTag=False):
         """The aggregation operations for segments in data

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
 # =============================================================================
 #      FileName: data.py
@@ -16,9 +18,9 @@ import numpy as np
 import scipy.cluster.hierarchy as hcluster
 
 import phySCNAClonal.constants as constants
-from phySCNAClonal.preprocess.elements.segment import Segment
-from phySCNAClonal.preprocess.elements.stripe import Stripe
-from phySCNAClonal.preprocess.pools.stripePool import StripePool
+from phySCNAClonal.preprocess.data.elements.segment import Segment
+from phySCNAClonal.preprocess.data.elements.stripe import Stripe
+from phySCNAClonal.preprocess.data.pools.stripePool import StripePool
 from phySCNAClonal.preprocess.utils import (BEDnParser, BEDParser,
                                             chrom_idx_to_name,
                                             chrom_name_to_idx,
@@ -31,8 +33,8 @@ from phySCNAClonal.preprocess.utils import (BEDnParser, BEDParser,
 
 class SegmentPool:
 
-    self.baseline = -1 // 此处baseline是对数值
-    self.segments = []
+    baseline = -1  #此处baseline是对数值
+    segments = []
 
     def __init__(self, idx = 0, maxCopyNumber = 6, coverage = 30):
         self.idx = idx
@@ -40,7 +42,7 @@ class SegmentPool:
         self.maxCopyNumber = maxCopyNumber
         self.coverage = coverage
 
-        self._alleleConfig = get_cn_allele_config(max_copy_number)
+        self._alleleConfig = get_cn_allele_config(maxCopyNumber)
 
 
     def load_seg_bed(self, bedName, containsReadNum=True):
@@ -96,8 +98,7 @@ class SegmentPool:
             segName = get_segment_name(chromName, bedStartL[i], bedEndL[i])
 
             if chromIdx not in chromIdxL:
-                print 'Chromsome {0} not found, segment {1} excluded...'.format(
-                    bedChromL[i], segName)
+                print "Chromsome {0} not found, segment {1} excluded...".format(bedChromL[i], segName)
                 sys.stdout.flush()
                 continue
 

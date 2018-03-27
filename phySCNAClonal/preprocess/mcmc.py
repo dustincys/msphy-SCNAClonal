@@ -156,8 +156,8 @@ class MCMCLM(object):
         print "all sample: {}".format(len(sampledSegs))
 
         x0 = np.array(map(lambda seg: seg.gc, sampledSegs))
-        y0 = np.array(map(lambda seg: np.log(seg.tumor_reads_num + 1) -
-                          np.log(seg.normal_reads_num + 1), sampledSegs))
+        y0 = np.array(map(lambda seg: np.log(seg.tReadNum + 1) -
+                          np.log(seg.nReadNum + 1), sampledSegs))
         l = sorted(zip(y0, x0), reverse=True)
         y0, x0 = [list(t) for t in zip(*l)]
 

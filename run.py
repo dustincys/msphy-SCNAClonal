@@ -39,6 +39,10 @@ parserPreprocess.add_argument('--tBamNameL', nargs='+',
                              help='''BAM files for tumor samples sorted in \
                                chronological order.''')
 
+parserPreprocess.add_argument('--bedNameL', nargs='+',
+                             help='''BED files for segments of each sample in\
+                               chronological order.''')
+
 parserPreprocess.add_argument('--refFaName',
                              help='''FASTA file for reference genome.''')
 
@@ -46,37 +50,20 @@ parserPreprocess.add_argument( '--pathPreFix',
                              help='''Base name of the preprocessed input
                              file to be created.''')
 
-parserPreprocess.add_argument('--bedNameL', nargs='+',
-                             help='''BED files for segments of each sample in\
-                               chronological order.''')
+parserPreprocess.add_argument('--subcloneNumL', nargs='+', type=int,
+                          help='''Set the subclone numbers''')
 
-parserPreprocess.add_argument('--bedCorrectedPath',
-                          help='''The name of corrected BICseq result file''')
-
-parserPreprocess.add_argument('--pklPath',
-                          help='''Load the pkl path''')
-
+parserPreprocess.add_argument('--coverageL', nargs='+', type=int,
+                          help='''Set the coverage numbers''')
 
 parserPreprocess.add_argument('--maxCopyNumber', default=6, type=int,
                           help='''Set the maximum copy number''')
 
-parserPreprocess.add_argument('--subcloneNumL', args='+', type=int,
-                          help='''Set the subclone numbers''')
+parserPreprocess.add_argument('--baselineThredLOH', default=0.3, type=float,
+                          help='''baseline Thred  of LOH''')
 
-parserPreprocess.add_argument('--baselineThredLOH', default=0.16, type=float,
-                          help='''The threshold of LOH sites fraction
-                              within each segment to
-                              define the segment is LOH, the range is
-                             [baseline_thred_LOH, 1]. Default is
-                              0.16.''')
-
-parserPreprocess.add_argument('--baselineThredAPM',
-                          default=0.2, type=float,
-                          help='''The threshold of average P and M SNP sites
-                              fraction within each segment to
-                              define the segment as baseline, the range is
-                             [baseline_thred_APM, 1]. Default is
-                              0.2.''')
+parserPreprocess.add_argument('--baselineThredAPM', default=0.01, type=float,
+                          help='''baseline Thred of APM''')
 
 parserPreprocess.add_argument( '--minDepth', default=20, type=int,
                              help='''Minimum reads depth required for both
@@ -93,6 +80,13 @@ parserPreprocess.add_argument( '--minMqual', default=10, type=int,
 parserPreprocess.add_argument( '--processNum', default=1, type=int,
                              help='''Number of processes to launch for
                              preprocessing. Default is 1.''')
+
+parserPreprocess.add_argument('--bedCorrectedPath',
+                          help='''The name of corrected BICseq result file''')
+
+parserPreprocess.add_argument('--pklPath',
+                          help='''Load the pkl path''')
+
 
 parserPreprocess.add_argument('--gcCorrectionMethod', default="auto",
                              help='''The gc correction method, one of auto and

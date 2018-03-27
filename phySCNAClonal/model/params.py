@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
 # =============================================================================
 #      FileName: params.py
@@ -20,9 +22,8 @@ from numpy import *
 from numpy.random import dirichlet
 
 import util2 as u2
-from data import Datum
 from tssb import *
-from util import dirichletpdfln, write_tree
+from util import dirichletpdfln
 
 
 def get_c_fnames(tmp_dir):

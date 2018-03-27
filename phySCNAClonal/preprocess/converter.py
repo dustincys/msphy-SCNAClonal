@@ -33,10 +33,22 @@ import phySCNAClonal.constants as constants
 
 class BamConverter:
 
-    def __init__(self, nBamName, tBamNameL, bedNameL, refFaName, pathPrefix="",
-                 subcloneNumberL=[2], coverageL = [30], maxCopyNumber=6,
-                 baselineThredLOH=0.3, baselineThredAPM=0.01, minDepth=20,
-                 minBqual=10, minMqual=10, processNum=1, bedCorrectedPath="",
+    def __init__(self,
+                 nBamName,
+                 tBamNameL,
+                 bedNameL,
+                 refFaName,
+                 pathPrefix="",
+                 subcloneNumberL=[2],
+                 coverageL=[30],
+                 maxCopyNumber=6,
+                 baselineThredLOH=0.3,
+                 baselineThredAPM=0.01,
+                 minDepth=20,
+                 minBqual=10,
+                 minMqual=10,
+                 processNum=1,
+                 bedCorrectedPath="",
                  pklPath=""):
         self._nBamName = nBamName
         self._tBamNameL = tBamNameL
@@ -180,7 +192,7 @@ class BamConverter:
                 nBam.close()
                 tBam.close()
             else:
-                tempSP.load_seg_bed (self.segments_bed)
+                tempSP.load_seg_bed (bedName)
             self._segPoolL.append(tempSP)
 
     def _correct_bias(self, method="auto"):
@@ -205,7 +217,7 @@ class BamConverter:
         blSegsL = []
 
         for segPool, idx in zip(self._segPoolL, range(len(self._segPoolL))):
-            tempBL = segPool.get_baseline(self,maxCopyNumber,
+            tempBL = segPool.get_baseline(self.maxCopyNumber,
                                               self.subcloneNumberL[idx])
             blSegsL.append(tempBL)
 
@@ -238,7 +250,7 @@ class BamConverter:
             )
 
         print "gc corrected, with slope = {0}, intercept = {1}".\
-            format(slope, intercept)
+            format(m, c)
 
     def _correct(self, x, y, slope, intercept):
         K = np.percentile(y, 50)
@@ -282,7 +294,7 @@ class BamConverter:
         save the counts into segPool
         """
 
-        segNum = len(self.segPool.segments)
+        segNum = len(segPool.segments)
         processNum = self.__processNum
         print "processNum = {}".format(processNum)
 
@@ -294,11 +306,11 @@ class BamConverter:
         argsL = []
 
         for j in range(0, segNum):
-            segName = self.segPool.segments[j].name
-            chromName = self.segPool.segments[j].chromName
-            chromIdx = self.segPool.segments[j].chromIdx
-            start = self.segPool.segments[j].start
-            end = self.segPool.segments[j].end
+            segName = segPool.segments[j].name
+            chromName = segPool.segments[j].chromName
+            chromIdx = segPool.segments[j].chromIdx
+            start = segPool.segments[j].start
+            end = segPool.segments[j].end
 
             argsT = (
                 segName,

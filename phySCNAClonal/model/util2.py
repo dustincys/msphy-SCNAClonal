@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import numpy
 from numpy import *
 import cPickle as pickle
@@ -15,8 +17,6 @@ import csv
 # be as much as a C long. C longs are guaranteed to accommodate at least this
 # value, which is a signed 32-bit int.
 csv.field_size_limit(2147483647)
-
-from data import Datum
 
 from tssb import *
 

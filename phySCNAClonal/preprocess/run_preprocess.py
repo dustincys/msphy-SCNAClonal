@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
 # =============================================================================
 #      FileName: run_preprocess.py
@@ -22,33 +24,37 @@ def process(args):
     args.gc_correction_method: manual, auto
     args.baseline_selection_method: manual, auto
     '''
+    print "run preprocess phy-SCNAClonal"
+    print "pklPath"
+    print args.pklPath
+    print "pklFlag"
+    print args.pklFlag
+    print "minDepth"
+    print args.minDepth
+    print "processNum"
+    print args.processNum
+    print "bedCorrectedPath"
+    print args.bedCorrectedPath
 
-    print "run preprocess pSCNAClonal"
-    print "pkl_path"
-    print args.pkl_path
-    print "pkl_flag"
-    print args.pkl_flag
     time_start = time.time()
 
     converter = BamConverter(
         args.nBamName,
         args.tBamNameL,
+        args.bedNameL,
         args.refFaName,
         args.pathPreFix,
-        args.bedNameL,
-        args.bedCorrectedPath,
-        args.pklPath,
-
-        args.maxCopyNumber,
         args.subcloneNumL,
+        args.coverageL,
+        args.maxCopyNumber,
         args.baselineThredLOH,
         args.baselineThredAPM,
-
-        minDepth=args.minDepth,
-        minBqual=args.minBqual,
-        minMqual=args.minMqual,
-        processNum=args.processNum
-    )
+        minDepth=int(args.minDepth),
+        minBqual=float(args.minBqual),
+        minMqual=float(args.minMqual),
+        processNum=int(args.processNum),
+        bedCorrectedPath=args.bedCorrectedPath,
+        pklPath=args.pklPath)
 
     # print "pilflag"
     # print args.pkl_flag
