@@ -180,11 +180,11 @@ class BamConverter:
         assert len(self._tBamNameL) == len(self._bedNameL)
         assert len(self._tBamNameL) == len(self.__subcloneNumberL)
 
-        for tBamName, bedName, coverage, subcloneNumber in zip(self._tBamNameL,
-            self._bedNameL, self.__coverageL, self.__subcloneNumberL):
+        for tBamName, bedName, coverage, subcloneNumber, i in zip(self._tBamNameL,
+            self._bedNameL, self.__coverageL, self.__subcloneNumberL, range(len(self._tBamNameL))):
             print >> sys.stdout, 'Loading segments from bam file:\n{0}\n'.format(tBamName)
             print >> sys.stdout, 'and bed file with gc:\n{0}\n'.format(bedName)
-            tempSP = SegmentPool(self.__maxCopyNumber, coverage)
+            tempSP = SegmentPool(i, self.__maxCopyNumber, coverage)
             if not readFromBed:
                 nBam = pysam.Samfile(self._nBamName, 'rb')
                 tBam = pysam.Samfile(tBamName, 'rb')
@@ -217,8 +217,11 @@ class BamConverter:
         blSegsL = []
 
         for segPool, idx in zip(self._segPoolL, range(len(self._segPoolL))):
-            tempBL = segPool.get_baseline(self.maxCopyNumber,
-                                              self.subcloneNumberL[idx])
+            tempBL = segPool.get_baseline(self.__maxCopyNumber ,
+                                          self.__subcloneNumberL[idx],
+                                          self.__baselineThredLOH,
+                                          self.__baselineThredAPM,
+                                          isPreprocess=True)
             blSegsL.append(tempBL)
 
         return blSegsL
@@ -257,9 +260,9 @@ class BamConverter:
         A = slope * x + intercept
         return y - A + K
 
-    def visualize(self):
-        gsp = GCStripePlot(self.segPool.segments, len(self.segPool.segments))
-        print "total number: {}".format(self.segPool.segNum)
+    def visualize(self, segPool):
+        gsp = GCStripePlot(segPool.segments, len(segPool.segments))
+        print "total number: {}".format(segPool.segNum)
         gsp.plot()
         x, y, m, c = gsp.output()
         print "x, y, m, c"

@@ -127,12 +127,13 @@ class SegmentPool:
 
             self.segments.append(tempSeg)
 
-    def get_baseline(self, maxCopyNumber, subcloneNum, isPreprocess=False):
+    def get_baseline(self, maxCopyNumber, subcloneNum, baselineThredLOH,
+                     baselineThredAPM, isPreprocess=False):
         self._get_LOH_frac()
-        self._get_LOH_status()
+        self._get_LOH_status(baselineThredLOH, isPreprocess)
         self._get_APM_frac()
-        self._get_APM_status()
-        self._calc_baseline()
+        self._get_APM_status(baselineThredAPM)
+        self._calc_baseline(maxCopyNumber, subcloneNum, isPreprocess)
 
         self._get_baseline_stripe()
 
@@ -151,6 +152,9 @@ class SegmentPool:
         # def __init__(self, segPool, baseline=0.0, yDown, yUp, stripeNum, noiseStripeNum=2):
 
         # 获取yDown 和yUp 等相应的参数值，此处应该使用手动输入
+
+
+        print self.idx
         yDown = constants.YDOWNL[self.idx]
         yUp = constants.YUPL[self.idx]
         # 此处应该近似为最大拷贝数与亚克隆数的乘积，作为手工输入也可以
@@ -196,7 +200,7 @@ class SegmentPool:
             if self.segments[j].APMStatus == 'TRUE' and\
                     self.segments[j].LOHStatus == 'FALSE':
                 ratio = self.segments[j].tReadNum*1.0/\
-                    self.segments[j].normal_reads_num
+                    self.segments[j].nReadNum
                 rdRatioLog.append(np.log(ratio))
 
         rdRatioLog = np.array(rdRatioLog)
@@ -220,7 +224,7 @@ class SegmentPool:
         for i in range(0, len(mccs)):
             clusterTemp = mccs[i][0]
             print >> sys.stdout, "cluster temp : {}".format(clusterTemp)
-            tempRdrLog = mean(rdRatioLog[clusters == clusterTemp])
+            tempRdrLog = np.mean(rdRatioLog[clusters == clusterTemp])
             print >> sys.stdout, "tempRdrLog"
             print >> sys.stdout, "log: {}".format(tempRdrLog)
             if rdrMinLog > tempRdrLog:
