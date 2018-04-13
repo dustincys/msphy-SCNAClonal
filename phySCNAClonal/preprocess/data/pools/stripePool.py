@@ -131,17 +131,20 @@ class StripePool(object):
         dT = aT + bT
         lT = np.min(pairedCountsAll[:, 2:4], axis=1)
         pT = lT * 1.0 / dT
+        pT = pT.reshape(pT.shape[0], 1)
 
         # 此处决定是否是用最大最小限制
         # status_p_T_v = np.logical_and(pT > p_T_min, pT < p_T_max).flatten()
 
         y = np.ones(pT.shape)
         pTy = np.hstack((pT, y))
+        print pTy
+        print y
         bandwidth = estimate_bandwidth(pTy, quantile=0.2, n_samples=500)
         ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
         ms.fit(pTy)
         labels = ms.labels_
-        clusterCenters = ms.clusterCenters
+        clusterCenters = ms.cluster_centers_
         # labelsUnique = np.unique(labels)
         # nClusters = len(labelsUnique)
 
@@ -208,5 +211,8 @@ class StripePool(object):
 
         disSeg = np.abs(pTseg[:, None] - clusterCenters[:, 0])
         labelsSeg = np.argmin(disSeg, axis=1)
+
+        print Counter(labelsSeg)
+        print Counter(labelsSeg).most_common(1)
 
         return Counter(labelsSeg).most_common(1)[0][0]
