@@ -74,9 +74,20 @@ class BamConverter:
         self._segPoolL = []
 
     def convert(self, readFromBed=True, method="auto", pklFlag=False):
-        self._load_segs(readFromBed)
-        self._correct_bias(method)
-        self._load_allele_counts()
+        if not pklFlag:
+            self._load_segs(readFromBed)
+            self._correct_bias(method)
+            self._load_allele_counts()
+            self._dump(self._segPoolL, ".temp.segPoolL")
+
+            pklFile = open(self.pklPath, 'wb')
+            pkl.dump(self._segPoolL, pklFile, protocol=2)
+            pklFile.close()
+        else:
+            pklFile = open(self.pklPath, 'rb')
+            self._segPoolL = pkl.load(pklFile )
+            pklFile .close()
+
         blSegsL = self._get_baseline()
         self._mark_timestamp(blSegsL)
         stripePool = self._generate_stripe()
