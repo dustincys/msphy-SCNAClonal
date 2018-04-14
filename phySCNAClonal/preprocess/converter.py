@@ -80,11 +80,11 @@ class BamConverter:
             self._load_allele_counts()
             self._dump(self._segPoolL, ".temp.segPoolL")
 
-            pklFile = open(self.pklPath, 'wb')
+            pklFile = open(self.__pklPath, 'wb')
             pkl.dump(self._segPoolL, pklFile, protocol=2)
             pklFile.close()
         else:
-            pklFile = open(self.pklPath, 'rb')
+            pklFile = open(self.__pklPath, 'rb')
             self._segPoolL = pkl.load(pklFile )
             pklFile .close()
 
