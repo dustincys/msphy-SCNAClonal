@@ -33,9 +33,6 @@ from phySCNAClonal.preprocess.utils import (BEDnParser, BEDParser,
 
 class SegmentPool:
 
-    baseline = -1  #此处baseline是对数值
-    segments = []
-
     def __init__(self, idx = 0, maxCopyNumber = 6, coverage = 30):
         self.idx = idx
 
@@ -44,6 +41,8 @@ class SegmentPool:
 
         self._alleleConfig = get_cn_allele_config(maxCopyNumber)
 
+        self.baseline = -1  #此处baseline是对数值
+        self.segments = []
 
     def load_seg_bed(self, bedName, containsReadNum=True):
         """

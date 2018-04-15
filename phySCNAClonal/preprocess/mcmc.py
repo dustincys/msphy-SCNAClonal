@@ -81,10 +81,10 @@ class MCMCLM(object):
         xMedian = np.percentile(x, 50)
         xUpFloor = np.percentile(x, self._upGCBoundaryPercentile)
 
-        yUp = y[np.logical_and(x < xUpFloor, x > xMedian)]
-        yDown = y[np.logical_and(x > xDownCeil, x < xMedian)]
-        xUp = x[np.logical_and(x < xUpFloor, x > xMedian)]
-        xDown = x[np.logical_and(x > xDownCeil, x < xMedian)]
+        yUp = y[np.logical_and(x <= xUpFloor, x >= xMedian)]
+        yDown = y[np.logical_and(x >= xDownCeil, x <= xMedian)]
+        xUp = x[np.logical_and(x <= xUpFloor, x >= xMedian)]
+        xDown = x[np.logical_and(x >= xDownCeil, x <= xMedian)]
 
         yUpY = np.percentile(yUp, 50)
         xUpX = np.percentile(xUp, 50)

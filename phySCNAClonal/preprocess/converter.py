@@ -214,9 +214,9 @@ class BamConverter:
         for segPool, subcloneNumber in zip(self._segPoolL,
                                                self.__subcloneNumberL):
             if "auto" == method:
-                self._MCMC_GC_C(SegmentPool, subcloneNumber)
+                self._MCMC_GC_C(segPool, subcloneNumber)
             elif "visual" == method:
-                self._V_GC_C(SegmentPool, len(SegmentPool.segments))
+                self._V_GC_C(segPool, len(segPool.segments))
 
     def _get_baseline(self):
         """
