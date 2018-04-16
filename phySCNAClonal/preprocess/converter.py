@@ -76,7 +76,7 @@ class BamConverter:
     def convert(self, readFromBed=True, method="auto", pklFlag=False):
         if not pklFlag:
             self._load_segs(readFromBed)
-            self._correct_bias(method)
+            # self._correct_bias(method)
             self._load_allele_counts()
             self._dump(self._segPoolL, ".temp.segPoolL")
 
