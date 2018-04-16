@@ -118,7 +118,9 @@ class StripePool(object):
         # 然后返回
 
         # 这里需要有一个记录原始向量中位置的向量
-        segsL = [self._segPool.segments[idx] for idx in mSIdx]
+        #
+        # 此处需要对空seg 去除空pairedCounts
+        segsL = [self._segPool.segments[idx] for idx in mSIdx if len(self._segPool.segments[idx].pairedCounts) > 0]
 
         pairedCountsAll = np.array(
             [[], [], [], [], [], []], dtype=int).transpose()
@@ -214,5 +216,7 @@ class StripePool(object):
 
         print Counter(labelsSeg)
         print Counter(labelsSeg).most_common(1)
+        if len(Counter(labelsSeg).most_common(1)) == 0:
+            print "counter equals 0!"
 
         return Counter(labelsSeg).most_common(1)[0][0]
