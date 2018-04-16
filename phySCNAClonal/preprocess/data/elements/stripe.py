@@ -41,7 +41,7 @@ class Stripe:
         self.tReadNum = -1.0
 
         # 似乎用不到，实际上就是:
-        # self.tReadNum /self.nReadName
+        # self.tReadNum /self.nReadNum
         # self.rdr = -1.0
 
         self.tag = "0"
@@ -65,10 +65,10 @@ class Stripe:
     def _init_RD(self, segsL):
         # 获取几何平均值
         tReadNum = [seg.tReadNum for seg in segsL]
-        nReadName = [seg.nReadName for seg in segsL]
+        nReadNum = [seg.nReadNum for seg in segsL]
 
         self.tReadNum = gmean(tReadNum)
-        self.nReadName = gmean(nReadName)
+        self.nReadNum = gmean(nReadNum)
 
     def _init_BAF(self, segsL):
         self.pairedCounts = np.array(
@@ -155,7 +155,7 @@ class Stripe:
         barC = phi * copyNumber + (1.0 - phi) * cN
 
         lambdaPossion = (
-            barC / cN) * self._baseline * (seg.nReadName + 1)
+            barC / cN) * self._baseline * (seg.nReadNum + 1)
         if lambdaPossion < 0:
             lambdaPossion = 0
 

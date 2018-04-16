@@ -91,9 +91,9 @@ class BamConverter:
         blSegsL = self._get_baseline()
         self._mark_timestamp(blSegsL)
         stripePool = self._generate_stripe()
-        self._dump(stripePool, self.__pklPath)
+        self._dump(stripePool, "stripePool.pkl")
 
-        self._dump(self._segPoolL, "segPoolL")
+        self._dump(self._segPoolL, "segPoolL.pkl")
 
     def _load_allele_counts(self):
         for tBamName, segPool in zip(self._tBamNameL, self._segPoolL):
@@ -163,7 +163,7 @@ class BamConverter:
             ends = IntVector([seg.end for seg in blSegs])
             tempGR = GR.GRanges(seqnames = chromNames, ranges=IR.IRanges(starts, ends))
             globalenv["tempGR"] = tempGR
-            GRL = robjects.r("GRL[[{0}]]=tempGR".format(idx))
+            GRL = robjects.r("GRL[[{0}]]=tempGR".format(str(idx+1)))
 
         # 此处由于list中保存的是指向目标Seg的指针，所以更新nonBLSegs即可
         nonBlSegs = list(set(self._segPoolL[-1].segments) - set(blSegsL[-1]))
@@ -171,7 +171,8 @@ class BamConverter:
         starts = IntVector([seg.start for seg in nonBlSegs])
         ends = IntVector([seg.end for seg in nonBlSegs])
         nonBlGR = GR.GRanges(seqnames = chromNames, ranges=IR.IRanges(starts, ends))
-        fo = IR.findOverlaps(GR2, GRL)
+
+        fo = IR.findOverlaps(nonBlGR, GRL)
         globalenv["fo"] = fo
         robjects.reval("fom <- as.matrix(fo)")
         overlapIdx = np.array(list(robjects.r.fom)).reshape(tuple(reversed(robjects.r.fom.dim))) - 1

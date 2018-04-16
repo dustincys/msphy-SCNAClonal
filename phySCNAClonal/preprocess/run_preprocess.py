@@ -59,7 +59,7 @@ def process(args):
     # print "pilflag"
     # print args.pkl_flag
 
-    converter.convert(readFromBed = True, method = args.gcCorrectionMethod, pklFlag = False)
+    converter.convert(readFromBed = True, method = args.gcCorrectionMethod, pklFlag = True)
 
     time_end = time.time()
 
