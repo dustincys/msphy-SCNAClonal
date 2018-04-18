@@ -223,7 +223,7 @@ class SegmentPool:
         for i in range(0, len(mccs)):
             clusterTemp = mccs[i][0]
             print >> sys.stdout, "cluster temp : {}".format(clusterTemp)
-            tempRdrLog = np.mean(rdRatioLog[clusters == clusterTemp])
+            tempRdrLog = np.mean(rdRatioLog[clusters == clusterTemp], axis=0)[0]
             print >> sys.stdout, "tempRdrLog"
             print >> sys.stdout, "log: {}".format(tempRdrLog)
             if rdrMinLog > tempRdrLog:
@@ -261,11 +261,15 @@ class SegmentPool:
         for j in range(0, len(self.segments)):
             self.segments[j].LOHFrac = get_LOH_frac(
                 self.segments[j].pairedCounts)
+            if self.segments[j].LOHFrac != -1:
+                print "LOHFrac is false"
 
     def _get_APM_frac(self):
         for j in range(0, len(self.segments)):
             self.segments[j].APMFrac = get_APM_frac_MAXMIN(
                 self.segments[j].pairedCounts)
+            if self.segments[j].APMFrac != -1:
+                print "APMFrac is not -1"
 
     def _get_LOH_status(self, baseThred, isPreprocess=False):
         if isPreprocess:
