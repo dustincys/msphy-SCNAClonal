@@ -338,9 +338,9 @@ def get_LOH_status(LOHFrac, baselineThred):
         LOHStatus = 'NONE'
     elif LOHFrac < baselineThred:
         LOHStatus = 'FALSE'
-    elif LOHFrac >= baselineThred and LOHFrac < LOH_FRAC_MAX:
+    elif LOHFrac >= baselineThred and LOHFrac < LOHFracMax:
         LOHStatus = 'UNCERTAIN'
-    elif LOHFrac >= LOH_FRAC_MAX:
+    elif LOHFrac >= LOHFracMax:
         LOHStatus = 'TRUE'
     else:
         LOHStatus = 'ERROR'
