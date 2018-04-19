@@ -183,7 +183,7 @@ class BamConverter:
         for index in set(overlapIdx[0,]):
             yIdxes = np.where(overlapIdx[0,]==index)[0]
             ts = np.max(overlapIdx[1,yIdxes]+1)
-            nonBlGR[index].tag = str(ts)
+            nonBlSegs[index].tag = str(ts)
 
     def _load_segs(self, readFromBed=True):
         """
