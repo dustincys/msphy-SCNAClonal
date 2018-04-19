@@ -179,11 +179,10 @@ class BamConverter:
         overlapIdx = np.array(list(robjects.r.fom)).reshape(tuple(reversed(robjects.r.fom.dim))) - 1
         # [[2, 2, 3, 3],
         # [1, 2, 1, 2]]
-        #
+
         for index in set(overlapIdx[0,]):
-            yIdx = np.where(overlapIdx[0,]==index)[0]
-            ts = np.max(re[1,yIdx])
-            # tag = 0, 1, 2, 3, 4, ..., BASELINE
+            yIdxes = np.where(overlapIdx[0,]==index)[0]
+            ts = np.max(overlapIdx[1,yIdxes]+1)
             nonBlGR[index].tag = str(ts)
 
     def _load_segs(self, readFromBed=True):
