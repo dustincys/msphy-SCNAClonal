@@ -163,7 +163,8 @@ class BamConverter:
             ends = IntVector([seg.end for seg in blSegs])
             tempGR = GR.GRanges(seqnames = chromNames, ranges=IR.IRanges(starts, ends))
             globalenv["tempGR"] = tempGR
-            GRL = robjects.r("GRL[[{0}]]=tempGR".format(str(idx+1)))
+            robjects.r("GRL[[{0}]]=tempGR".format(str(idx+1)))
+            GRL = robjects.r["GRL"]
 
         # 此处由于list中保存的是指向目标Seg的指针，所以更新nonBLSegs即可
         nonBlSegs = list(set(self._segPoolL[-1].segments) - set(blSegsL[-1]))
