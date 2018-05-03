@@ -72,7 +72,8 @@ class Node(object):
         return 0
 
     def data_log_likelihood(self):
-        return self.complete_logprob()
+        0/0
+        return 0
 
     def sample(self, num_data=1):
         return rand(num_data, 2)

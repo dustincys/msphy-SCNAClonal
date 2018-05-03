@@ -80,42 +80,62 @@ class StripeNode(Node):
         # 如果出现结点内部的stripe的gap过于靠近
         #
         # The data x is added into the node, by default
+        #
+        # 注意此处，不必须限制同一个节点之内的拷贝数必须不相同
+        # 可能有相同拷贝数但不同的基因型的状况
+        # if self.__is_good_gaps(x):
+        #
 
-        if self.__is_good_tags():
-            if self.__is_good_pedigree():
-                if self.__is_good_gaps(x):
-                    return self.logprob(x, alleleConfig, baseline,
-                                        maxCopyNumber)
+        cmpTag = self.__cmp_tags(x)
+        if cmpTag == -1:
+            return -float('Inf'), -1
+        elif cmpTag == 1:
+            return -float('Inf'), 1
+        else:
+            cmpPedigree = self.__cmp_pedigree()
+            if cmpPedigree == -1:
+                return -float('Inf'), -1
+            elif cmpPedigree == 1:
+                return -float('Inf'), 1
+            else:
+                return self.logprob(x, alleleConfig, baseline, maxCopyNumber), 0
 
         #######################################################
         #  here -float("Inf") means the situation restricted  #
         #######################################################
-        return -float('Inf')
 
-    def __is_good_pedigree(self):
+    def __cmp_pedigree(self):
         """is the time tag descending along the pedigree?
 
         @return:  Flag
-        @rtype :  bool
+        @rtype :  int
         """
         #  TODO: check out the len(n.data) #
         ancestors = self.get_ancestors()
         timeTag = [int(n.get_data()[0].tag) for n in ancestors if 0 < len(n.data)]
         if len(timeTag) >= 2 and timeTag[-1] < max(timeTag[0:-1]):
-            return False
+            return -1
 
         offsprings = self.get_offsprings()
         timeTag = [int(n.get_data()[0].tag) for n in offsprings if 0 < len(n.data)]
         if len(timeTag) >= 2 and timeTag[0] > min(timeTag[1:]):
-            return False
+            return 1
 
-        return True
+        return 0
 
-    def __is_good_tags(self):
+    def __cmp_tags(self, x):
         # 此处为什么不考虑当前数据的tag
-        # or what about there is no datum in this node?
+        # or what about there is no datum in this node?, the answer is no.
+        # current data is added into this node already
         datums = self.get_data()
-        return 1 == len(set([int(datum.tag) for datum in datums]))
+        timeTag = [int(datum.tag) for datum in datums]
+        if int(x.tag) < max(timeTag):
+            return -1
+        elif int(x.tag) > min(timeTag):
+            return 1
+        else:
+            return 0
+
 
     def __is_good_gaps(self, x):
         lowerNode, upperNode = self.__find_neighbor_datum_n(x)
@@ -134,8 +154,12 @@ class StripeNode(Node):
 
         return lFlag and uFlag
 
-    def complete_logprob(self):
-        return sum([self.logprob([data]) for data in self.get_data()])
+    def data_log_likelihood(self, alleleConfig, baseline, maxCopyNumber):
+        self.complete_logprob(alleleConfig, baseline, maxCopyNumber)
+
+    def complete_logprob(self, alleleConfig, baseline, maxCopyNumber):
+        return sum([self.logprob([data], alleleConfig, baseline, maxCopyNumber)
+                    for data in self.get_data()])
 
     def __find_neighbor_datum_n(self, x):
         # 对当前node中的stripe进行排序，计算gap
@@ -167,7 +191,7 @@ class StripeNode(Node):
 
         rdrLower = 1.0*lowerNode.tReadNum/lowerNode.nReadNum
         rdrUpper = 1.0*upperNode.tReadNum/upperNode.nReadNum
-        L = np.exp(rdrUpper - rdrLower)
+        L = rdrUpper / rdrLower
 
         if "lower" == position:
             cn = lowerNode.copyNumber

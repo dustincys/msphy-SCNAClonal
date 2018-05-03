@@ -172,16 +172,25 @@ class TSSB(object):
                     ####################################
                     #  Record most likely copy number  #
                     ####################################
-                    newLlh = newNode.logprob_restricted(self.data[n:n + 1],
-                                                        self.alleleConfig,
-                                                        self.baseline,
-                                                        self.maxCopyNumber)
+                    newLlh, newLlhS =\
+                        newNode.logprob_restricted(self.data[n:n + 1],
+                                                   self.alleleConfig,
+                                                   self.baseline,
+                                                   self.maxCopyNumber)
                     llhMapD[newNode] = newLlh
                 if newLlh > llhS:
                     break
                 elif -float("Inf") == newLlh:
                     # here -float("Inf") means the situation restricted
-                    continue
+                    #
+                    #  TODO: here, utilize the tag cmp
+                    #  TODO: and deal with all the situation
+                    if newLlhS < 0:
+                        minU = newU
+                    elif newLlhS > 0:
+                        maxU = newU
+                    else:
+                        raise Exception("Slice sampler weirdness.")
                 elif abs(maxU - minU) < epsilon:
                     newNode.remove_datum(n)
                     oldNode.add_datum(n)
@@ -495,7 +504,9 @@ class TSSB(object):
         for i, node in enumerate(nodes):
             if node.num_local_data():
                 llhs.append(node.num_local_data() * log(weights[i]) +
-                            node.data_log_likelihood())
+                            node.data_log_likelihood(self.alleleConfig,
+                                                     self.baseline,
+                                                     self.maxCopyNumber))
         return sum(array(llhs))
 
     def complete_log_likelihood(self):
@@ -506,7 +517,9 @@ class TSSB(object):
         ]
         for i, node in enumerate(nodes):
             if node.num_local_data():
-                llhs.append(node.data_log_likelihood())
+                llhs.append(node.data_log_likelihood(self.alleleConfig,
+                                                     self.baseline,
+                                                     self.maxCopyNumber))
         return sum(array(llhs))
 
     def dp_alpha_llh(self, dpAlpha, alphaDecay):
