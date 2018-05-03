@@ -646,9 +646,14 @@ def log_binomial_likelihood(k, n, mu):
     # example:
         # k: array([2, 3, 2])
         # n: array([2, 3, 2])
-        # mu: 0.3
+        # mu: [0.3, 0.2]
     # return array([2, 3, 2])
-    return np.log(comb(n, k)) + k * np.log(mu) + (n - k) * np.log(1 - mu)
+    # print k.shape, n.shape, mu.shape
+    nn = n * np.ones((mu.shape[0], n.shape[0]))
+    kk = k * np.ones((mu.shape[0], k.shape[0]))
+    mumu = mu[np.newaxis,:].T * np.ones((mu.shape[0], n.shape[0]))
+    ll = np.log(comb(nn, kk)) + kk * np.log(mumu) + (nn - kk) * np.log(1 - mumu)
+    return ll.transpose()
 
 
 def mad_based_outlier(points, thresh=3.5):

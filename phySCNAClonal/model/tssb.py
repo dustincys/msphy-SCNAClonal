@@ -21,6 +21,9 @@ from numpy.random import *
 from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
 
 
+from phySCNAClonal.preprocess.utils import get_cn_allele_config
+
+
 class TSSB(object):
     minDpAlpha = 1.0
     maxDpAlpha = 50.0
@@ -36,7 +39,15 @@ class TSSB(object):
                  data=None,
                  minDepth=0,
                  maxDepth=15,
-                 alphaDecay=1.0):
+                 alphaDecay=1.0,
+                 baseline=0,
+                 maxCopyNumber=6):
+
+        self.maxCopyNumber = maxCopyNumber
+        # 此处的baseline是指什么
+        self.baseline = baseline
+        self.alleleConfig = get_cn_allele_config(maxCopyNumber)
+
         if rootNode is None:
             raise Exception("Root node must be specified.")
 
@@ -75,7 +86,10 @@ class TSSB(object):
         for n in range(newDataNum):
             logprobs = []
             for k, node in enumerate(nodes):
-                logprobs.append(log(weights[k]) + node.logprob(data[n]))
+                logprobs.append(log(weights[k]) + node.logprob(data[n],
+                                                               self.alleleConfig,
+                                                               self.baseline,
+                                                               self.maxCopyNumber))
             logprobs = array(logprobs)
             probs = exp(logprobs - logsumexp(logprobs))
             best_k = sum(rand() > cumsum(probs))
@@ -133,7 +147,11 @@ class TSSB(object):
 
             maxU = 1.0
             minU = 0.0
-            oldLlh = self.assignments[n].logprob(self.data[n:n + 1])
+            oldLlh = self.assignments[n].logprob(self.data[n:n + 1],
+                                                 self.alleleConfig,
+                                                 self.baseline,
+                                                 self.maxCopyNumber)
+
             llhMapD[self.assignments[n]] = oldLlh
             llhS = log(rand()) + oldLlh
 
@@ -154,7 +172,10 @@ class TSSB(object):
                     ####################################
                     #  Record most likely copy number  #
                     ####################################
-                    newLlh = newNode.logprob_restricted(self.data[n:n + 1])
+                    newLlh = newNode.logprob_restricted(self.data[n:n + 1],
+                                                        self.alleleConfig,
+                                                        self.baseline,
+                                                        self.maxCopyNumber)
                     llhMapD[newNode] = newLlh
                 if newLlh > llhS:
                     break

@@ -127,6 +127,9 @@ class BamConverter:
 
         tempSP.stripes.sort(key = lambda item: int(item.tag))
 
+        for idx, sp in enumerate(tempSP.stripes):
+            tempSP.stripes[idx].id = idx
+
         return tempSP
 
     def _mark_timestamp(self, blSegsL):

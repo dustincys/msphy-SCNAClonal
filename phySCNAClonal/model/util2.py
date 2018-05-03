@@ -1,24 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import numpy
-from numpy import *
 import cPickle as pickle
-import zipfile
-import shutil
-
-import scipy.stats as stat
-from scipy.stats import beta, binom
-from scipy.special import gammaln
-from math import exp, log
-
 import csv
+import os
+import shutil
+import zipfile
+from math import exp, log
+import pickle as pkl
+
+import numpy
+import scipy.stats as stat
+from numpy import *
+from scipy.special import gammaln
+from scipy.stats import beta, binom
+
+from tssb import *
+
 # Allow long lines in .cnv files, which can potentially list thousands of SSMs
 # in one CNV. According to http://stackoverflow.com/a/15063941, this value can
 # be as much as a C long. C longs are guaranteed to accommodate at least this
 # value, which is a signed 32-bit int.
 csv.field_size_limit(2147483647)
 
-from tssb import *
 
 
 def log_factorial(n):

@@ -37,7 +37,6 @@ class StripePool(object):
         self._noiseStripeNum = noiseStripeNum
 
         self.stripes = []  # stripes
-
         self.baseline = baseline
 
     def get(self, byTag=False):
@@ -49,7 +48,7 @@ class StripePool(object):
     def output_txt(self, outFileName):
         with open(outFileName, 'w') as outFile:
             outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
-                "id", "segsIdxL", "pairedCounts", "tReadNum",
+                "sid", "segsIdxL", "pairedCounts", "tReadNum",
                 "nReadNum", "tag"))
 
             for s in self.stripes:
@@ -59,7 +58,7 @@ class StripePool(object):
                 bTstrl = np.array_str(bT).strip("[]").split()
 
                 outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
-                    s.id,
+                    s.sid,
                     ",".join(s.segsIdxL),
                     "{0}|{1}".format(",".join(aTstrl), ",".join(bTstrl)),
                     s.tReadNum,
@@ -168,7 +167,7 @@ class StripePool(object):
             ]
             if not byTag:
                 tempStripe = Stripe()
-                tempStripe.id = "{0}".format(str(cId))
+                tempStripe.sid = "{0}".format(str(cId))
                 tempStripe.init_segs(subSegL, subSegIdxL)
                 self.stripes.append(tempStripe)
             else:
@@ -183,20 +182,21 @@ class StripePool(object):
                                     if segLabelL[idx] == label and
                                     seg.tag == tempTag ]
                     tempStripe = Stripe()
-                    tempStripe.id = "{0}_{1}".format(str(cId), tempTag)
+                    tempStripe.sid = "{0}_{1}".format(str(cId), tempTag)
                     tempStripe.init_segs(subSubSegL, subSubSegIdxL)
                     # if byTag, stripe contains tag too
                     tempStripe.tag = tempTag
                     self.stripes.append(tempStripe)
 
         # merge baseline, or not baseline in the stripe? toggle
+        #  TODO: check out
         if False and byTag:
             blSegL = [seg for seg in self._segPool.segments if "BASELINE" ==
                     seg.tag]
             blSegIdxL = [idx for idx, seg in enumerate(self._segPool.segments) if "BASELINE" ==
                     seg.tag]
             tempStripe = Stripe()
-            tempStripe.id = "{0}_{1}".format(str(-1), str(idx), "BASELINE")
+            tempStripe.sid = "{0}_{1}_{2}".format(str(-1), str(idx), "BASELINE")
             tempStripe.init_segs(blSegL, blSegIdxL)
             tempStripe.tag = "BASELINE"
             self.stripes.append(tempStripe)

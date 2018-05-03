@@ -14,6 +14,15 @@
 import numpy as np
 
 
+###################
+#  RD parameters  #
+###################
+
+MINIMUM_POSITIVE=0.0000001
+
+
+
+
 ###########################
 #  MCMC model parameters  #
 ###########################
@@ -28,11 +37,18 @@ UP_LOGA_BOUNDARY_PERCENTILE = 70
 SLOPE_RANGE = 5
 
 
+##############
+#  COVERAGE  #
+##############
+
+COVERAGE = 30
+
 ####################
 #  BAF parameters  #
 ####################
-
+BAF_THRESHOLD = 0.5
 BAF_N_MIN = 0.49
+
 # BAF_COUNTS_MIN = 10
 # BAF_COUNTS_MAX = 95
 

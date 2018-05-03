@@ -20,6 +20,8 @@ import numpy as np
 from scipy.stats.mstats import gmean
 
 import phySCNAClonal.constants as constants
+from phySCNAClonal.model.util2 import (map_datum_to_node, set_node_height,
+                                       set_path_from_root_to_node)
 from phySCNAClonal.preprocess.utils import (get_loga, get_mu_E_joint,
                                             log_binomial_likelihood,
                                             mad_based_outlier)
@@ -78,14 +80,19 @@ class Stripe:
             self.pairedCounts = np.vstack((self.pairedCounts,
                                             seg.pairedCounts))
 
-    def _log_likelihood(self, phi, update_tree=True):
+    def _log_likelihood(self,
+                        phi,
+                        alleleConfig,
+                        baseline,
+                        maxCopyNumber,
+                        update_tree=True):
         if update_tree:
             ##################################################
             # some useful info about the tree,
             # used by CNV related computations,
-            u.set_node_height(self.tssb)
-            u.set_path_from_root_to_node(self.tssb)
-            u.map_datum_to_node(self.tssb)
+            set_node_height(self.tssb)
+            set_path_from_root_to_node(self.tssb)
+            map_datum_to_node(self.tssb)
             ##################################################
 
         # 注意：此处应该不受CN\genotype的限制，但不记录目标的CN和genotype
@@ -94,21 +101,26 @@ class Stripe:
 
         # 在时间上的先后顺序能够明确影响测序数据的位置，只有重叠位置的时候才会
         # 发生
+        # 注意此处可以设置默认参数
 
-        return self.__log_likelihood_RD_BAF(phi)
+        return self.__log_likelihood_RD_BAF(phi,
+                                            alleleConfig,
+                                            baseline,
+                                            maxCopyNumber)
 
 
-    def __log_likelihood_RD_BAF(self, phi, baseline=0.0):
+    def __log_likelihood_RD_BAF(self, phi, alleleConfig, baseline, maxCopyNumber):
         # 此处是否添加记录
         copyNumbers = None
-        if seg.tag == "BASELINE":
+        # 此处需要确认是否是使用默认的baseline为tag
+        if self.tag == "BASELINE":
             copyNumbers = [2]
-        elif get_loga(seg) > baseline:
-            copyNumbers = range(2, self._maxCopyNumber + 1)
+        elif get_loga(self) > baseline:
+            copyNumbers = range(2, maxCopyNumber + 1)
         else:
             copyNumbers = range(0, 2 + 1)
 
-        llPiS = [self._getLLStripe(copyNumber, phi) for copyNumber in
+        llPiS = [self._getLLStripe(copyNumber, phi, baseline, alleleConfig) for copyNumber in
                    copyNumbers]
         ll, pi = max(llPiS, key=lambda x: x[0])
         cn = llPiS.index((ll, pi))
@@ -118,12 +130,12 @@ class Stripe:
 
         return ll
 
-    def _getLLStripe(self, copyNumber, phi):
+    def _getLLStripe(self, copyNumber, phi, baseline, alleleConfig):
         rdWeight = constants.RD_WEIGHT_TSSB
 
         llStripe = 0
-        llRd = self._getRD(copyNumber, phi)
-        alleleTypes = self._allele_config[copyNumber]
+        llRd = self._getRD(copyNumber, phi, baseline)
+        alleleTypes = alleleConfig[copyNumber]
 
         # remove the weak baf point
         self._augBAF(copyNumber)
@@ -132,7 +144,7 @@ class Stripe:
             llBAF = 0
             pi = "*"
         else:
-            llBAF, pi = self._getBAF(self, copyNumber, alleleTypes, phi)
+            llBAF, pi = self._getBAF(copyNumber, alleleTypes, phi)
 
         llStripe = llRd * rdWeight + llBAF * (1 - rdWeight)
 
@@ -140,7 +152,7 @@ class Stripe:
 
     def _augBAF(self, copyNumber):
         # todo: remove the baf point is not a good idea
-        threshold = constants.BAF_THRESHOLD * self._coverage
+        threshold = constants.BAF_THRESHOLD * constants.COVERAGE
 
         if copyNumber > 2:
             dTj = np.sum(self.pairedCounts[:, 2:4], axis=1)
@@ -149,17 +161,18 @@ class Stripe:
         else:
             pass
 
-    def _getRD(self, copyNumber, phi):
+    def _getRD(self, copyNumber, phi, baseline):
         cN = constants.COPY_NUMBER_NORMAL
+        cMIN = constants.MINIMUM_POSITIVE
 
         barC = phi * copyNumber + (1.0 - phi) * cN
 
-        lambdaPossion = (
-            barC / cN) * self._baseline * (seg.nReadNum + 1)
-        if lambdaPossion < 0:
-            lambdaPossion = 0
+        lambdaPossion = (barC / cN) * baseline * (self.nReadNum + 1)
+        if lambdaPossion <= 0:
+            lambdaPossion = cMIN
 
-        llRD = log_poisson_pdf(seg.tReadNum, lambdaPossion)
+        print (self.tReadNum, lambdaPossion)
+        llRD = log_poisson_pdf(self.tReadNum, lambdaPossion)
         return llRD
 
     def _getBAF(self, copyNumber, alleleTypes, phi):
@@ -169,23 +182,23 @@ class Stripe:
         muG = np.array(alleleTypes.values())
         muE = get_mu_E_joint(muN, muG, cN, copyNumber, phi)
 
-        if seg.pairedCounts.shape[0] > 1:
-            bTj = np.min(seg.pairedCounts[:, 2:4], axis=1)
-            dTj = np.sum(seg.pairedCounts[:, 2:4], axis=1)
+        if self.pairedCounts.shape[0] > 1:
+            bTj = np.min(self.pairedCounts[:, 2:4], axis=1)
+            dTj = np.sum(self.pairedCounts[:, 2:4], axis=1)
             baf = bTj * 1.0 / dTj
             outlier = mad_based_outlier(baf)
-            BAF = np.delete(seg.pairedCounts, list(outlier.astype(int)), axis=0)
+            BAF = np.delete(self.pairedCounts, list(outlier.astype(int)), axis=0)
             bTj = np.min(BAF[:, 2:4], axis=1)
             dTj = np.sum(BAF[:, 2:4], axis=1)
 
         else:
-            bTj = np.min(seg.pairedCounts[:, 2:4], axis=1)
-            dTj = np.sum(seg.pairedCounts[:, 2:4], axis=1)
+            bTj = np.min(self.pairedCounts[:, 2:4], axis=1)
+            dTj = np.sum(self.pairedCounts[:, 2:4], axis=1)
             pass
 
         ll = log_binomial_likelihood(bTj, dTj, muE)
         llBAFs = ll.sum(axis=0)
         idxMax = llBAFs.argmax(axis=0)
         llBAF = llBAFs[idxMax]
-        pi = alleleTypes[alleleTypes.keys()[idxMax]]
+        pi = alleleTypes.keys()[idxMax]
         return llBAF, pi

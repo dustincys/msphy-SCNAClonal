@@ -33,7 +33,10 @@ from phySCNAClonal.model.printo import print_top_trees
 from phySCNAClonal.model.stripenode import StripeNode
 from phySCNAClonal.model.tssb import TSSB
 from phySCNAClonal.model.util import boundbeta
-from phySCNAClonal.model.util2 import TreeWriter, StateManager, load_data
+from phySCNAClonal.model.util2 import (BackupManager, StateManager, TreeWriter,
+                                       load_data, map_datum_to_node,
+                                       set_node_height,
+                                       set_path_from_root_to_node)
 
 # sampleNum: number of MCMC samples
 # mhItr: number of metropolis-hasting iterations
@@ -56,7 +59,8 @@ def start_new_run(stateManager,
                   writeStateEvery,
                   writeBackupsEvery,
                   randSeed,
-                  tmpDir):
+                  tmpDir,
+                  maxCopyNumber):
     state = {}
 
     try:
@@ -87,8 +91,9 @@ def start_new_run(stateManager,
     state['write_state_every'] = writeStateEvery
     state['write_backups_every'] = writeBackupsEvery
 
-    # 此处载入数据
+    # 此处载入数据，此处含有baseline
     stripes, baseline = load_data(state['stripes_file'])
+
     stripeNum = len(stripes)
 
     if len(stripes) == 0:
@@ -101,7 +106,7 @@ def start_new_run(stateManager,
     # state['glist'] = [datum.name for datum in codes if len(datum.name) > 0]
 
     # stripe list
-    state['stripe_list'] = [stripe.stripe_name for stripe in stripes]
+    state['stripe_list'] = [stripe.name for stripe in stripes]
 
     # MCMC settings
     state['burnin_sample_number'] = burninSampleNum
@@ -127,7 +132,9 @@ def start_new_run(stateManager,
         dpGamma=state['dp_gamma'],
         alphaDecay=state['alpha_decay'],
         rootNode=root,
-        data=stripes)
+        data=stripes,
+        baseline=baseline,
+        maxCopyNumber=maxCopyNumber)
     # hack...
     # 初始化把所有数据放到第一个孩子节点
     if 1:
@@ -142,7 +149,7 @@ def start_new_run(stateManager,
             'main':
             boundbeta(1.0, (state['tssb'].alphaDecay**
                             (depth + 1)) * state['tssb'].dpAlpha)
-            if state['tssb'].min_depth <= (depth + 1) else 0.0,
+            if state['tssb'].minDepth <= (depth + 1) else 0.0,
             'sticks':
             empty((0, 1)),
             'children': []
@@ -400,7 +407,7 @@ def run(args, safeToExit, runSucceeded, config):
         # Ensure input files exist and can be read.
         try:
             stripesFile = open(args.stripesFile)
-            stripe.close()
+            stripesFile.close()
         except IOError as e:
             sys.stderr.write(str(e) + '\n')
             sys.exit(1)
@@ -422,7 +429,8 @@ def run(args, safeToExit, runSucceeded, config):
             writeStateEvery=args.writeStateEvery,
             writeBackupsEvery=args.writeBackupsEvery,
             randSeed=args.randomSeed,
-            tmpDir=args.tmpDir)
+            tmpDir=args.tmpDir,
+            maxCopyNumber=args.maxCopyNumber)
 
 
 def remove_tmp_files(tmpDir):

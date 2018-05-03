@@ -99,6 +99,9 @@ def write_tree(tssb, fname):
     didIntD = dict()
 
     # 此处stripe的ID应为数值
+    # 此处ID 最好重新计算
+    # 与sid分开处理
+    # sid 记录类别信息，类别中的tag信息，是否是基线信息
     for dat in tssb.data:
         didIntD[dat.id] = int(dat.id)
 
