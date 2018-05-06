@@ -13,10 +13,10 @@
 using namespace Eigen;
 using namespace std;
 
-class cngenotype
+class CNGenotype
 {
 public:
-	cngenotype (int maxCopyNumber);
+	CNGenotype (int maxCopyNumber);
 
 	string getGenotype(int copyNumber, int index);
 	vector<string> getGenotype(int copyNumber);
@@ -37,33 +37,33 @@ private:
 	string genotype(int pNum, int mNum);
 };
 
-string cngenotype::getGenotype(int copyNumber, int index){
+string CNGenotype::getGenotype(int copyNumber, int index){
 	return this->cnGenotype[copyNumber][index];
 }
 
-vector<string> cngenotype::getGenotype(int copyNumber){
+vector<string> CNGenotype::getGenotype(int copyNumber){
 	return this->cnGenotype[copyNumber];
 }
 
-double cngenotype::getBAF(int copyNumber, int index){
+double CNGenotype::getBAF(int copyNumber, int index){
 	return this->cnGenotypeBAF[copyNumber](index);
 }
 
-ArrayXd cngenotype::getBAF(int copyNumber){
+ArrayXd CNGenotype::getBAF(int copyNumber){
 	return this->cnGenotypeBAF[copyNumber];
 }
 
-cngenotype::cngenotype(int maxCopyNumber){
+CNGenotype::CNGenotype(int maxCopyNumber){
 	this->init_map(maxCopyNumber);
 }
 
-string cngenotype::genotype(int pNum, int mNum){
+string CNGenotype::genotype(int pNum, int mNum){
 	string pTemp(pNum, 'P');
 	string mTemp(mNum, 'M');
 	return pTemp + mTemp;
 }
 
-void cngenotype::init_map(int maxCopyNumber){
+void CNGenotype::init_map(int maxCopyNumber){
 	double EMPIRI_BAF =  0.485;
 	double EMPIRI_AAF = 1 - EMPIRI_BAF;
 

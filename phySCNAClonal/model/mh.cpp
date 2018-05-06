@@ -29,11 +29,13 @@ int main(int argc, char* argv[]){
 	conf.N_STRIPE_DATA=atoi(argv[3]);//12; // no. of stripe data points
 	conf.NNODES=atoi(argv[4]); //17, no. of nodes in the tree
 	conf.TREE_HEIGHT=atoi(argv[5]);//6
+	conf.MAX_COPY_NUMBER=atoi(argv[6]);//6
+	conf.BASELINE=atof(argv[7]);//6
 
-	char* FNAME_STRIPE_DATA = argv[6];
-	char* FNAME_C_TREE = argv[7];
-	char* FNAME_C_PARAMS = argv[8];
-	char* FNAME_C_MH_AR = argv[9];
+	char* FNAME_STRIPE_DATA = argv[8];
+	char* FNAME_C_TREE = argv[9];
+	char* FNAME_C_PARAMS = argv[10];
+	char* FNAME_C_MH_AR = argv[11];
 
 	struct datum *data = new datum[conf.N_STRIPE_DATA];
 	load_stripe_data(FNAME_STRIPE_DATA, data, conf);
@@ -53,16 +55,24 @@ int main(int argc, char* argv[]){
 
 // done for multi-sample
 void mh_loop(struct node nodes[], struct datum data[], char* fname, struct config conf){
+
+	/************************
+	*  cn genotype config  *
+	************************/
+	CNGenotype cngenotype(conf.MAX_COPY_NUMBER);
+
 	gsl_rng *rand = gsl_rng_alloc(gsl_rng_mt19937);
 	double ratio=0.0;
 	for (int itr=0;itr<conf.MH_ITR;itr++){
 
 		sample_cons_params(nodes,conf,rand);
 
-		double a = multi_param_post(nodes,data,0,conf)-multi_param_post(nodes,data,1,conf);
+		double a = multi_param_post(nodes,data,0,conf,cngenotype)-
+			multi_param_post(nodes,data,1,conf,cngenotype);
 
 		//cout<<multi_param_post(nodes,data,0,conf)-multi_param_post(nodes,data,1,conf)<<'\n';
 		// loop over samples, apply dirichlet correction terms, update a
+
 		double theta[conf.NNODES];// dirichlet params
 		double pi[conf.NNODES],pi_new[conf.NNODES];
 
@@ -129,11 +139,13 @@ void sample_cons_params(struct node nodes[], struct config conf, gsl_rng *rand){
 
 // done for multi-sample
 // todo: double check log_ll
-double multi_param_post(struct node nodes[], struct datum data[], int old, struct config conf){
-	return param_post(nodes, data, old, conf);
+double multi_param_post(struct node nodes[], struct datum data[], int old,
+		struct config conf, CNGenotype& cngenotype){
+	return param_post(nodes, data, old, conf, cngenotype);
 }
 
-double param_post(struct node nodes[], struct datum data[], int old, struct config conf){
+double param_post(struct node nodes[], struct datum data[], int old,
+		struct config conf, CNGenotype& cngenotype){
 	double llh = 0.0;
 	for(int i=0;i<conf.NNODES;i++){
 		double p=0;
@@ -147,7 +159,8 @@ double param_post(struct node nodes[], struct datum data[], int old, struct conf
 			//double log_ll(double phi, cngenotype& cgn, int max_copy_number, double
 			//baseline){
 
-			llh+=data[nodes[i].dids.at(j)].log_ll(p, old);
+			llh+=data[nodes[i].dids.at(j)].log_ll(p, cngenotype,
+					conf.MAX_COPY_NUMBER, conf.BASELINE);
 		}
 	}
 	return llh;

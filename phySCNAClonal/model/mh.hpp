@@ -32,6 +32,8 @@ struct config{
 	int N_STRIPE_DATA; // no. of data points
 	int NNODES; // no. of nodes in the tree
 	int TREE_HEIGHT;
+	int MAX_COPY_NUMBER; // maximum copy number
+	float BASELINE; // baseline
 };
 
 struct node{
@@ -95,8 +97,7 @@ struct datum{
 		int rowsN = cnsLength;
 
 		ArrayXd barC = phi * cns + (1.0 - phi) * 2.0;
-		ArrayXd lambdaPossion = (barC/2.0)*baseline*
-			(nReadNum + 1);
+		ArrayXd lambdaPossion = (barC/2.0)*baseline* (nReadNum + 1);
 		ArrayXd rds = log_poisson_pdf(lambdaPossion);
 
 		/***************************************
@@ -122,8 +123,10 @@ struct datum{
 			//copyNumber constant
 			//phi constant
 			//ArrayXd muE = get_mu_E_joint(mu_N, mu_G, c_N, copyNumber, phi);
-			ArrayXd muE = get_mu_E_joint(cgn.getBaf(cns(i)), copyNumber, phi);
-			ll.block(i,0,1,cns(i)+1) = log_binomial_likelihood(bTj, dTj, muE);
+			ArrayXd muE = get_mu_E_joint(cgn.getBaf(cns(i)),
+					copyNumber, phi);
+			ll.block(i,0,1,cns(i)+1) = log_binomial_likelihood(bTj,
+					dTj, muE);
 		}
 
 		/******************************

@@ -21,55 +21,55 @@ double log_beta(double a, double b){
 	return lgamma(a) + lgamma(b) - lgamma(a + b);
 }
 
-void dirichlet_sample(int size, double alpha[], double *x,gsl_rng *r){
-	gsl_ran_dirichlet(r,size,alpha,x);
-	for(int i=0;i<size;i++)
-		x[i]=x[i]+0.0001;
+void dirichlet_sample(int size, double alpha[], double *x, gsl_rng *r){
+	gsl_ran_dirichlet(r, size, alpha, x);
+	for(int i = 0; i < size; i++)
+		x[i] = x[i] + 0.0001;
 	//此处是非零处理
-	double sum=0.0;
-	for(int i=0;i<size;i++)
-		sum+=x[i];
-	for(int i=0;i<size;i++)
-		x[i]/=sum;
+	double sum = 0.0;
+	for(int i = 0; i < size; i++)
+		sum += x[i];
+	for(int i = 0; i < size; i++)
+		x[i] /= sum;
 }
 
 double logsumexp(double x[], int nx){
-	double maxes=x[0], sum=0.0;
-	for (int i=1;i<nx;i++)
-		if (x[i]>maxes)
-			maxes=x[i];
-	for (int i=0;i<nx;i++)
-		sum+=exp(x[i]-maxes);
+	double maxes = x[0], sum = 0.0;
+	for (int i = 1; i < nx; i++)
+		if (x[i] > maxes)
+			maxes = x[i];
+	for (int i = 0; i < nx; i++)
+		sum += exp(x[i] - maxes);
 	return log(sum) + maxes;
 }
 
-vector<int> get_cn_vec(int max_copy_number){
-	vector<int> cn_vec;
-	for(int i=0; i<max_copy_number+1; i++){
-		cn_vec.push_back(i)
+vector<int> get_cn_vec(int maxCopyNumber){
+	vector<int> cnVec;
+	for(int i=0; i<maxCopyNumber+1; i++){
+		cnVec.push_back(i)
 	}
-	return cn_vec;
+	return cnVec;
 }
 
-double get_loga(int tumor_reads_num, int normal_reads_num){
-	if(0 == tumor_reads_num){
-		tumor_reads_num = 1;
+double get_loga(int tReadNum, int nReadNum){
+	if(0 == tReadNum){
+		tReadNum = 1;
 	}
-	if(0 == normal_reads_num){
-		normal_reads_num = 1;
+	if(0 == nReadNum){
+		nReadNum = 1;
 	}
 
-	return log(tumor_reads_num) - log(normal_reads_num);
+	return log(tReadNum) - log(nReadNum);
 }
 
-ArrayXd log_poisson_pdf(ArrayXd lambda_possion){
-	return tumor_reads_num *lambda_possion.log() - lambda_possion
-		- lgamma(tumor_reads_num + 1);
+ArrayXd log_poisson_pdf(ArrayXd lambdaPossion){
+	return tReadNum *lambdaPossion.log() - lambdaPossion
+		- lgamma(tReadNum + 1);
 }
 
-ArrayXd get_mu_E_joint(mu_N, mu_G, c_N, c_H, phi){
-	return ((1.0 - phi) * c_N * mu_N + phi * c_H * mu_G) / (
-			(1.0 - phi) * c_N + phi * c_H);
+ArrayXd get_mu_E_joint(muN, muG, cN, cH, phi){
+	return ((1.0 - phi) * cN * muN + phi * cH * muG) / (
+			(1.0 - phi) * cN + phi * cH);
 }
 
 ArrayXd get_b_T_j(ArrayXd a, ArrayXd b){
@@ -89,39 +89,39 @@ ArrayXd get_d_T_j(ArrayXd a, ArrayXd b){
 	return a + b;
 }
 
-//mu_N constant
-//mu_G column vector
-//c_N constant
-//copy_number constant
+//muN constant
+//muG column vector
+//cN constant
+//copyNumber constant
 //phi constant
-//ArrayXd mu_E = get_mu_E_joint(mu_N, mu_G, c_N, copy_number, phi);
-ArrayXd get_mu_E_joint(ArrayXd mu_G, int copy_number, double phi){
-        int c_N = constants.COPY_NUMBER_NORMAL;
-        double mu_N = constants.MU_N;
-	ArrayXd mu_E_T = ((1.0 - phi)*c_N*mu_N + phi*copy_number*mu_G)/((1.0 -
-				phi)*c_N + phi*copy_number);
-	//mu_E should be row vector
-	return mu_E_T.transpose();
+//ArrayXd muE = get_mu_E_joint(muN, muG, cN, copyNumber, phi);
+ArrayXd get_mu_E_joint(ArrayXd muG, int copyNumber, double phi){
+        int cN = constants.COPY_NUMBER_NORMAL;
+        double muN = constants.MU_N;
+	ArrayXd muET = ((1.0 - phi) * cN * muN + phi * copyNumber * muG) /
+		((1.0 - phi) * cN + phi * copyNumber);
+	//muE should be row vector
+	return muET.transpose();
 }
 
 
-ArrayXd log_binomial_likelihood(ArrayXd b, ArrayXd d, ArrayXd mu_E){
-	//mu_E row vector
+ArrayXd log_binomial_likelihood(ArrayXd b, ArrayXd d, ArrayXd muE){
+	//muE row vector
 	//b_T_j column vector
 	//d_T_j column vector
 	//
 	//return row vector
 
-	//1 x size(mu_E)
+	//1 x size(muE)
 	MatrixXd v1 = (ArrayXXd::Zero(1,3) + 1).matrix();
 	//n x 1
-	ArrayXXd b_array = (b.matrix() * v1).array();
-	ArrayXXd d_array = (d.matrix() * v1).array();
-	ArrayXXd mu_array = (v1.transpose() * mu_E).array();
+	ArrayXXd bArray = (b.matrix() * v1).array();
+	ArrayXXd dArray = (d.matrix() * v1).array();
+	ArrayXXd muArray = (v1.transpose() * muE).array();
 
-	ArrayXXd ll = (d_array + 1).lgamma() - (b_array + 1).lgamma() -
-		(d_array - b_array).lgamma() + b_array * mu_array.log() +
-		(d_array - b_array) * (1 - mu_array);
+	ArrayXXd ll = (dArray + 1).lgamma() - (bArray + 1).lgamma() -
+		(dArray - bArray).lgamma() + bArray * muArray.log() +
+		(dArray - bArray) * (1 - muArray);
 
 	return ll.colwise().sum();
 }
