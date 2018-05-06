@@ -1,20 +1,20 @@
-
-
 #include <iostream>
 #include<math.h>
-
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_rng.h>
-
 #include <vector>
+#include <Eigen/Dense>
 
+using namespace Eigen;
 using namespace std;
 
+#ifndef UTIL_H
+#define UTIL_H 1
 
 struct config_constant{
 	int COPY_NUMBER_NORMAL = 2;
         double MU_N = 0.5;
-} constant;
+}constants;
 
 // stat/math functions
 double log_factorial(int n);
@@ -31,3 +31,6 @@ ArrayXd get_b_T_j(ArrayXd a, ArrayXd b);
 ArrayXd get_d_T_j(ArrayXd a, ArrayXd b);
 ArrayXd get_mu_E_joint(ArrayXd mu_G, int copy_number, double phi);
 ArrayXd log_binomial_likelihood(ArrayXd b, ArrayXd d, ArrayXd mu_E);
+ArrayXd log_poisson_pdf(ArrayXd lambda_possion);
+
+#endif

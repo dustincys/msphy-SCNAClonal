@@ -7,6 +7,7 @@
 #include <gsl/gsl_rng.h>
 
 #include "util.hpp"
+#include "cngenotype.hpp"
 #include <Eigen/Dense>
 
 using namespace std;
@@ -54,54 +55,55 @@ struct datum{
 	ArrayXd a;
 	ArrayXd b;
 
-	int tumor_reads_num;
-	int normal_reads_num;
+	int tReadNum;
+	int nReadNum;
 
-	bool baseline_label;
+	bool baselineLabel;
 
-	int copy_number; //用于保存param时刻对应的copy_number
+	int copyNumber; //用于保存param时刻对应的copyNumber
 	//free it before delete struct
 	string genotype; //用于保存param时刻对应的genotype
 
 	//此处不使用tp因为默认只使用一个tp
-	double log_ll(double phi, cngenotype& cgn,
-			int max_copy_number, double baseline){
+	double log_ll(double phi, cngenotype& cgn, int maxCopyNumber, double
+			baseline){
 		//pi 为基因型
-		if(baseline_label){
+		if(baselineLabel){
 			ArrayXd cns(3);
 			cns << 1, 2, 3;
-			log_likelihood_RD_BAF(phi, cgn, cns);
-		}else if(get_loga(tumor_reads_num, normal_reads_num)
+			return log_likelihood_RD_BAF(phi, cgn, cns, baseline);
+		}else if(get_loga(tReadNum, nReadNum)
 				> baseline){
-			ArrayXd cns(max_copy_number);
-			for(int i = 1; i < max_copy_number; i ++){
+			ArrayXd cns(maxCopyNumber);
+			for(int i = 1; i < maxCopyNumber; i ++){
 				cns << i;
 			}
-			log_likelihood_RD_BAF(phi, cgn, cns);
+			return log_likelihood_RD_BAF(phi, cgn, cns, baseline);
 		}else{
 			ArrayXd cns(3);
 			cns << 0, 1, 2;
-			log_likelihood_RD_BAF(phi, cgn, cns);
+			return log_likelihood_RD_BAF(phi, cgn, cns, baseline);
 		}
 	}
-	double log_likelihood_RD_BAF(double phi, cngenotype& cgn, ArrayXd& cns){
+	double log_likelihood_RD_BAF(double phi, cngenotype& cgn, ArrayXd& cns,
+			double baseline){
 		/************************************
 		*  Here requires vector maximum operation  *
 		************************************/
-		int cns_length = cns.size();
-		int cols_n = cns(cns_length -1) + 1;
-		int rows_n = cns_length;
+		int cnsLength = cns.size();
+		int colsN = cns(cnsLength -1) + 1;
+		int rowsN = cnsLength;
 
-		ArrayXd bar_c = phi * cns + (1.0 - phi) * 2.0;
-		ArrayXd lambda_possion = (bar_c/2.0)*baseline*
-			(normal_reads_num + 1);
-		ArrayXd rds = log_poisson_pdf(lambda_possion);
+		ArrayXd barC = phi * cns + (1.0 - phi) * 2.0;
+		ArrayXd lambdaPossion = (barC/2.0)*baseline*
+			(nReadNum + 1);
+		ArrayXd rds = log_poisson_pdf(lambdaPossion);
 
 		/***************************************
 		*  initialize with negative infinity  *
 		***************************************/
 
-		ArrayXXd ll(rows_n, cols_n);
+		ArrayXXd ll(rowsN, colsN);
 		ll.fill(-std::numeric_limits<double>::infinity());
 
 		/********************************
@@ -109,19 +111,19 @@ struct datum{
 		********************************/
 
 		//column vector
-		ArrayXd b_T_j = get_b_T_j(a, b);
-		ArrayXd d_T_j = get_d_T_j(a, b);
+		ArrayXd bTj = get_b_T_j(a, b);
+		ArrayXd dTj = get_d_T_j(a, b);
 
-		for(int i=0; i<rows_n; i++){
-			//mu_E should be row vector
+		for(int i=0; i<rowsN; i++){
+			//muE should be row vector
 			//mu_N constant
 			//mu_G column vector
 			//c_N constant
-			//copy_number constant
+			//copyNumber constant
 			//phi constant
-			//ArrayXd mu_E = get_mu_E_joint(mu_N, mu_G, c_N, copy_number, phi);
-			ArrayXd mu_E = get_mu_E_joint(cgn.getBaf(cns(i)), copy_number, phi);
-			ll.block(i,0,1,cns(i)+1) = log_binomial_likelihood(b_T_j, d_T_j, mu_E);
+			//ArrayXd muE = get_mu_E_joint(mu_N, mu_G, c_N, copyNumber, phi);
+			ArrayXd muE = get_mu_E_joint(cgn.getBaf(cns(i)), copyNumber, phi);
+			ll.block(i,0,1,cns(i)+1) = log_binomial_likelihood(bTj, dTj, muE);
 		}
 
 		/******************************
@@ -129,11 +131,11 @@ struct datum{
 		******************************/
 
 		MatrixXf::Index maxRow, maxCol;
-		float max_ll = ll.maxCoeff(&maxRow, &maxCol);
+		float maxLL = ll.maxCoeff(&maxRow, &maxCol);
 
-		copy_number = cns(maxRow);
-		genotype = cgn.getGenotype(copy_number, maxCol);
+		copyNumber = cns(maxRow);
+		genotype = cgn.getGenotype(copyNumber, maxCol);
 
-		return max_ll;
+		return maxLL;
 	}
 };

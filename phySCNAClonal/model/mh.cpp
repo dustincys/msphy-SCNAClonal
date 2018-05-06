@@ -52,7 +52,7 @@ int main(int argc, char* argv[]){
 
 
 // done for multi-sample
-void mh_loop(struct node nodes[],struct datum data[],char* fname, struct config conf){
+void mh_loop(struct node nodes[], struct datum data[], char* fname, struct config conf){
 	gsl_rng *rand = gsl_rng_alloc(gsl_rng_mt19937);
 	double ratio=0.0;
 	for (int itr=0;itr<conf.MH_ITR;itr++){
@@ -130,9 +130,10 @@ void sample_cons_params(struct node nodes[], struct config conf, gsl_rng *rand){
 // done for multi-sample
 // todo: double check log_ll
 double multi_param_post(struct node nodes[], struct datum data[], int old, struct config conf){
-	return param_post(nodes,data,old,conf);
+	return param_post(nodes, data, old, conf);
 }
-double param_post(struct node nodes[], struct datum data[], int old,struct config conf){
+
+double param_post(struct node nodes[], struct datum data[], int old, struct config conf){
 	double llh = 0.0;
 	for(int i=0;i<conf.NNODES;i++){
 		double p=0;
@@ -142,12 +143,15 @@ double param_post(struct node nodes[], struct datum data[], int old,struct confi
 			p=nodes[i].param;
 		for(int j=0;j<nodes[i].ndata;j++){
 			//此处调用data中的似然 data id
+			//
+			//double log_ll(double phi, cngenotype& cgn, int max_copy_number, double
+			//baseline){
+
 			llh+=data[nodes[i].dids.at(j)].log_ll(p, old);
 		}
 	}
 	return llh;
 }
-
 
 // done for multi-sample
 void update_params(struct node nodes[],struct config conf){

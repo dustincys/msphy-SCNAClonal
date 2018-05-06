@@ -129,9 +129,9 @@ class StripeNode(Node):
         # current data is added into this node already
         datums = self.get_data()
         timeTag = [int(datum.tag) for datum in datums]
-        if int(x.tag) < max(timeTag):
+        if int(x[0].tag) < max(timeTag):
             return -1
-        elif int(x.tag) > min(timeTag):
+        elif int(x[0].tag) > min(timeTag):
             return 1
         else:
             return 0

@@ -124,7 +124,7 @@ def write_tree(tssb, fname):
         if dids == '':
             dids = str(-1)
 
-        line = str(root.id) + '\t' + str( root.params) + '\t' +\
+        line = str(root.id) + '\t' + str( root.param) + '\t' +\
             str(root.pi) + '\t' + str(len(root.children())) + '\t' +\
             cids + '\t' + str(len(root.get_data())) + '\t' + dids +\
             '\t' + str(root.ht)
@@ -188,7 +188,7 @@ def update_tree_params(tssb, fname):
     fh.close()
 
     for p in params:
-        ndict[int(p[0])].params = float(p[1])
+        ndict[int(p[0])].param = float(p[1])
         ndict[int(p[0])].pi = float(p[2])
     # params=loadtxt('c_params.txt')
     # for p in params:
@@ -209,16 +209,16 @@ def sample_cons_params(tssb):
     def descend(root):
 
         if root.parent() is None:
-            root.params1 = 1
-            root.pi1 = root.params1 * rand(1)  # break nu stick
-        r = root.params1 - root.pi1  # mass assigned to children
+            root.param1 = 1
+            root.pi1 = root.param1 * rand(1)  # break nu stick
+        r = root.param1 - root.pi1  # mass assigned to children
         p = rand(len(root.children()))
         p = r * p * 1. / sum(p)
         index = 0
         for child in root.children():
-            child.params1 = p[index]  # break psi sticks
+            child.param1 = p[index]  # break psi sticks
             # break nu stick
-            child.pi1 = child.params1 * (rand(1)**
+            child.pi1 = child.param1 * (rand(1)**
                                                  (len(child.children()) > 0))
             index += 1
         for child in root.children():
@@ -232,7 +232,7 @@ def update_params(tssb):
     def descend(root):
         for child in root.children():
             descend(child)
-        root.params = root.params1
+        root.param = root.param1
         root.pi = root.pi1
 
     descend(tssb.root['node'])
