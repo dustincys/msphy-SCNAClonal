@@ -1,3 +1,5 @@
+#ifndef MH_H
+#define MH_H 1
 #include<vector>
 #include<cstring>
 #include <string>
@@ -14,8 +16,8 @@ using namespace std;
 using namespace Eigen;
 
 void sample_cons_params(struct node nodes[],struct config conf,gsl_rng *rand);
-double multi_param_post(struct node nodes[], struct datum data[], int old,struct config conf);
-double param_post(struct node nodes[], struct datum data[], int old,struct config conf);
+double multi_param_post(struct node nodes[], struct datum data[], int old, struct config conf, CNGenotype& cngenotype);
+double param_post(struct node nodes[], struct datum data[], int old, struct config conf, CNGenotype& cngenotype);
 void update_params(struct node nodes[], struct config conf);
 void get_pi(struct node nodes[], double pi[], struct config conf, int old);
 
@@ -67,7 +69,7 @@ struct datum{
 	string genotype; //用于保存param时刻对应的genotype
 
 	//此处不使用tp因为默认只使用一个tp
-	double log_ll(double phi, cngenotype& cgn, int maxCopyNumber, double
+	double log_ll(double phi, CNGenotype& cgn, int maxCopyNumber, double
 			baseline){
 		//pi 为基因型
 		if(baselineLabel){
@@ -87,7 +89,7 @@ struct datum{
 			return log_likelihood_RD_BAF(phi, cgn, cns, baseline);
 		}
 	}
-	double log_likelihood_RD_BAF(double phi, cngenotype& cgn, ArrayXd& cns,
+	double log_likelihood_RD_BAF(double phi, CNGenotype& cgn, ArrayXd& cns,
 			double baseline){
 		/************************************
 		*  Here requires vector maximum operation  *
@@ -123,7 +125,7 @@ struct datum{
 			//copyNumber constant
 			//phi constant
 			//ArrayXd muE = get_mu_E_joint(mu_N, mu_G, c_N, copyNumber, phi);
-			ArrayXd muE = get_mu_E_joint(cgn.getBaf(cns(i)),
+			ArrayXd muE = get_mu_E_joint(cgn.getBAF(cns(i)),
 					copyNumber, phi);
 			ll.block(i,0,1,cns(i)+1) = log_binomial_likelihood(bTj,
 					dTj, muE);
@@ -142,3 +144,4 @@ struct datum{
 		return maxLL;
 	}
 };
+#endif
