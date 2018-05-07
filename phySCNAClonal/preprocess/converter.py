@@ -91,9 +91,16 @@ class BamConverter:
         blSegsL = self._get_baseline()
         self._mark_timestamp(blSegsL)
         stripePool = self._generate_stripe()
-        self._dump(stripePool, "stripePool.pkl")
 
+        self._dump(stripePool, "stripePool.pkl")
+        self._dump_txt(stripePool, "stripePool.txt")
         self._dump(self._segPoolL, "segPoolL.pkl")
+
+    def _dump_txt(self, stripePool, outFilePath):
+        """
+        out put stripePool into plain txt
+        """
+        stripePool.output_txt(outFilePath)
 
     def _load_allele_counts(self):
         for tBamName, segPool in zip(self._tBamNameL, self._segPoolL):

@@ -47,8 +47,8 @@ class StripePool(object):
 
     def output_txt(self, outFileName):
         with open(outFileName, 'w') as outFile:
-            outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
-                "sid", "segsIdxL", "pairedCounts", "tReadNum",
+            outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
+                "name", "sid", "segsIdxL", "pairedCounts", "tReadNum",
                 "nReadNum", "tag"))
 
             for s in self.stripes:
@@ -57,7 +57,8 @@ class StripePool(object):
                 aTstrl = np.array_str(aT).strip("[]").split()
                 bTstrl = np.array_str(bT).strip("[]").split()
 
-                outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
+                outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
+                    s.name,
                     s.sid,
                     ",".join(s.segsIdxL),
                     "{0}|{1}".format(",".join(aTstrl), ",".join(bTstrl)),
