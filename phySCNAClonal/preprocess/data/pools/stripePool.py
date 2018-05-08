@@ -57,6 +57,7 @@ class StripePool(object):
                 aTstrl = np.array_str(aT).strip("[]").split()
                 bTstrl = np.array_str(bT).strip("[]").split()
 
+                print s.segsIdxL
                 outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
                     s.name,
                     s.sid,
@@ -174,6 +175,7 @@ class StripePool(object):
             else:
                 tempTags = set([seg.tag for seg in subSegL])
                 for tempTag in tempTags:
+                    tagIdx = 0
                     if "BASELINE" == tempTag:
                         continue
 
@@ -183,11 +185,17 @@ class StripePool(object):
                                     if segLabelL[idx] == label and
                                     seg.tag == tempTag ]
                     tempStripe = Stripe()
-                    tempStripe.sid = "{0}_{1}".format(str(cId), tempTag)
+                    #  TODO: add stripe name, sid information  #
+                    tempStripe.name = "{0}_{1}_{2}".format(str(cId), tempTag,
+                                                          str(tagIdx))
+                    tempStripe.sid = "{0}_{1}_{2}".format(str(cId), tempTag,
+                                                          str(tagIdx))
+
                     tempStripe.init_segs(subSubSegL, subSubSegIdxL)
                     # if byTag, stripe contains tag too
                     tempStripe.tag = tempTag
                     self.stripes.append(tempStripe)
+                    tagIdx = tagIdx + 1
 
         # merge baseline, or not baseline in the stripe? toggle
         #  TODO: check out
