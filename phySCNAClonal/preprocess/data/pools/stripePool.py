@@ -61,7 +61,7 @@ class StripePool(object):
                 outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
                     s.name,
                     s.sid,
-                    ",".join(s.segsIdxL),
+                    ",".join(map(str, s.segsIdxL)),
                     "{0}|{1}".format(",".join(aTstrl), ",".join(bTstrl)),
                     s.tReadNum,
                     s.nReadNum,
