@@ -169,7 +169,7 @@ class StripePool(object):
             ]
             if not byTag:
                 tempStripe = Stripe()
-                tempStripe.sid = "{0}".format(str(cId))
+                tempStripe.sid = "{0}_{1}".format(str(cId), str(label))
                 tempStripe.init_segs(subSegL, subSegIdxL)
                 self.stripes.append(tempStripe)
             else:
@@ -186,10 +186,14 @@ class StripePool(object):
                                     seg.tag == tempTag ]
                     tempStripe = Stripe()
                     #  TODO: add stripe name, sid information  #
-                    tempStripe.name = "{0}_{1}_{2}".format(str(cId), tempTag,
-                                                          str(tagIdx))
-                    tempStripe.sid = "{0}_{1}_{2}".format(str(cId), tempTag,
-                                                          str(tagIdx))
+                    tempStripe.name = "{0}_{1}_{2}_{3}".format(str(cId),
+                                                               label,
+                                                               tempTag,
+                                                               str(tagIdx))
+                    tempStripe.sid = "{0}_{1}_{2}_{3}".format(str(cId),
+                                                              label,
+                                                              tempTag,
+                                                              str(tagIdx))
 
                     tempStripe.init_segs(subSubSegL, subSubSegIdxL)
                     # if byTag, stripe contains tag too
