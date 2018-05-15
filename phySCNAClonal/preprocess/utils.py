@@ -665,3 +665,19 @@ def mad_based_outlier(points, thresh=3.5):
     med_abs_deviation = np.median(diff)
     modified_z_score = 0.6745 * diff / med_abs_deviation
     return modified_z_score > thresh
+
+def getBAFofSeg(seg):
+    aT = seg.pairedCounts[:, 2]
+    bT = seg.pairedCounts[:, 3]
+    dT = aT + bT
+    lT = np.min(seg.pairedCounts[:, 2:4], axis=1)
+    pT = lT * 1.0 / dT
+    outlier = mad_based_outlier(pT)
+    return np.median(pT[np.invert(outlier)])
+
+def main():
+    a = np.array([0.2, 0.3, 0.5, 0.9])
+    print mad_based_outlier(a)
+
+if __name__ == "__main__":
+    main()
