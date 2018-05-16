@@ -136,17 +136,14 @@ class StripePool(object):
 
         segsLnoPCIDL = [(self.segPool.segments[idx], idx) for idx in mSIdx if
                         len(self.segPool.segments[idx].pairedCounts) = 0]
-
         # 此处需要进行每一个seg中的BAF统一投票之后在进行聚类 #
         # 此处决定是否是用最大最小限制
         # status_p_T_v = np.logical_and(pT > p_T_min, pT < p_T_max).flatten()
-
         if len(segsLnoPCIDL) > 0:
-            subSegL = segsLnoPC
-            subSegIdxL = segsLnoPCIdx
             if not byTag:
                 tempStripe = Stripe()
                 tempStripe.sid = "{0}".format(str(cId))
+                subSegL, subSegIdxL = map(list, zip(*segsLnoPCIDL))
                 tempStripe.init_segs(subSegL, subSegIdxL)
                 self.stripes.append(tempStripe)
             else:
@@ -156,14 +153,9 @@ class StripePool(object):
                     if "BASELINE" == tempTag:
                         continue
 
-                    subSubSegL = [seg for seg in subSegL if seg.tag == tempTag]
-
-                    #  TODO:  <14-05-18, Chu Yanshuo>  #
-                    subSubSegIdxL = [ mSIdx[idx] for idx, seg in enumerate(segsL)
-                                    if segLabelL[idx] == label and
-                                    seg.tag == tempTag ]
+                    tempL = [(seg, idx) for seg, idx in segsLnoPCIDL if seg.tag == tempTag]
+                    subSegL, subSegIdxL = map(list, zip(*tempL))
                     tempStripe = Stripe()
-                    #  TODO: add stripe name, sid information  #
                     tempStripe.name = "{0}_{1}_{2}_{3}".format(str(cId),
                                                             label,
                                                             tempTag,
@@ -173,14 +165,14 @@ class StripePool(object):
                                                             tempTag,
                                                             str(tagIdx))
 
-                    tempStripe.init_segs(subSubSegL, subSubSegIdxL)
-                    # if byTag, stripe contains tag too
+                    tempStripe.init_segs(subSegL, subSegIdxL)
                     tempStripe.tag = tempTag
                     self.stripes.append(tempStripe)
                     tagIdx = tagIdx + 1
 
-        if len(segsL) > 0:
-            segsBAFL = map(getBAFofSeg, segsL)
+        if len(segsIDL) > 0:
+            segL, segIdxL = map(list, zip(*segsIDL))
+            segsBAFL = map(getBAFofSeg, segL)
             pT = np.array(segsBAFL)
             pT = pT.reshape(pT.shape[0], 1)
             y = np.ones(pT.shape)
@@ -190,23 +182,25 @@ class StripePool(object):
             ms.fit(pTy)
             labels = ms.labels_
             clusterCenters = ms.cluster_centers_
+
             plotMeanShift(pTy, labels, clusterCenters)
 
             segLabelL = [
-                self._getSegLabl(seg, clusterCenters) for seg in segsL
+                self._getSegLabl(seg, clusterCenters) for seg in segL
             ]
+
+            tempL = zip(segL, segIdxL, segLabelL)
+
             # 注意此处要对目标stripe的seg进行tag分类,分类之后在生成条带
             for label in set(segLabelL):
                 if label == -1:
                     continue
-                subSegL = [
-                    seg for idx, seg in enumerate(segsL)
-                    if segLabelL[idx] == label
-                ]
-                subSegIdxL = [
-                    mSIdx[idx] for idx, seg in enumerate(segsL)
-                    if segLabelL[idx] == label
-                ]
+
+                subTempL = [(seg, idx) for seg, idx, label in tempL if
+                            segLabelL[idx] == label]
+
+                subSegL, subSegIdxL = map(list, zip(*subTempL))
+
                 if not byTag:
                     tempStripe = Stripe()
                     tempStripe.sid = "{0}_{1}".format(str(cId), str(label))
@@ -218,14 +212,10 @@ class StripePool(object):
                         tagIdx = 0
                         if "BASELINE" == tempTag:
                             continue
-
-                        subSubSegL = [seg for seg in subSegL if seg.tag ==
-                                        tempTag]
-                        subSubSegIdxL = [ mSIdx[idx] for idx, seg in enumerate(segsL)
-                                        if segLabelL[idx] == label and
-                                        seg.tag == tempTag ]
+                        subSubTempL = [(seg, idx) for seg, idx in subTempL if
+                                       seg.tag == tempTag ]
+                        subSubSegL, subSubSegIdxL = map(list, zip(*subSubTempL))
                         tempStripe = Stripe()
-                        #  TODO: add stripe name, sid information  #
                         tempStripe.name = "{0}_{1}_{2}_{3}".format(str(cId),
                                                                 label,
                                                                 tempTag,
@@ -236,20 +226,9 @@ class StripePool(object):
                                                                 str(tagIdx))
 
                         tempStripe.init_segs(subSubSegL, subSubSegIdxL)
-                        # if byTag, stripe contains tag too
                         tempStripe.tag = tempTag
                         self.stripes.append(tempStripe)
                         tagIdx = tagIdx + 1
-
-
-
-
-
-
-
-
-
-
 
         # merge baseline, or not baseline in the stripe? toggle
         #  TODO: check out
