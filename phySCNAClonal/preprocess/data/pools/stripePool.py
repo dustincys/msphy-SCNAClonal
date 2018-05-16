@@ -106,9 +106,6 @@ class StripePool(object):
             # 对每一个条带进行裂解操作，生成子条带, return
             self._decompose(cId, clusters, statusYcV, byTag)
 
-    def __splitStripe(self):
-
-
     def _decompose(self, cId, clusters, statusYcV, byTag=False):
         """The decomposition operations for segments in data
 
@@ -135,7 +132,7 @@ class StripePool(object):
                    len(self.segPool.segments[idx].pairedCounts) > 1]
 
         segsLnoPCIDL = [(self.segPool.segments[idx], idx) for idx in mSIdx if
-                        len(self.segPool.segments[idx].pairedCounts) = 0]
+                        len(self.segPool.segments[idx].pairedCounts) == 0]
         # 此处需要进行每一个seg中的BAF统一投票之后在进行聚类 #
         # 此处决定是否是用最大最小限制
         # status_p_T_v = np.logical_and(pT > p_T_min, pT < p_T_max).flatten()
@@ -147,7 +144,7 @@ class StripePool(object):
                 tempStripe.init_segs(subSegL, subSegIdxL)
                 self.stripes.append(tempStripe)
             else:
-                tempTags = set([seg.tag for seg in subSegL])
+                tempTags = set([seg.tag for seg, idx in segsLnoPCIDL])
                 for tempTag in tempTags:
                     tagIdx = 0
                     if "BASELINE" == tempTag:
@@ -156,12 +153,10 @@ class StripePool(object):
                     tempL = [(seg, idx) for seg, idx in segsLnoPCIDL if seg.tag == tempTag]
                     subSegL, subSegIdxL = map(list, zip(*tempL))
                     tempStripe = Stripe()
-                    tempStripe.name = "{0}_{1}_{2}_{3}".format(str(cId),
-                                                            label,
+                    tempStripe.name = "{0}_{1}_{2}".format(str(cId),
                                                             tempTag,
                                                             str(tagIdx))
-                    tempStripe.sid = "{0}_{1}_{2}_{3}".format(str(cId),
-                                                            label,
+                    tempStripe.sid = "{0}_{1}_{2}".format(str(cId),
                                                             tempTag,
                                                             str(tagIdx))
 
@@ -178,6 +173,8 @@ class StripePool(object):
             y = np.ones(pT.shape)
             pTy = np.hstack((pT, y))
             bandwidth = estimate_bandwidth(pTy, quantile=0.2, n_samples=500)
+            if bandwidth == 0:
+                bandwidth = 1
             ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
             ms.fit(pTy)
             labels = ms.labels_
@@ -196,8 +193,7 @@ class StripePool(object):
                 if label == -1:
                     continue
 
-                subTempL = [(seg, idx) for seg, idx, label in tempL if
-                            segLabelL[idx] == label]
+                subTempL = [(seg, idx) for seg, idx, l in tempL if l == label]
 
                 subSegL, subSegIdxL = map(list, zip(*subTempL))
 
