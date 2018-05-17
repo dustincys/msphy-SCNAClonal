@@ -20,6 +20,7 @@ from multiprocessing import Pool
 import numpy as np
 import pysam
 
+import phySCNAClonal.constants as constants
 from phySCNAClonal.preprocess.data.pools.segmentPool import SegmentPool
 from phySCNAClonal.preprocess.data.pools.stripePool import StripePool
 from phySCNAClonal.preprocess.iofun import (PairedCountsIterator,
@@ -29,7 +30,10 @@ from phySCNAClonal.preprocess.plotGC import GCStripePlot
 from phySCNAClonal.preprocess.utils import (get_BAF_counts,
                                             normal_heterozygous_filter)
 
-import phySCNAClonal.constants as constants
+np.set_printoptions(threshold=np.inf)
+
+
+
 
 class BamConverter:
 
@@ -100,7 +104,7 @@ class BamConverter:
         """
         out put stripePool into plain txt
         """
-        stripePool.output_txt(outFilePath)
+        stripePool.output_txt(self.__pathPrefix + outFilePath)
 
     def _load_allele_counts(self):
         for tBamName, segPool in zip(self._tBamNameL, self._segPoolL):
