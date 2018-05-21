@@ -187,7 +187,7 @@ class Stripe:
             dTj = np.sum(self.pairedCounts[:, 2:4], axis=1)
             baf = bTj * 1.0 / dTj
             outlier = mad_based_outlier(baf)
-            BAF = np.delete(self.pairedCounts, list(outlier.astype(int)), axis=0)
+            BAF = np.delete(self.pairedCounts, np.where(outlier)[0], axis=0)
             bTj = np.min(BAF[:, 2:4], axis=1)
             dTj = np.sum(BAF[:, 2:4], axis=1)
 

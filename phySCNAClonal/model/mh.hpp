@@ -10,7 +10,7 @@
 
 #include "util.hpp"
 #include "cngenotype.hpp"
-#include <Eigen/Dense>
+#include "Eigen/Dense"
 
 using namespace std;
 using namespace Eigen;

@@ -1,11 +1,11 @@
 #ifndef UTIL_H
 #define UTIL_H 1
 #include <iostream>
-#include<math.h>
+#include <math.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_rng.h>
 #include <vector>
-#include <Eigen/Dense>
+#include "Eigen/Dense"
 
 using namespace Eigen;
 using namespace std;

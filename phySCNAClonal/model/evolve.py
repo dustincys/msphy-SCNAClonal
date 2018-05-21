@@ -28,7 +28,7 @@ import numpy.random
 from numpy import *
 from numpy.random import *
 
-from phySCNAClonal.model.params import metropolis
+from phySCNAClonal.model.params import metropolis, get_c_fnames
 from phySCNAClonal.model.printo import print_top_trees
 from phySCNAClonal.model.stripenode import StripeNode
 from phySCNAClonal.model.tssb import TSSB
