@@ -114,7 +114,7 @@ class Stripe:
         copyNumbers = None
         # 此处需要确认是否是使用默认的baseline为tag
         if self.tag == "BASELINE":
-            copyNumbers = [2]
+            copyNumbers = [1, 2, 3]
         elif get_loga(self) > baseline:
             copyNumbers = range(2, maxCopyNumber + 1)
         else:

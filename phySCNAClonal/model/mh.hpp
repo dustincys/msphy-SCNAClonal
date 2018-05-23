@@ -51,7 +51,9 @@ struct node{
 
 
 struct datum{
-	int id;
+	//此处改为字符串，因为条带的输出的ID为字符串
+	//ID用整或者字符串没有实际意义
+	string id;
 
 	//用于保存原始seg的索引，用于post process
 	//vector<int> segs_idx;
@@ -62,7 +64,10 @@ struct datum{
 	int tReadNum;
 	int nReadNum;
 
-	bool baselineLabel;
+	//时间戳标签
+	string tag;
+	//条带中不包括基线
+	//bool baselineLabel;
 
 	int copyNumber; //用于保存param时刻对应的copyNumber
 	//free it before delete struct
@@ -72,14 +77,14 @@ struct datum{
 	double log_ll(double phi, CNGenotype& cgn, int maxCopyNumber, double
 			baseline){
 		//pi 为基因型
-		if(baselineLabel){
+		if(tag == "BASELINE"){
 			ArrayXd cns(3);
 			cns << 1, 2, 3;
 			return log_likelihood_RD_BAF(phi, cgn, cns, baseline);
 		}else if(get_loga(tReadNum, nReadNum)
 				> baseline){
 			ArrayXd cns(maxCopyNumber);
-			for(int i = 1; i < maxCopyNumber; i ++){
+			for(int i = 2; i < maxCopyNumber+1; i++){
 				cns << i;
 			}
 			return log_likelihood_RD_BAF(phi, cgn, cns, baseline);
@@ -99,8 +104,8 @@ struct datum{
 		int rowsN = cnsLength;
 
 		ArrayXd barC = phi * cns + (1.0 - phi) * 2.0;
-		ArrayXd lambdaPossion = (barC/2.0)*baseline* (nReadNum + 1);
-		ArrayXd rds = log_poisson_pdf(lambdaPossion);
+		ArrayXd lambdaPossion = (barC / 2.0) * baseline * (nReadNum + 1);
+		ArrayXd rds = log_poisson_pdf(tReadNum, lambdaPossion);
 
 		/***************************************
 		*  initialize with negative infinity  *
@@ -124,9 +129,11 @@ struct datum{
 			//c_N constant
 			//copyNumber constant
 			//phi constant
-			//ArrayXd muE = get_mu_E_joint(mu_N, mu_G, c_N, copyNumber, phi);
 			ArrayXd muE = get_mu_E_joint(cgn.getBAF(cns(i)),
+					constants.MU_N,
+					constants.COPY_NUMBER_NORMAL,
 					copyNumber, phi);
+
 			ll.block(i,0,1,cns(i)+1) = log_binomial_likelihood(bTj,
 					dTj, muE);
 		}

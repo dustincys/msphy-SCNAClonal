@@ -24,13 +24,10 @@ double log_beta(double a, double b);
 void dirichlet_sample(int size, double alpha[], double *x, gsl_rng *r);
 double logsumexp(double x[], int nx);
 double get_loga(int tReadNum, int nReadNum);
-
 vector<int> get_cn_vec(int maxCopyNumber);
-
 ArrayXd get_b_T_j(ArrayXd a, ArrayXd b);
 ArrayXd get_d_T_j(ArrayXd a, ArrayXd b);
-ArrayXd get_mu_E_joint(ArrayXd muG, int copyNumber, double phi);
+ArrayXd get_mu_E_joint(ArrayXd muG, double muN, int cN, int cH, double phi);
 ArrayXd log_binomial_likelihood(ArrayXd b, ArrayXd d, ArrayXd muE);
-ArrayXd log_poisson_pdf(ArrayXd lambdaPossion);
-
+ArrayXd log_poisson_pdf(int tReadNum, ArrayXd lambdaPossion);
 #endif

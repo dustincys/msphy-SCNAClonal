@@ -40,7 +40,6 @@ class StripePool(object):
         self.noiseStripeNum = noiseStripeNum
 
         self.stripes = []  # stripes
-        self.baseline = baseline
 
     def get(self, byTag=False):
         """

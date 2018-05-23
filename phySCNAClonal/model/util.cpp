@@ -46,7 +46,7 @@ double logsumexp(double x[], int nx){
 vector<int> get_cn_vec(int maxCopyNumber){
 	vector<int> cnVec;
 	for(int i=0; i<maxCopyNumber+1; i++){
-		cnVec.push_back(i)
+		cnVec.push_back(i);
 	}
 	return cnVec;
 }
@@ -62,14 +62,14 @@ double get_loga(int tReadNum, int nReadNum){
 	return log(tReadNum) - log(nReadNum);
 }
 
-ArrayXd log_poisson_pdf(ArrayXd lambdaPossion){
-	return tReadNum *lambdaPossion.log() - lambdaPossion
-		- lgamma(tReadNum + 1);
+ArrayXd log_poisson_pdf(int tReadNum, ArrayXd lambdaPossion){
+	return tReadNum *lambdaPossion.log() - lambdaPossion - lgamma(tReadNum
+			+ 1);
 }
 
-ArrayXd get_mu_E_joint(muN, muG, cN, cH, phi){
-	return ((1.0 - phi) * cN * muN + phi * cH * muG) / (
-			(1.0 - phi) * cN + phi * cH);
+ArrayXd get_mu_E_joint(ArrayXd muG, double muN, int cN, int cH, double phi){
+	return ((1.0 - phi) * cN * muN + phi * cH * muG) / ((1.0 - phi) * cN +
+			phi * cH);
 }
 
 ArrayXd get_b_T_j(ArrayXd a, ArrayXd b){
@@ -107,21 +107,29 @@ ArrayXd get_mu_E_joint(ArrayXd muG, int copyNumber, double phi){
 
 ArrayXd log_binomial_likelihood(ArrayXd b, ArrayXd d, ArrayXd muE){
 	//muE row vector
+	//size(b_T_j) x1
 	//b_T_j column vector
 	//d_T_j column vector
 	//
 	//return row vector
 
 	//1 x size(muE)
-	MatrixXd v1 = (ArrayXXd::Zero(1,3) + 1).matrix();
-	//n x 1
+	MatrixXd v1 = (ArrayXXd::Zero(1, muE.size()) + 1).matrix();
+	MatrixXd v2 = (ArrayXXd::Zero(b.size(), 1) + 1).matrix();
+	////n x 1
 	ArrayXXd bArray = (b.matrix() * v1).array();
 	ArrayXXd dArray = (d.matrix() * v1).array();
-	ArrayXXd muArray = (v1.transpose() * muE).array();
+
+	////此处需要注意维度匹配
+	////muE Nx1
+	////v1 1xN
+
+	ArrayXXd muArray = (v2 * muE.transpose().matrix()).array();
 
 	ArrayXXd ll = (dArray + 1).lgamma() - (bArray + 1).lgamma() -
-		(dArray - bArray).lgamma() + bArray * muArray.log() +
-		(dArray - bArray) * (1 - muArray);
+		(dArray - bArray + 1).lgamma() + bArray * muArray.log() +
+		(dArray - bArray) * (1 - muArray).log();
 
-	return ll.colwise().sum();
+
+	return ll.matrix().colwise().sum();
 }

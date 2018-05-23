@@ -201,42 +201,46 @@ void write_params(char fname[], struct node *nodes, struct config conf){
 void load_stripe_data(char fname[],struct datum *data, struct config conf){
 	string line,token,token1,token2;
 	ifstream dfile (fname);
-	int ctr=0,id=-1,ab=1;
-	while (getline (dfile,line,'\n')){
-		if (id==-1){id+=1;continue;}
+	int ctr = 0, id = -1, ab = 1;
+
+	while (getline(dfile, line, '\n')){
+		if (id == -1){id += 1; continue;}
 		istringstream iss(line);
-		ctr=0;
-		while(getline(iss,token,'\t')){
-			if(ctr==0){
-				data->id=id;
+		ctr = 0;
+		while(getline(iss, token, '\t')){
+			if(ctr == 1){
+				data->id = token;
 			}
+			//此处ctr == 0 时　对应的是name
 			else if(ctr==2){
-				istringstream iss(token);
+				istringstream iss1(token);
 				ab = 1;
-				while(getline(iss,token1,'|')){
-					istringstream iss1(token1);
-					size_t n = (std::count(t.begin(), s.end(), ',') + 2)/2;
+				while(getline(iss1, token1, '|')){
+					istringstream iss2(token1);
+					size_t n = std::count(token1.begin(), token1.end(), ',') + 1;
+
 					if(ab==1){
 						data->a = ArrayXd(n);
-						data->a << atoi(token1.c_str());
+						while(getline(iss2, token2, ',')){
+							data->a << atoi(token2.c_str());
+						}
 					}else{
 						data->b = ArrayXd(n);
-						data->b << atoi(token1.c_str());
+						while(getline(iss2, token2, ',')){
+							data->b << atoi(token2.c_str());
+						}
 					}
 					ab++;
 				}
 			}
 			else if(ctr==3){
-				istringstream iss(token);
-				data->tumor_reads_num=atof(token.c_str());
+				data->tReadNum=atof(token.c_str());
 			}
 			else if(ctr==4){
-				istringstream iss(token);
-				data->normal_reads_num=atof(token.c_str());
+				data->nReadNum=atof(token.c_str());
 			}
 			else if(ctr==5){
-				istringstream iss(token);
-				data->baseline_label=atob(token.c_str());
+				data->tag=token.c_str();
 			}
 			ctr+=1;
 		}
@@ -258,12 +262,13 @@ void load_tree(char fname[], struct node *nodes, struct config conf){
 				nodes->id=atoi(token.c_str());
 			}
 			else if(ctr==1){
-				nodes->param.push_back(atof(token.c_str()));
-				nodes->param1.push_back(0.0);
+				//此处param 只有一个数值，不是向量
+				nodes->param = atof(token.c_str());
+				nodes->param1 = 0.0;
 			}
 			else if(ctr==2){
-				nodes->pi.push_back(atof(token.c_str()));
-				nodes->pi1.push_back(0.0);
+				nodes->pi = atof(token.c_str());
+				nodes->pi1 = 0.0;
 			}
 			else if(ctr==5){
 				nodes->ndata=atoi(token.c_str());
