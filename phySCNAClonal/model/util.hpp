@@ -14,6 +14,10 @@ using namespace std;
 struct config_constant{
 	int COPY_NUMBER_NORMAL = 2;
         double MU_N = 0.5;
+	double MINIMUM_POSITIVE = 0.0000001;
+	double RD_WEIGHT = 0.6;
+	double BAF_THRESHOLD = 0.2;
+	int COVERAGE = 30;
 }constants;
 
 // stat/math functions

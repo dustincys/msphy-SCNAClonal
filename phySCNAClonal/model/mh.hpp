@@ -49,106 +49,136 @@ struct node{
 	int ht;
 };
 
+class Stripe
+{
+public:
 
-struct datum{
-	//此处改为字符串，因为条带的输出的ID为字符串
-	//ID用整或者字符串没有实际意义
 	string id;
-
-	//用于保存原始seg的索引，用于post process
-	//vector<int> segs_idx;
 
 	ArrayXd a;
 	ArrayXd b;
+	ArrayXXd bd;
 
 	int tReadNum;
 	int nReadNum;
 
-	//时间戳标签
-	string tag;
-	//条带中不包括基线
-	//bool baselineLabel;
+	string tag; //时间戳标签
 
 	int copyNumber; //用于保存param时刻对应的copyNumber
-	//free it before delete struct
 	string genotype; //用于保存param时刻对应的genotype
 
-	//此处不使用tp因为默认只使用一个tp
-	double log_ll(double phi, CNGenotype& cgn, int maxCopyNumber, double
-			baseline){
-		//pi 为基因型
-		if(tag == "BASELINE"){
-			ArrayXd cns(3);
-			cns << 1, 2, 3;
-			return log_likelihood_RD_BAF(phi, cgn, cns, baseline);
-		}else if(get_loga(tReadNum, nReadNum)
-				> baseline){
-			ArrayXd cns(maxCopyNumber);
-			for(int i = 2; i < maxCopyNumber+1; i++){
-				cns << i;
-			}
-			return log_likelihood_RD_BAF(phi, cgn, cns, baseline);
-		}else{
-			ArrayXd cns(3);
-			cns << 0, 1, 2;
-			return log_likelihood_RD_BAF(phi, cgn, cns, baseline);
-		}
-	}
-	double log_likelihood_RD_BAF(double phi, CNGenotype& cgn, ArrayXd& cns,
+
+
+	Stripe (){};
+
+	double log_ll(double phi, CNGenotype& cgn, int maxCopyNumber,
 			double baseline){
-		/************************************
-		*  Here requires vector maximum operation  *
-		************************************/
-		int cnsLength = cns.size();
-		int colsN = cns(cnsLength -1) + 1;
-		int rowsN = cnsLength;
-
-		ArrayXd barC = phi * cns + (1.0 - phi) * 2.0;
-		ArrayXd lambdaPossion = (barC / 2.0) * baseline * (nReadNum + 1);
-		ArrayXd rds = log_poisson_pdf(tReadNum, lambdaPossion);
-
-		/***************************************
-		*  initialize with negative infinity  *
-		***************************************/
-
-		ArrayXXd ll(rowsN, colsN);
-		ll.fill(-std::numeric_limits<double>::infinity());
-
-		/********************************
-		*  filter out b and d vector.  *
-		********************************/
-
-		//column vector
-		ArrayXd bTj = get_b_T_j(a, b);
-		ArrayXd dTj = get_d_T_j(a, b);
-
-		for(int i=0; i<rowsN; i++){
-			//muE should be row vector
-			//mu_N constant
-			//mu_G column vector
-			//c_N constant
-			//copyNumber constant
-			//phi constant
-			ArrayXd muE = get_mu_E_joint(cgn.getBAF(cns(i)),
-					constants.MU_N,
-					constants.COPY_NUMBER_NORMAL,
-					copyNumber, phi);
-
-			ll.block(i,0,1,cns(i)+1) = log_binomial_likelihood(bTj,
-					dTj, muE);
+		//pi 为基因型
+		vector<int> cns;
+		if(tag == "BASELINE"){
+			for(int i=1: i<=3; i++){cns.push_back(i);}
+		}else if(get_loga(this->tReadNum, this->nReadNum) > baseline){
+			for(int i=2: i<=maxCopyNumber+1; i++){cns.push_back(i);}
+		}else{
+			for(int i=0: i<=2; i++){cns.push_back(i);}
 		}
 
-		/******************************
-		*  get maximum args from ll  *
-		******************************/
+		ArrayXd lls(cns.size());
+		ArrayXd gtIdxMaxs(cns.size());
 
-		MatrixXf::Index maxRow, maxCol;
-		float maxLL = ll.maxCoeff(&maxRow, &maxCol);
+		for(int i=0; i<=cns.size(); i++){
+			lls[i] << this->getLLStripe(cns[i], phi, baseline, cgn,
+					&gtIdxMaxs[i]);
+		}
 
-		copyNumber = cns(maxRow);
-		genotype = cgn.getGenotype(copyNumber, maxCol);
+		int idxMax;
+		double  ll = lls.maxCoeff(&idxMax);
 
-		return maxLL;
+		this->copyNumber = cns[idxMax];
+		this->genotype = cgn.getGenotype(this->copyNumber,
+				gtIdxMaxs[idxMax]);
+
+		return ll;
+	}
+
+private:
+	double getLLStripe(int copyNumber, double phi, double baseline,
+			CNGenotype& cgn, int* gtIdxMax){
+		double rdWeight = constants.RD_WEIGHT;
+		double llStripe = 0;
+		double llRD = this->getRD(copyNumber, phi, baseline);
+
+		//此处在生成数据时使用numpy进行过滤即可，这里不进行操作
+		//this->augBAF(copyNumber);
+
+		ArrayXd bTj = get_b_T_j(this->a, this->b);
+		ArrayXd dTj = get_d_T_j(this->a, this->b);
+
+		double llBAF = 0;
+
+		if(0 == bTj.size()){
+			llBAF = 0;
+			*gtIdxMax = -1;
+		}else{
+			llBAF = this->getBAF(phi, copyNumber, cgn, bTj, dTj,
+					gtIdxMax);
+		}
+
+		double llRD = this->getRD(phi, copyNumber, baseline);
+
+		return llRd * rdWeight + llBAF * (1 - rdWeight);
+	}
+
+
+	double getBAF(double phi, int copyNumber, CNGenotype& cgn,
+			ArrayXd b, ArrayXd d, int *gtIdxMax){
+		//muE row vector
+		//size(b_T_j) x1
+		//b_T_j column vector
+		//d_T_j column vector
+		//
+		//return row vector
+		//1 x size(muE)
+		ArrayXd muE = get_mu_E_joint(cgn.getBAF(copyNumber),
+				constants.MU_N, constants.COPY_NUMBER_NORMAL,
+				copyNumber, phi);
+
+		MatrixXd v1 = (ArrayXXd::Zero(1, muE.size()) + 1).matrix();
+		MatrixXd v2 = (ArrayXXd::Zero(b.size(), 1) + 1).matrix();
+		////n x 1
+		ArrayXXd bArray = (b.matrix() * v1).array();
+		ArrayXXd dArray = (d.matrix() * v1).array();
+
+		////此处需要注意维度匹配
+		////muE Nx1
+		////v1 1xN
+
+		ArrayXXd muArray = (v2 * muE.transpose().matrix()).array();
+
+		ArrayXXd ll = (dArray + 1).lgamma() - (bArray + 1).lgamma() -
+			(dArray - bArray + 1).lgamma() + bArray * muArray.log()
+			+ (dArray - bArray) * (1 - muArray).log();
+
+		/*--  Here returns CN ll vector and the best genotype vector
+		 * --*/
+		ArrayXd llBAFs = ll.matrix().colwise().sum();
+
+		float llBAF = llBAFs.maxCoeff(gtIdxMax);
+
+		return llBAF;
+	}
+
+	double getRD(double phi, int copyNumber, double baseline){
+		int cN = constants.COPY_NUMBER_NORMAL;
+		double cMIN = constants.MINIMUM_POSITIVE;
+		double barC = phi * copyNumber + (1.0 - phi) * cN;
+		double lambdaPossion = (barC / cN) * baseline * (this->nReadNum
+				+ 1.0);
+		if(lambdaPossion <= 0){
+			lambdaPossion = cMIN;
+		}
+		double llRD = log_poisson_pdf(this->tReadNum, lambdaPossion);
+		return llRD;
 	}
 };
 #endif

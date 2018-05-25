@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <math.h>
 #include "util.hpp"
 
 using namespace std;
@@ -64,7 +65,11 @@ double get_loga(int tReadNum, int nReadNum){
 
 ArrayXd log_poisson_pdf(int tReadNum, ArrayXd lambdaPossion){
 	return tReadNum *lambdaPossion.log() - lambdaPossion - lgamma(tReadNum
-			+ 1);
+			+ 1.0);
+}
+double log_poisson_pdf(int tReadNum, double lambdaPossion){
+	return tReadNum *math::log(lambdaPossion) - lambdaPossion -
+		math::lgamma(tReadNum + 1.0);
 }
 
 ArrayXd get_mu_E_joint(ArrayXd muG, double muN, int cN, int cH, double phi){
@@ -77,7 +82,7 @@ ArrayXd get_b_T_j(ArrayXd a, ArrayXd b){
 	*  here, a, b column vector.  *
 	******************************/
 	assert(a.size() == b.size());
-	ArrayXd ab(a.size(), 2);
+	ArrayXXd ab(a.size(), 2);
 	ab << a, b;
 	return ab.rowwise().maxCoeff();
 }
@@ -105,7 +110,7 @@ ArrayXd get_mu_E_joint(ArrayXd muG, int copyNumber, double phi){
 }
 
 
-ArrayXd log_binomial_likelihood(ArrayXd b, ArrayXd d, ArrayXd muE){
+ArrayXd getBAF(ArrayXd b, ArrayXd d, ArrayXd muE, cgn){
 	//muE row vector
 	//size(b_T_j) x1
 	//b_T_j column vector
@@ -131,5 +136,10 @@ ArrayXd log_binomial_likelihood(ArrayXd b, ArrayXd d, ArrayXd muE){
 		(dArray - bArray) * (1 - muArray).log();
 
 
-	return ll.matrix().colwise().sum();
+	/*--  Here returns CN ll vector and the best genotype vector  --*/
+	ArrayXd llBAFs = ll.matrix().colwise().sum();
+
+	int idxMax;
+	float llBAF = llBAFs.maxCoeff(&idxMax);
+	cgn.getGenotype(copy
 }
