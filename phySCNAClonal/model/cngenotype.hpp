@@ -1,5 +1,5 @@
 #ifndef CNGENOTYPE_H
-#define CNGENOTYPE_H
+#define CNGENOTYPE_H 1
 
 #include <string>
 #include <iostream>

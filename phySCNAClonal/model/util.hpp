@@ -6,19 +6,12 @@
 #include <gsl/gsl_rng.h>
 #include <vector>
 #include "Eigen/Dense"
+#include "constants.hpp"
+
 
 using namespace Eigen;
 using namespace std;
 
-
-struct config_constant{
-	int COPY_NUMBER_NORMAL = 2;
-        double MU_N = 0.5;
-	double MINIMUM_POSITIVE = 0.0000001;
-	double RD_WEIGHT = 0.6;
-	double BAF_THRESHOLD = 0.2;
-	int COVERAGE = 30;
-}constants;
 
 // stat/math functions
 double log_factorial(int n);
@@ -34,4 +27,5 @@ ArrayXd get_d_T_j(ArrayXd a, ArrayXd b);
 ArrayXd get_mu_E_joint(ArrayXd muG, double muN, int cN, int cH, double phi);
 ArrayXd log_binomial_likelihood(ArrayXd b, ArrayXd d, ArrayXd muE);
 ArrayXd log_poisson_pdf(int tReadNum, ArrayXd lambdaPossion);
+double log_poisson_pdf(int tReadNum, double lambdaPossion);
 #endif

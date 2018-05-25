@@ -2,6 +2,7 @@
 #include <fstream>
 #include <math.h>
 #include "util.hpp"
+#include "constants.hpp"
 
 using namespace std;
 
@@ -68,8 +69,8 @@ ArrayXd log_poisson_pdf(int tReadNum, ArrayXd lambdaPossion){
 			+ 1.0);
 }
 double log_poisson_pdf(int tReadNum, double lambdaPossion){
-	return tReadNum *math::log(lambdaPossion) - lambdaPossion -
-		math::lgamma(tReadNum + 1.0);
+	return tReadNum * log(lambdaPossion) - lambdaPossion -
+		lgamma(tReadNum + 1.0);
 }
 
 ArrayXd get_mu_E_joint(ArrayXd muG, double muN, int cN, int cH, double phi){
@@ -101,45 +102,10 @@ ArrayXd get_d_T_j(ArrayXd a, ArrayXd b){
 //phi constant
 //ArrayXd muE = get_mu_E_joint(muN, muG, cN, copyNumber, phi);
 ArrayXd get_mu_E_joint(ArrayXd muG, int copyNumber, double phi){
-        int cN = constants.COPY_NUMBER_NORMAL;
-        double muN = constants.MU_N;
+        int cN = CONSTANTS::COPY_NUMBER_NORMAL;
+        double muN = CONSTANTS::MU_N;
 	ArrayXd muET = ((1.0 - phi) * cN * muN + phi * copyNumber * muG) /
 		((1.0 - phi) * cN + phi * copyNumber);
 	//muE should be row vector
 	return muET.transpose();
-}
-
-
-ArrayXd getBAF(ArrayXd b, ArrayXd d, ArrayXd muE, cgn){
-	//muE row vector
-	//size(b_T_j) x1
-	//b_T_j column vector
-	//d_T_j column vector
-	//
-	//return row vector
-
-	//1 x size(muE)
-	MatrixXd v1 = (ArrayXXd::Zero(1, muE.size()) + 1).matrix();
-	MatrixXd v2 = (ArrayXXd::Zero(b.size(), 1) + 1).matrix();
-	////n x 1
-	ArrayXXd bArray = (b.matrix() * v1).array();
-	ArrayXXd dArray = (d.matrix() * v1).array();
-
-	////此处需要注意维度匹配
-	////muE Nx1
-	////v1 1xN
-
-	ArrayXXd muArray = (v2 * muE.transpose().matrix()).array();
-
-	ArrayXXd ll = (dArray + 1).lgamma() - (bArray + 1).lgamma() -
-		(dArray - bArray + 1).lgamma() + bArray * muArray.log() +
-		(dArray - bArray) * (1 - muArray).log();
-
-
-	/*--  Here returns CN ll vector and the best genotype vector  --*/
-	ArrayXd llBAFs = ll.matrix().colwise().sum();
-
-	int idxMax;
-	float llBAF = llBAFs.maxCoeff(&idxMax);
-	cgn.getGenotype(copy
 }

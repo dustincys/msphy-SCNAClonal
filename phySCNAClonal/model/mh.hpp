@@ -10,23 +10,12 @@
 
 #include "util.hpp"
 #include "cngenotype.hpp"
+#include "constants.hpp"
 #include "Eigen/Dense"
 
 using namespace std;
 using namespace Eigen;
 
-void sample_cons_params(struct node nodes[],struct config conf,gsl_rng *rand);
-double multi_param_post(struct node nodes[], struct datum data[], int old, struct config conf, CNGenotype& cngenotype);
-double param_post(struct node nodes[], struct datum data[], int old, struct config conf, CNGenotype& cngenotype);
-void update_params(struct node nodes[], struct config conf);
-void get_pi(struct node nodes[], double pi[], struct config conf, int old);
-
-void load_stripe_data(char fname[],struct datum *data, struct config conf);
-
-void load_tree(char fname[], struct node nodes[], struct config conf);
-void write_params(char fname[], struct node nodes[], struct config conf);
-
-void mh_loop(struct node nodes[], struct datum data[], char* fname, struct config conf);
 
 struct config{
 	int MH_ITR;
@@ -57,7 +46,6 @@ public:
 
 	ArrayXd a;
 	ArrayXd b;
-	ArrayXXd bd;
 
 	int tReadNum;
 	int nReadNum;
@@ -76,19 +64,20 @@ public:
 		//pi 为基因型
 		vector<int> cns;
 		if(tag == "BASELINE"){
-			for(int i=1: i<=3; i++){cns.push_back(i);}
+			for(int i=1; i<=3; i++){cns.push_back(i);}
 		}else if(get_loga(this->tReadNum, this->nReadNum) > baseline){
-			for(int i=2: i<=maxCopyNumber+1; i++){cns.push_back(i);}
+			for(int i=2; i<=maxCopyNumber+1; i++){cns.push_back(i);}
 		}else{
-			for(int i=0: i<=2; i++){cns.push_back(i);}
+			for(int i=0; i<=2; i++){cns.push_back(i);}
 		}
 
 		ArrayXd lls(cns.size());
 		ArrayXd gtIdxMaxs(cns.size());
 
 		for(int i=0; i<=cns.size(); i++){
-			lls[i] << this->getLLStripe(cns[i], phi, baseline, cgn,
-					&gtIdxMaxs[i]);
+			int tempIdx=-1;
+			lls[i] = this->getLLStripe(cns[i], phi, baseline, cgn, &tempIdx);
+			gtIdxMaxs[i] = tempIdx;
 		}
 
 		int idxMax;
@@ -104,7 +93,7 @@ public:
 private:
 	double getLLStripe(int copyNumber, double phi, double baseline,
 			CNGenotype& cgn, int* gtIdxMax){
-		double rdWeight = constants.RD_WEIGHT;
+		double rdWeight = CONSTANTS::RD_WEIGHT;
 		double llStripe = 0;
 		double llRD = this->getRD(copyNumber, phi, baseline);
 
@@ -124,9 +113,7 @@ private:
 					gtIdxMax);
 		}
 
-		double llRD = this->getRD(phi, copyNumber, baseline);
-
-		return llRd * rdWeight + llBAF * (1 - rdWeight);
+		return llRD * rdWeight + llBAF * (1 - rdWeight);
 	}
 
 
@@ -140,7 +127,7 @@ private:
 		//return row vector
 		//1 x size(muE)
 		ArrayXd muE = get_mu_E_joint(cgn.getBAF(copyNumber),
-				constants.MU_N, constants.COPY_NUMBER_NORMAL,
+				CONSTANTS::MU_N, CONSTANTS::COPY_NUMBER_NORMAL,
 				copyNumber, phi);
 
 		MatrixXd v1 = (ArrayXXd::Zero(1, muE.size()) + 1).matrix();
@@ -169,8 +156,8 @@ private:
 	}
 
 	double getRD(double phi, int copyNumber, double baseline){
-		int cN = constants.COPY_NUMBER_NORMAL;
-		double cMIN = constants.MINIMUM_POSITIVE;
+		int cN = CONSTANTS::COPY_NUMBER_NORMAL;
+		double cMIN = CONSTANTS::MINIMUM_POSITIVE;
 		double barC = phi * copyNumber + (1.0 - phi) * cN;
 		double lambdaPossion = (barC / cN) * baseline * (this->nReadNum
 				+ 1.0);
@@ -181,4 +168,14 @@ private:
 		return llRD;
 	}
 };
+
+void sample_cons_params(struct node nodes[],struct config conf,gsl_rng *rand);
+double multi_param_post(struct node nodes[], Stripe data[], int old, struct config conf, CNGenotype& cngenotype);
+double param_post(struct node nodes[], Stripe data[], int old, struct config conf, CNGenotype& cngenotype);
+void update_params(struct node nodes[], struct config conf);
+void get_pi(struct node nodes[], double pi[], struct config conf, int old);
+void load_stripe_data(char fname[],Stripe *data, struct config conf);
+void load_tree(char fname[], struct node nodes[], struct config conf);
+void write_params(char fname[], struct node nodes[], struct config conf);
+void mh_loop(struct node nodes[], Stripe data[], char* fname, struct config conf);
 #endif
