@@ -9,9 +9,10 @@
 #include <gsl/gsl_rng.h>
 
 #include "util.hpp"
-#include "cngenotype.hpp"
+//#include "cngenotype.hpp"
 #include "constants.hpp"
 #include "Eigen/Dense"
+#include <thread>         // std::thread, std::this_thread::sleep_for
 
 using namespace std;
 using namespace Eigen;
@@ -66,108 +67,44 @@ public:
 		if(tag == "BASELINE"){
 			for(int i=1; i<=3; i++){cns.push_back(i);}
 		}else if(get_loga(this->tReadNum, this->nReadNum) > baseline){
-			for(int i=2; i<=maxCopyNumber+1; i++){cns.push_back(i);}
+			for(int i=2; i<=maxCopyNumber; i++){cns.push_back(i);}
 		}else{
 			for(int i=0; i<=2; i++){cns.push_back(i);}
 		}
 
-		ArrayXd lls(cns.size());
-		ArrayXd gtIdxMaxs(cns.size());
+		double lls[cns.size()];
+		int gtIdxMaxs[cns.size()];
 
-		for(int i=0; i<=cns.size(); i++){
-			int tempIdx=-1;
-			lls[i] = this->getLLStripe(cns[i], phi, baseline, cgn, &tempIdx);
-			gtIdxMaxs[i] = tempIdx;
+		thread threads[cns.size()];                         // default-constructed threads
+		for(int i=0; i<cns.size(); i++){
+			threads[i] = thread(getLLStripe, cns[i], phi, baseline,
+					cgn, ref(gtIdxMaxs[i]), this->a, this->b,
+					this->tReadNum, this->nReadNum, ref(lls[i]));
+		}
+		for(int i=0; i<cns.size(); i++){
+			threads[i].join();
 		}
 
-		int idxMax;
-		double  ll = lls.maxCoeff(&idxMax);
+		double ll = *max_element(lls, lls+cns.size());
+		int idxMax = distance(lls, max_element(lls, lls+cns.size()));
+		//double  ll = lls.maxCoeff(&idxMax);
 
 		this->copyNumber = cns[idxMax];
-		this->genotype = cgn.getGenotype(this->copyNumber,
-				gtIdxMaxs[idxMax]);
+
+		if (gtIdxMaxs[idxMax] == -1) {
+			this->genotype = "UNCERTAIN";
+		}else{
+			this->genotype = cgn.getGenotype(this->copyNumber,
+					gtIdxMaxs[idxMax]);
+		}
 
 		return ll;
 	}
 
-private:
-	double getLLStripe(int copyNumber, double phi, double baseline,
-			CNGenotype& cgn, int* gtIdxMax){
-		double rdWeight = CONSTANTS::RD_WEIGHT;
-		double llStripe = 0;
-		double llRD = this->getRD(copyNumber, phi, baseline);
-
-		//此处在生成数据时使用numpy进行过滤即可，这里不进行操作
-		//this->augBAF(copyNumber);
-
-		ArrayXd bTj = get_b_T_j(this->a, this->b);
-		ArrayXd dTj = get_d_T_j(this->a, this->b);
-
-		double llBAF = 0;
-
-		if(0 == bTj.size()){
-			llBAF = 0;
-			*gtIdxMax = -1;
-		}else{
-			llBAF = this->getBAF(phi, copyNumber, cgn, bTj, dTj,
-					gtIdxMax);
-		}
-
-		return llRD * rdWeight + llBAF * (1 - rdWeight);
-	}
-
-
-	double getBAF(double phi, int copyNumber, CNGenotype& cgn,
-			ArrayXd b, ArrayXd d, int *gtIdxMax){
-		//muE row vector
-		//size(b_T_j) x1
-		//b_T_j column vector
-		//d_T_j column vector
-		//
-		//return row vector
-		//1 x size(muE)
-		ArrayXd muE = get_mu_E_joint(cgn.getBAF(copyNumber),
-				CONSTANTS::MU_N, CONSTANTS::COPY_NUMBER_NORMAL,
-				copyNumber, phi);
-
-		MatrixXd v1 = (ArrayXXd::Zero(1, muE.size()) + 1).matrix();
-		MatrixXd v2 = (ArrayXXd::Zero(b.size(), 1) + 1).matrix();
-		////n x 1
-		ArrayXXd bArray = (b.matrix() * v1).array();
-		ArrayXXd dArray = (d.matrix() * v1).array();
-
-		////此处需要注意维度匹配
-		////muE Nx1
-		////v1 1xN
-
-		ArrayXXd muArray = (v2 * muE.transpose().matrix()).array();
-
-		ArrayXXd ll = (dArray + 1).lgamma() - (bArray + 1).lgamma() -
-			(dArray - bArray + 1).lgamma() + bArray * muArray.log()
-			+ (dArray - bArray) * (1 - muArray).log();
-
-		/*--  Here returns CN ll vector and the best genotype vector
-		 * --*/
-		ArrayXd llBAFs = ll.matrix().colwise().sum();
-
-		float llBAF = llBAFs.maxCoeff(gtIdxMax);
-
-		return llBAF;
-	}
-
-	double getRD(double phi, int copyNumber, double baseline){
-		int cN = CONSTANTS::COPY_NUMBER_NORMAL;
-		double cMIN = CONSTANTS::MINIMUM_POSITIVE;
-		double barC = phi * copyNumber + (1.0 - phi) * cN;
-		double lambdaPossion = (barC / cN) * baseline * (this->nReadNum
-				+ 1.0);
-		if(lambdaPossion <= 0){
-			lambdaPossion = cMIN;
-		}
-		double llRD = log_poisson_pdf(this->tReadNum, lambdaPossion);
-		return llRD;
-	}
 };
+
+
+
 
 void sample_cons_params(struct node nodes[],struct config conf,gsl_rng *rand);
 double multi_param_post(struct node nodes[], Stripe data[], int old, struct config conf, CNGenotype& cngenotype);

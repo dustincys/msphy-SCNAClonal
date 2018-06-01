@@ -5,8 +5,10 @@
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_rng.h>
 #include <vector>
+
 #include "Eigen/Dense"
 #include "constants.hpp"
+#include "cngenotype.hpp"
 
 
 using namespace Eigen;
@@ -28,4 +30,12 @@ ArrayXd get_mu_E_joint(ArrayXd muG, double muN, int cN, int cH, double phi);
 ArrayXd log_binomial_likelihood(ArrayXd b, ArrayXd d, ArrayXd muE);
 ArrayXd log_poisson_pdf(int tReadNum, ArrayXd lambdaPossion);
 double log_poisson_pdf(int tReadNum, double lambdaPossion);
+
+void getLLStripe(int copyNumber, double phi, double baseline, CNGenotype
+		cgn, int& gtIdxMax, ArrayXd a, ArrayXd b, int tReadNum, int
+		nReadNum, double& ll);
+double getBAF(double phi, int copyNumber, CNGenotype cgn, ArrayXd b, ArrayXd
+		d, int& gtIdxMax);
+double getRD(double phi, int copyNumber, double baseline, int tReadNum, int
+		nReadNum);
 #endif

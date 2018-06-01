@@ -16,7 +16,7 @@ using namespace std;
 
 //g++ -o mh.o mh.cpp util.cpp constants.cpp -L /usr/local/lib  -lgsl -lgslcblas -lm  -std=c++11   -I ../../dependencies/eigen   `gsl-config --cflags --libs`
 //
-// ./mh.o 5000 100 11 1 8 4 ssm_data.txt cnv_data.txt c_tree_ssm_data_1.txt c_data_states_ssm_data_1.txt c_params.txt 5
+// ./mh.o [int|iteration] [float|std] [int|stripe no.] [int|nodes no.] [int|tree height] [int|maximum copy number] [float|baseline] [string|stripe data file name] [string| tree file name] [string| parameters file name] [string | MH_AR file name]
 //
 //  https://www.gnu.org/software/gsl/manual/html_node/Shared-Libraries.html
 
@@ -87,6 +87,11 @@ void mh_loop(struct node nodes[], Stripe data[], char* fname, struct config conf
 		// apply the dirichlet correction terms
 		for(int i=0;i<conf.NNODES;i++)
 			theta[i]=conf.MH_STD*pi_new[i];
+
+		//the first parameter is size
+		//second is parameter for dir distribution, each > 0
+		//third is the support set, sum = 1
+
 		a += gsl_ran_dirichlet_lnpdf(conf.NNODES,theta,pi);
 
 		for(int i=0;i<conf.NNODES;i++)
@@ -160,10 +165,6 @@ double param_post(struct node nodes[], Stripe data[], int old,
 			p=nodes[i].param;
 		for(int j=0;j<nodes[i].ndata;j++){
 			//此处调用data中的似然 data id
-			//
-			//double log_ll(double phi, cngenotype& cgn, int max_copy_number, double
-			//baseline){
-
 			llh+=data[nodes[i].dids.at(j)].log_ll(p, cngenotype,
 					conf.MAX_COPY_NUMBER, conf.BASELINE);
 		}
@@ -217,34 +218,42 @@ void load_stripe_data(char fname[],Stripe *data, struct config conf){
 				data->id = token;
 			}
 			//此处ctr == 0 时　对应的是name
-			else if(ctr==2){
+			else if(ctr==3){
 				istringstream iss1(token);
 				ab = 1;
 				while(getline(iss1, token1, '|')){
-					istringstream iss2(token1);
-					size_t n = std::count(token1.begin(), token1.end(), ',') + 1;
+					size_t n = -1;
+					if(token1.size() == 0){
+						n = 0;
+					}else{
+						n = std::count(token1.begin(), token1.end(), ',') + 1;
+					}
+					assert(n != -1);
 
+					istringstream iss2(token1);
 					if(ab==1){
 						data->a = ArrayXd(n);
+						int tempIdx=0;
 						while(getline(iss2, token2, ',')){
-							data->a << atoi(token2.c_str());
+							data->a[tempIdx++] = atoi(token2.c_str());
 						}
 					}else{
 						data->b = ArrayXd(n);
+						int tempIdx=0;
 						while(getline(iss2, token2, ',')){
-							data->b << atoi(token2.c_str());
+							data->b[tempIdx++] = atoi(token2.c_str());
 						}
 					}
 					ab++;
 				}
 			}
-			else if(ctr==3){
+			else if(ctr==4){
 				data->tReadNum=atof(token.c_str());
 			}
-			else if(ctr==4){
+			else if(ctr==5){
 				data->nReadNum=atof(token.c_str());
 			}
-			else if(ctr==5){
+			else if(ctr==6){
 				data->tag=token.c_str();
 			}
 			ctr+=1;
@@ -269,11 +278,13 @@ void load_tree(char fname[], struct node *nodes, struct config conf){
 			else if(ctr==1){
 				//此处param 只有一个数值，不是向量
 				nodes->param = atof(token.c_str());
-				nodes->param1 = 0.0;
+				nodes->param1 = 0;
 			}
 			else if(ctr==2){
 				nodes->pi = atof(token.c_str());
-				nodes->pi1 = 0.0;
+				//here, it needs to be initialized, make it sum
+				//to 1 to calculate dir PDF
+				nodes->pi1 = 1.0 / conf.NNODES;
 			}
 			else if(ctr==5){
 				nodes->ndata=atoi(token.c_str());

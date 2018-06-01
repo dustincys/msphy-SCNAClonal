@@ -109,3 +109,85 @@ ArrayXd get_mu_E_joint(ArrayXd muG, int copyNumber, double phi){
 	//muE should be row vector
 	return muET.transpose();
 }
+
+void getLLStripe(int copyNumber, double phi, double baseline, CNGenotype
+		cgn, int& gtIdxMax, ArrayXd a, ArrayXd b, int tReadNum, int
+		nReadNum, double& ll){
+	double rdWeight = CONSTANTS::RD_WEIGHT;
+	double llStripe = 0;
+	double llRD = getRD(copyNumber, phi, baseline, tReadNum, nReadNum);
+
+	//此处在生成数据时使用numpy进行过滤即可，这里不进行操作
+	//augBAF(copyNumber);
+
+	ArrayXd bTj = get_b_T_j(a, b);
+	ArrayXd dTj = get_d_T_j(a, b);
+
+	double llBAF = 0;
+
+	if(0 == bTj.size()){
+		llBAF = 0;
+		gtIdxMax = -1;
+	}else{
+		llBAF = getBAF(phi, copyNumber, cgn, bTj, dTj,
+				gtIdxMax);
+	}
+
+	ll = llRD * rdWeight + llBAF * (1 - rdWeight);
+
+	return;
+}
+
+
+double getBAF(double phi, int copyNumber, CNGenotype cgn,
+		ArrayXd b, ArrayXd d, int& gtIdxMax){
+	//muE row vector
+	//size(b_T_j) x1
+	//b_T_j column vector
+	//d_T_j column vector
+	//
+	//return row vector
+	//1 x size(muE)
+	ArrayXd muE = get_mu_E_joint(cgn.getBAF(copyNumber),
+			CONSTANTS::MU_N, CONSTANTS::COPY_NUMBER_NORMAL,
+			copyNumber, phi);
+
+	MatrixXd v1 = (ArrayXXd::Zero(1, muE.size()) + 1).matrix();
+	MatrixXd v2 = (ArrayXXd::Zero(b.size(), 1) + 1).matrix();
+	////n x 1
+	ArrayXXd bArray = (b.matrix() * v1).array();
+	ArrayXXd dArray = (d.matrix() * v1).array();
+
+	////此处需要注意维度匹配
+	////muE Nx1
+	////v1 1xN
+
+	ArrayXXd muArray = (v2 * muE.transpose().matrix()).array();
+
+	ArrayXXd ll = (dArray + 1).lgamma() - (bArray + 1).lgamma() -
+		(dArray - bArray + 1).lgamma() + bArray * muArray.log()
+		+ (dArray - bArray) * (1 - muArray).log();
+
+	/*--  Here returns CN ll vector and the best genotype vector
+	 * --*/
+	ArrayXd llBAFs = ll.matrix().colwise().sum();
+
+	float llBAF = llBAFs.maxCoeff(&gtIdxMax);
+
+	return llBAF;
+}
+
+double getRD(double phi, int copyNumber, double baseline, int tReadNum, int
+		nReadNum){
+	int cN = CONSTANTS::COPY_NUMBER_NORMAL;
+	double cMIN = CONSTANTS::MINIMUM_POSITIVE;
+	double barC = phi * copyNumber + (1.0 - phi) * cN;
+	double lambdaPossion = (barC / cN) * baseline * (nReadNum +
+			1.0);
+	if(lambdaPossion <= 0){
+		lambdaPossion = cMIN;
+	}
+	double llRD = log_poisson_pdf(tReadNum, lambdaPossion);
+	return llRD;
+}
+

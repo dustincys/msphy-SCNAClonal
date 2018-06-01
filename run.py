@@ -148,6 +148,10 @@ parserModel.add_argument('--stripesFile', dest='stripesFile', help= 'File\
                          listing stripes(SCNA stripes). For proper format, see\
                          README.md.')
 
+parserModel.add_argument('--stripesTextFile', dest='stripesTextFile', help= 'Text file\
+                         listing stripes(SCNA stripes). For proper format, see\
+                         README.md.')
+
 parserModel.add_argument('--maxCopyNumber', dest='maxCopyNumber', default=6,
                          type=int, help= 'Max copy number')
 

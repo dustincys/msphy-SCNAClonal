@@ -49,6 +49,7 @@ def start_new_run(stateManager,
                   runSucceeded,
                   config,
                   stripesFile,
+                  stripesTextFile,
                   paramsFile,
                   topKTreesFile,
                   clonalFreqsFile,
@@ -85,6 +86,7 @@ def start_new_run(stateManager,
         seedf.write('%s\n' % state['rand_seed'])
 
     state['stripes_file'] = stripesFile
+    state['stripes_text_file'] = stripesTextFile
     state['tmp_dir'] = tmpDir
     state['top_k_trees_file'] = topKTreesFile
     state['clonal_freqs_file'] = clonalFreqsFile
@@ -93,6 +95,7 @@ def start_new_run(stateManager,
 
     # 此处载入数据，此处含有baseline
     stripes, baseline = load_data(state['stripes_file'])
+    state['baseline'] = baseline
 
     stripeNum = len(stripes)
 
@@ -124,6 +127,7 @@ def start_new_run(stateManager,
     state['cd_llh_traces'] = zeros((state['sample_number'], 1))
     state['burnin_cd_llh_traces'] = zeros((state['burnin_sample_number'], 1))
     state['working_directory'] = os.getcwd()
+    state['max_copy_number'] = maxCopyNumber
 
     root = StripeNode(conc=0.1)
 
@@ -134,7 +138,7 @@ def start_new_run(stateManager,
         rootNode=root,
         data=stripes,
         baseline=baseline,
-        maxCopyNumber=maxCopyNumber)
+        maxCopyNumber=state['max_copy_number'])
     # hack...
     # 初始化把所有数据放到第一个孩子节点
     if 1:
@@ -283,8 +287,10 @@ def do_mcmc(stateManager,
             state['mh_std'],
             state['mh_burnin'],
             stripeNum,
-            state['stripes_file'],
+            state['stripes_text_file'],
             state['rand_seed'],
+            state['max_copy_number'],
+            state['baseline'],
             config['tmp_dir'])
 
         if float(state['mh_acc']) < 0.08 and state['mh_std'] < 10000:
@@ -419,6 +425,7 @@ def run(args, safeToExit, runSucceeded, config):
             runSucceeded,
             config,
             args.stripesFile,
+            args.stripesTextFile,
             args.paramsFile,
             topKTreesFile=args.topKTrees,
             clonalFreqsFile=args.clonalFreqs,

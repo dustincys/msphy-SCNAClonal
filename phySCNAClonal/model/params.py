@@ -48,6 +48,8 @@ def metropolis(tssb,
                n_stripes=0,
                fin='',
                rseed=1,
+               maxCopyNumber=6,
+               baseline=0.0,
                tmp_dir='.'):
     wts, nodes = tssb.get_mixture()
 
@@ -71,8 +73,14 @@ def metropolis(tssb,
     N_STRIPE_DATA = str(n_stripes)
     NNODES = str(len(nodes))
     TREE_HEIGHT = str(max([node.ht for node in nodes]) + 1)
-
+    MAX_COPY_NUMBER=maxCopyNumber
+    BASELINE=baseline
     script_dir = os.path.dirname(os.path.realpath(__file__))
+
+    print [ '%s/mh.o' % script_dir, MH_ITR, MH_STD, N_STRIPE_DATA, NNODES,
+           TREE_HEIGHT, MAX_COPY_NUMBER, BASELINE, FNAME_STRIPE_DATA,
+           FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO]
+
     sp.check_call([
         '%s/mh.o' % script_dir,
         MH_ITR,
@@ -80,6 +88,8 @@ def metropolis(tssb,
         N_STRIPE_DATA,
         NNODES,
         TREE_HEIGHT,
+        MAX_COPY_NUMBER,
+        BASELINE,
         FNAME_STRIPE_DATA,
         FNAME_C_TREE,
         FNAME_C_PARAMS,
@@ -124,8 +134,8 @@ def write_tree(tssb, fname):
         if dids == '':
             dids = str(-1)
 
-        line = str(root.id) + '\t' + str( root.param) + '\t' +\
-            str(root.pi) + '\t' + str(len(root.children())) + '\t' +\
+        line = str(root.id) + '\t' + str( root.param).strip("[]") + '\t' +\
+            str(root.pi).strip("[]") + '\t' + str(len(root.children())) + '\t' +\
             cids + '\t' + str(len(root.get_data())) + '\t' + dids +\
             '\t' + str(root.ht)
 
