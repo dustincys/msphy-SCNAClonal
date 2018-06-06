@@ -85,41 +85,46 @@ class StripeNode(Node):
         # 可能有相同拷贝数但不同的基因型的状况
         # if self.__is_good_gaps(x):
         #
+        # cmpTag = self.__cmp_tags(x)
+        # if cmpTag == -1:
+            # return -float('Inf')
+        # elif cmpTag == 1:
+            # return -float('Inf')
+        # else:
 
-        cmpTag = self.__cmp_tags(x)
-        if cmpTag == -1:
-            return -float('Inf'), -1
-        elif cmpTag == 1:
-            return -float('Inf'), 1
+        cmpPedigree = self.__cmp_pedigree(x)
+        if cmpPedigree == -1:
+            return -float('Inf')
+        elif cmpPedigree == 1:
+            return -float('Inf')
         else:
-            cmpPedigree = self.__cmp_pedigree()
-            if cmpPedigree == -1:
-                return -float('Inf'), -1
-            elif cmpPedigree == 1:
-                return -float('Inf'), 1
-            else:
-                return self.logprob(x, alleleConfig, baseline, maxCopyNumber), 0
+            return self.logprob(x, alleleConfig, baseline, maxCopyNumber)
 
         #######################################################
         #  here -float("Inf") means the situation restricted  #
         #######################################################
 
-    def __cmp_pedigree(self):
+    def __cmp_pedigree(self, x):
         """is the time tag descending along the pedigree?
 
         @return:  Flag
         @rtype :  int
         """
         #  TODO: check out the len(n.data) #
-        ancestors = self.get_ancestors()
-        timeTag = [int(n.get_data()[0].tag) for n in ancestors if 0 < len(n.data)]
-        if len(timeTag) >= 2 and timeTag[-1] < max(timeTag[0:-1]):
-            return -1
+        #  here, should not return itself
 
-        offsprings = self.get_offsprings()
-        timeTag = [int(n.get_data()[0].tag) for n in offsprings if 0 < len(n.data)]
-        if len(timeTag) >= 2 and timeTag[0] > min(timeTag[1:]):
-            return 1
+        tagCurX = int(x[0].tag)
+
+        children = self.children()
+        if 0 < len(children):
+            offsprings = []
+            for child in children:
+                offsprings.extend(child.get_offsprings())
+            timeTagOfs = [int(item.tag) for n in offsprings for item in
+                       n.get_data()]
+            if 0 < len(timeTagOfs):
+                if tagCurX > min(timeTagOfs):
+                    return 1
 
         return 0
 
@@ -127,6 +132,10 @@ class StripeNode(Node):
         # 此处为什么不考虑当前数据的tag
         # or what about there is no datum in this node?, the answer is no.
         # current data is added into this node already
+        # testFile = open('./testfile.dot', 'w')
+        # self.tssb.print_graph(testFile)
+        # testFile.close()
+
         datums = self.get_data()
         timeTag = [int(datum.tag) for datum in datums]
         if int(x[0].tag) < max(timeTag):
@@ -155,7 +164,7 @@ class StripeNode(Node):
         return lFlag and uFlag
 
     def data_log_likelihood(self, alleleConfig, baseline, maxCopyNumber):
-        self.complete_logprob(alleleConfig, baseline, maxCopyNumber)
+        return self.complete_logprob(alleleConfig, baseline, maxCopyNumber)
 
     def complete_logprob(self, alleleConfig, baseline, maxCopyNumber):
         return sum([self.logprob([data], alleleConfig, baseline, maxCopyNumber)

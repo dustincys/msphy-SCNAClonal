@@ -63,7 +63,8 @@ class TSSB(object):
             'node': rootNode,
             'main': boundbeta(1.0, dpAlpha) if self.minDepth == 0 else 0.0,
             'sticks': empty((0, 1)),
-            'children': []
+            'children': [],
+            'tag': False
         }
         rootNode.tssb = self
 
@@ -86,7 +87,7 @@ class TSSB(object):
         for n in range(newDataNum):
             logprobs = []
             for k, node in enumerate(nodes):
-                logprobs.append(log(weights[k]) + node.logprob(data[n],
+                logprobs.append(log(weights[k]) + node.logprob_restricted(data[n],
                                                                self.alleleConfig,
                                                                self.baseline,
                                                                self.maxCopyNumber))
@@ -147,10 +148,10 @@ class TSSB(object):
 
             maxU = 1.0
             minU = 0.0
-            oldLlh = self.assignments[n].logprob(self.data[n:n + 1],
-                                                 self.alleleConfig,
-                                                 self.baseline,
-                                                 self.maxCopyNumber)
+            oldLlh = self.assignments[n].logprob_restricted(self.data[n:n + 1],
+                                                            self.alleleConfig,
+                                                            self.baseline,
+                                                            self.maxCopyNumber)
 
             llhMapD[self.assignments[n]] = oldLlh
             llhS = log(rand()) + oldLlh
@@ -172,26 +173,17 @@ class TSSB(object):
                     ####################################
                     #  Record most likely copy number  #
                     ####################################
-                    newLlh, newLlhS =\
-                        newNode.logprob_restricted(self.data[n:n + 1],
-                                                   self.alleleConfig,
-                                                   self.baseline,
-                                                   self.maxCopyNumber)
+                    newLlh = newNode.logprob_restricted(self.data[n:n + 1],
+                                                        self.alleleConfig,
+                                                        self.baseline,
+                                                        self.maxCopyNumber)
                     llhMapD[newNode] = newLlh
                 if newLlh > llhS:
                     break
-                elif -float("Inf") == newLlh:
-                    # here -float("Inf") means the situation restricted
-                    #
-                    #  TODO: here, utilize the tag cmp
-                    #  TODO: and deal with all the situation
-                    if newLlhS < 0:
-                        minU = newU
-                    elif newLlhS > 0:
-                        maxU = newU
-                    else:
-                        raise Exception("Slice sampler weirdness.")
                 elif abs(maxU - minU) < epsilon:
+                    if -float('Inf') == newLlh:
+                        raise Exception("Slice sampler weirdness.")
+
                     newNode.remove_datum(n)
                     oldNode.add_datum(n)
                     self.assignments[n] = oldNode
@@ -288,18 +280,11 @@ class TSSB(object):
                             [root['sticks'],
                              boundbeta(1, self.dpGamma)])
                         root['children'].append({
-                            'node':
-                            root['node'].spawn(),
-                            'main':
-                            boundbeta(
-                                1.0,
-                                (self.alphaDecay**(depth + 1)) *
-                                # 此处minDepth 应该是手动控制的
-                                self.dpAlpha)
-                            if self.minDepth <= (depth + 1) else 0.0,
-                            'sticks':
-                            empty((0, 1)),
-                            'children': []
+                            'node': root['node'].spawn(),
+                            'main': boundbeta(1.0, (self.alphaDecay ** (depth + 1)) * self.dpAlpha) if self.minDepth <= (depth + 1) else 0.0, # 此处minDepth 应该是手动控制的
+                            'sticks': empty((0, 1)),
+                            'children': [],
+                            'tag': False
                         })
                         allWeights = diff(
                             hstack([0.0, sticks_to_edges(root['sticks'])]))
@@ -422,6 +407,41 @@ class TSSB(object):
             self.assignments[n] = node
             self.data[n] = node.sample(args)[0]
 
+    def mark_time_tag(self, tag):
+        """
+        mark each node's time tag status.
+        All the nodes in the tssb tree, that contains offspings data with tag <=
+        given tag.
+        """
+        def descend(root, tag):
+            if 0 == len(root['children']):
+                root['tag'] = False
+
+                timeTags = [int(item.tag) for item in root['node'].get_data() if
+                            int(item.tag) <= tag]
+                if 0 < len(timeTags):
+                    return True
+                else:
+                    return False
+            else:
+                isTaken = False
+                for child in root['children']:
+                    isTaken = isTaken or descend(child, tag)
+                root['tag'] = isTaken
+
+                if isTaken:
+                    return True
+                else:
+                    timeTags = [int(item.tag) for item in root['node'].get_data() if
+                                int(item.tag) <= tag]
+                    if 0 < len(timeTags):
+                        return True
+                    else:
+                        return False
+
+        descend(self.root, tag)
+
+
     def find_node(self, u):
         def descend(root, u, depth=0):
             if depth >= self.maxDepth:
@@ -450,7 +470,8 @@ class TSSB(object):
                             if self.minDepth <= (depth + 1) else 0.0,
                             'sticks':
                             empty((0, 1)),
-                            'children': []
+                            'children': [],
+                            'tag': False
                         })
 
                     edges = 1.0 - cumprod(1.0 - root['sticks'])
@@ -550,6 +571,8 @@ class TSSB(object):
                                 layout_algorithm: tree          \
                                 node.fontname:    "helvR8"      \
                                 node.height:      25 """
+
+
         print >> fh, """node: { label:"%0.5f" title:"%s" width:%d}""" % (
             self.root['main'], "X",
             max(int(self.root['main'] * base_width), min_width))

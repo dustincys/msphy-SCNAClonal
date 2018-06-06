@@ -171,7 +171,7 @@ class Stripe:
         if lambdaPossion <= 0:
             lambdaPossion = cMIN
 
-        print (self.tReadNum, lambdaPossion)
+        # print (self.tReadNum, lambdaPossion)
         llRD = log_poisson_pdf(self.tReadNum, lambdaPossion)
         return llRD
 

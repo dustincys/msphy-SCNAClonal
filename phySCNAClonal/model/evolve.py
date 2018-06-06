@@ -222,6 +222,9 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
     set_state(state['rand_state'])  # Restore NumPy's RNG state.
 
     stripes, baseline = load_data(state['stripes_file'])
+
+    print [sp.tag for sp in stripes]
+
     stripeNum = len(stripes)
 
     do_mcmc(stateManager,
@@ -264,6 +267,7 @@ def do_mcmc(stateManager,
         # Referring to tssb as local variable instead of dictionary element is much
         # faster.
         tssb = state['tssb']
+        # 此处需要进行嵌套assignment抽样
         tssb.resample_assignments()
         tssb.cull_tree()
 

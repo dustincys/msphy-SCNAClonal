@@ -7,49 +7,57 @@ from numpy.random import *
 
 from tssb import *
 from util import *
-from util2 import remove_empty_nodes
+from util2 import remove_empty_nodes, TreeReader
 
 ctr=0
 def print_top_trees(treeArchive, fout, k=5):
-	global ctr;
-	fout = open(fout,'w')
-	treeReader = TreeReader(treeArchive)
+    global ctr;
+    foutF = open(fout,'w')
+    treeReader = TreeReader(treeArchive)
+    i = 0
+    for idx, (tidx, llh, tree) in enumerate(treeReader.load_trees_and_metadata(k)):
+            ctr=0
+            remove_empty_nodes(tree.root, None)
+            # print top K trees in ascii
+            if i < 5 :
+                print_best_tree_pdf(tree, fout+"temp{}.tex".format(i))
+            print_best_tree(tree, foutF)
+            i = i + 1
 
-	for idx, (tidx, llh, tree) in enumerate(treeReader.load_trees_and_metadata(k)):
-			ctr=0
-			remove_empty_nodes(tree.root, None)
-			# print top K trees in ascii
-			print_best_tree(tree, fout)
-
-	treeReader.close()
-	fout.close()
+    treeReader.close()
+    foutF.close()
 
 def print_best_tree(tssb,fout):
-	nodes = tssb.get_nodes()
-	nnodes = sum( [ 1 for node in nodes if len(node.get_data()) ] )
+    nodes = tssb.get_nodes()
+    nnodes = sum( [ 1 for node in nodes if len(node.get_data()) ] )
 
-	#fout=open(fout,'w')
-	t = Tree();t.name='0'
-	fout.write('id, \t phi, \t nChildren, \t nGenes, \t genes \n')
-	print_node2(tssb.root,None,t,fout)
-	fout.write('\n\n')
-	fout.write(t.get_ascii(show_internal=True))
-	fout.write('\n\n')
-	fout.write('Number of non-empty nodes in the tree: ' +repr(nnodes))
-	fout.write('\n\n\n')
-	#fout.close()
+    #fout=open(fout,'w')
+    t = Tree();t.name='0'
+    fout.write('id, \t phi, \t nChildren, \t nGenes, \t stripes \n')
+    print_node2(tssb.root,None,t,fout)
+    fout.write('\n\n')
+    fout.write(t.get_ascii(show_internal=True))
+    fout.write('\n\n')
+    fout.write('Number of non-empty nodes in the tree: ' +repr(nnodes))
+    fout.write('\n\n\n')
+    #fout.close()
 
 def print_node2(node, parent,tree,fout):
     global ctr;
     num_data = node['node'].num_data()
     node_name  = ctr ; ctr+=1;
-    genes = node['node'].get_data()
-    gnames = ''
-    if len(genes)>0:
-        gnames = genes[0].id #name
-        for g in arange(1,len(genes)):
-            gnames = gnames + '; ' + genes[g].id #name
-    out_str = str(node_name) + ',\t' + str(around(node['node'].params,3)) + ',\t' + str(len(node['children'])) + ',\t' + str(len(genes)) + ',\t' + gnames +  '\n'
+
+    stripes = node['node'].get_data()
+    stripeId = ''
+    if len(stripes)>0:
+        stripeId = stripes[0].sid #name
+        for spIdx in arange(1,len(stripes)):
+            stripeId = stripeId + '; ' + stripes[spIdx].sid #name
+
+    out_str = str(node_name) + ',\t' + str(around(node['node'].param,3)) +\
+        ',\t' + str(len(node['children'])) + ',\t' + str(len(stripes)) + ',\t' +\
+        stripeId +  '\n'
+
     fout.write(out_str)
     for child in node['children']:
         name_string = str(ctr)#+'('+str(len(child['node'].get_data()))+')'
@@ -57,9 +65,9 @@ def print_node2(node, parent,tree,fout):
 
 ### printing stuff #################
 def print_best_tree_pdf(tssb,fout,score=0):
-	#wts, nodes = tssb.get_mixture()
-	#w = dict([(n[1], n[0]) for n in zip(wts,nodes)])
-	print_tree_latex(tssb,fout,score)
+    #wts, nodes = tssb.get_mixture()
+    #w = dict([(n[1], n[0]) for n in zip(wts,nodes)])
+    print_tree_latex(tssb,fout,score)
 
 
 ################ LATEX PRINTING ######################
@@ -68,39 +76,41 @@ global count
 # root: root of the tree
 # tree_file: string with latex code
 def write_tree(root, tree_file):
-	global count
-	count+=1
-	tree_file+='node {{{0}}}'.format(count)
-	for child in root.children():
-		tree_file+='child {'
-		tree_file=write_tree(child, tree_file)
-		tree_file+='}'
-	return tree_file
+    global count
+    count+=1
+    tree_file+='node {{{0}}}'.format(count)
+    for child in root.children():
+        tree_file+='child {'
+        tree_file=write_tree(child, tree_file)
+        tree_file+='}'
+    return tree_file
 
 # writes code for index
 # root: root of the tree
 # tree_file: string with latex code
 def print_index(root, tree_file):
-	global count
-	count+=1
-	tree_file+='{0} & '.format(count)
-	ssms=''
-	for datum in root.get_data():
-		ssms+='{0}, '.format(datum.name)
-	tree_file+=ssms.strip().strip(',')
-	if root.get_data()==[]:
-		tree_file+='-- '
-	#else:
-	#	tree_file=tree_file[:-1]
-		#tree_file+=' & '
-	tree_file+=' & '
-	for i in range(len(root.params)):
-		tree_file+='{0}, '.format(str(around(root.params[i],3)))
-	tree_file=tree_file[:-2]
-	tree_file+='\\\\\n'
-	for child in root.children():
-		tree_file=print_index(child, tree_file)
-	return tree_file
+    global count
+    count+=1
+    tree_file+='{0} & '.format(count)
+
+    stripes=''
+    for sp in root.get_data():
+        # stripes+='{0}, '.format(sp.name)
+        stripes += "{0}, ".format(sp.tag)
+    stripes = stripes.replace("_","-")
+
+    tree_file+=stripes.strip().strip(',')
+
+    if root.get_data()==[]:
+        tree_file+='-- '
+
+    tree_file+=' & '
+    tree_file+=str(around(root.param,3))
+    tree_file+='\\\\\n'
+
+    for child in root.children():
+        tree_file=print_index(child, tree_file)
+    return tree_file
 
 # writes the latex code
 # tssb: tssb structure of the tree
@@ -135,11 +145,10 @@ def print_tree_latex(tssb,fout,score):
     tree_file+='\\begin{tikzpicture}\n'
     tree_file+='\\node (table){\n'
     tree_file+='\\begin{tabular}{|c|p{5cm}|p{5cm}|'
-    for i in range(len(tssb.root['node'].params)):
-        tree_file+='l|'
+    tree_file+='l|'
     tree_file+='}\n'
     tree_file+='\\hline\n'
-    tree_file+='Node & \multicolumn{{1}}{{|c|}}{{Mutations}} & \multicolumn{{1}}{{|c|}}{{Frequencies}} \\\\\n'.format(len(tssb.root['node'].params))
+    tree_file+='Node & \multicolumn{{1}}{{|c|}}{{Mutations}} & \multicolumn{{1}}{{|c|}}{{Frequencies}} \\\\\n'.format("1")
     tree_file+='\\hline\n'
     tree_file=print_index(tssb.root['node'], tree_file)
     tree_file+='\\hline\n'

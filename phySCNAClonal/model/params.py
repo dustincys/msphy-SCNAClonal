@@ -73,8 +73,8 @@ def metropolis(tssb,
     N_STRIPE_DATA = str(n_stripes)
     NNODES = str(len(nodes))
     TREE_HEIGHT = str(max([node.ht for node in nodes]) + 1)
-    MAX_COPY_NUMBER=maxCopyNumber
-    BASELINE=baseline
+    MAX_COPY_NUMBER=str(maxCopyNumber)
+    BASELINE=str(baseline)
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
     print [ '%s/mh.o' % script_dir, MH_ITR, MH_STD, N_STRIPE_DATA, NNODES,
