@@ -22,6 +22,8 @@ from numpy.random import *
 from phySCNAClonal.preprocess.utils import get_cn_allele_config
 from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
 
+from copy import deepcopy
+
 
 class TSSB(object):
     minDpAlpha = 1.0
@@ -118,7 +120,7 @@ class TSSB(object):
 
             descend(self.root)
 
-    def resample_assignments(self):
+    def resample_assignments(self, tag, uSegL):
         def path_lt(path1, path2):
             if len(path1) == 0 and len(path2) == 0:
                 return 0
@@ -132,8 +134,14 @@ class TSSB(object):
             return cmp(s2, s1)
 
         epsilon = finfo(float64).eps
+        # this is not useful
         lengths = []
-        for n in range(self.dataNum):
+
+        # change data range
+        # 需要保存索引号码
+        tagL = array([int(item.tag) for item in self.data])
+
+        for n in where(tagL <= tag):
             llhMapD = {}
             # Get an initial uniform variate.
             ancestors = self.assignments[n].get_ancestors()
@@ -145,8 +153,11 @@ class TSSB(object):
                 current = current['children'][index]
                 indices.append(index)
 
-            maxU = 1.0
-            minU = 0.0
+            # change to segment operation
+            # maxU = 1.0
+            # minU = 0.0
+            tempUSegL = deepcopy(uSegL)
+
             oldLlh = self.assignments[n].logprob_restricted(self.data[n:n + 1],
                                                             self.alleleConfig,
                                                             self.baseline,
@@ -156,7 +167,7 @@ class TSSB(object):
             llhS = log(rand()) + oldLlh
 
             while True:
-                newU = (maxU - minU) * rand() + minU
+                newU = tempUSegL.sample()
                 (newNode, newPath) = self.find_node(newU)
                 if newNode.parent() is None:
                     # shankar: to make root node empty
@@ -194,9 +205,9 @@ class TSSB(object):
                     self.assignments[n] = oldNode
                     pathComp = path_lt(indices, newPath)
                     if pathComp < 0:
-                        minU = newU
+                        tempUSegL.removeLeft(newU)
                     elif pathComp >= 0:  # temporary fix only!!!!!!
-                        maxU = newU
+                        tempUSegL.removeRight(newU)
                     else:
                         raise Exception("Slice sampler weirdness.")
             lengths.append(len(newPath))
@@ -537,8 +548,6 @@ class TSSB(object):
         sl.coalesce()
 
         return sl
-
-
 
 
     def get_nodes(self):

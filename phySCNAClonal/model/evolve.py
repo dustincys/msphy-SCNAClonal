@@ -38,6 +38,7 @@ from phySCNAClonal.model.util2 import (BackupManager, StateManager, TreeWriter,
                                        set_node_height,
                                        set_path_from_root_to_node)
 
+from gwpy.segments import Segment, SegmentList
 # sampleNum: number of MCMC samples
 # mhItr: number of metropolis-hasting iterations
 # randSeed: random seed (initialization). Set to None to choose random
@@ -96,6 +97,8 @@ def start_new_run(stateManager,
     # 此处载入数据，此处含有baseline
     stripes, baseline = load_data(state['stripes_file'])
     state['baseline'] = baseline
+    state['time_tags'] = sorted(list(set([int(item.tag) for item in
+                                             stripes])))
 
     stripeNum = len(stripes)
 
@@ -124,8 +127,13 @@ def start_new_run(stateManager,
     state['mh_itr'] = mhItr  # No. of iterations in metropolis-hastings
     state['mh_std'] = mhStd
 
-    state['cd_llh_traces'] = zeros((state['sample_number'], 1))
-    state['burnin_cd_llh_traces'] = zeros((state['burnin_sample_number'], 1))
+    state['cd_llh_traces'] = zeros((power(state['sample_number'],
+                                          len(state['time_tags'])), 1))
+    state['burnin_cd_llh_traces'] = zeros((
+        power((state['burnin_sample_number']+ state['sample_number']), len(state['time_tags']))-
+        power(state['sample_number'], len(state['time_tags'])),
+        1))
+
     state['working_directory'] = os.getcwd()
     state['max_copy_number'] = maxCopyNumber
 
@@ -184,6 +192,7 @@ def start_new_run(stateManager,
 
     logmsg("Starting MCMC run...")
     state['last_iteration'] = -state['burnin_sample_number'] - 1
+    state['total_iteration'] = 0
 
     # This will overwrite file if it already exists, which is the desired
     # behaviour for a fresh run.
@@ -249,7 +258,10 @@ def do_mcmc(stateManager,
             stripes,
             stripeNum,
             tmpDir):
-    startIter = state['last_iteration'] + 1
+    # here, the start iteration is saved in the state of 'last_iteration'
+    # It should resample last incomplete iteration.
+    startIter = state['last_iteration']
+
     unwrittenTreeL = []
     mcmcSampleTimesL = []
     lastMcmcSampleTime = time.time()
@@ -259,123 +271,152 @@ def do_mcmc(stateManager,
     # temporary directory. This is the desired behaviour.
     config['tmp_dir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmpDir)
 
-    for iteration in range(startIter, state['sample_number']):
-        safeToExit.set()
-        if iteration < 0:
-            logmsg(iteration)
+    global totalIter = state['total_iteration']
 
-        # Referring to tssb as local variable instead of dictionary element is much
-        # faster.
-        tssb = state['tssb']
-        # 此处需要进行嵌套assignment抽样
-        tssb.resample_assignments()
-        tssb.cull_tree()
-
-        # assign node ids
-        wts, nodes = tssb.get_mixture()
-        for i, node in enumerate(nodes):
-            node.id = i
-
-        ##################################################
-        # some useful info about the tree,
-        # used by CNV related computations,
-        # to be called only after resampling assignments
-        set_node_height(tssb)
-        set_path_from_root_to_node(tssb)
-        map_datum_to_node(tssb)
-        ##################################################
-
-        state['mh_acc'] = metropolis(
-            tssb,
-            state['mh_itr'],
-            state['mh_std'],
-            state['mh_burnin'],
-            stripeNum,
-            state['stripes_text_file'],
-            state['rand_seed'],
-            state['max_copy_number'],
-            state['baseline'],
-            config['tmp_dir'])
-
-        if float(state['mh_acc']) < 0.08 and state['mh_std'] < 10000:
-            state['mh_std'] = state['mh_std'] * 2.0
-            logmsg("Shrinking MH proposals. Now %f" % state['mh_std'])
-        if float(state['mh_acc']) > 0.5 and float(state['mh_acc']) < 0.99:
-            state['mh_std'] = state['mh_std'] / 2.0
-            logmsg("Growing MH proposals. Now %f" % state['mh_std'])
-
-        tssb.resample_sticks()
-        tssb.resample_stick_orders()
-        tssb.resample_hypers(dpAlpha=True, alphaDecay=True, dpGamma=True)
-
-        lastLlh = tssb.complete_data_log_likelihood()
-        if iteration >= 0:
-            state['cd_llh_traces'][iteration] = lastLlh
-            if True or mod(iteration, 10) == 0:
-                weights, nodes = tssb.get_mixture()
-                logmsg(' '.join([
-                    str(v)
-                    for v in (iteration, len(nodes),
-                              state['cd_llh_traces'][iteration],
-                              state['mh_acc'], tssb.dpAlpha, tssb.dpGamma,
-                              tssb.alphaDecay)
-                ]))
-            if argmax(state['cd_llh_traces'][:iteration + 1]) == iteration:
-                logmsg("%f is best per-data complete data likelihood so far." %
-                       (state['cd_llh_traces'][iteration]))
-        else:
-            state['burnin_cd_llh_traces'][iteration
-                                          + state['burnin_sample_number']] = lastLlh
-
-        # Can't just put tssb in unwrittenTreeL, as this object will be modified
-        # on subsequent iterations, meaning any stored references in
-        # unwrittenTreeL will all point to the same sample.
-        serialized = pickle.dumps(tssb, protocol=pickle.HIGHEST_PROTOCOL)
-        unwrittenTreeL.append((serialized, iteration, lastLlh))
-        state['tssb'] = tssb
-        state['rand_state'] = get_state()
-        state['last_iteration'] = iteration
-
-        if len([
-                C for C in state['tssb'].root['children']
-                if C['node'].has_data()
-        ]) > 1:
-            logmsg('Polyclonal tree detected with %s clones.' % len(
-                state['tssb'].root['children']))
-
-        newMcmcSampleTime = time.time()
-        mcmcSampleTimesL.append(newMcmcSampleTime - lastMcmcSampleTime)
-        lastMcmcSampleTime = newMcmcSampleTime
-
-        # It's not safe to exit while performing file IO, as we don't want
-        # trees.zip or the computation state file to become corrupted from an
-        # interrupted write.
-        safeToExit.clear()
-        shouldWriteBackup = iteration % state['write_backups_every'] == 0 and iteration != startIter
-        shouldWriteState = iteration % state['write_state_every'] == 0
-        isLastIteration = (iteration == state['sample_number'] - 1)
-
-        # If backup is scheduled to be written, write both it and full program
-        # state regardless of whether we're scheduled to write state this
+    def proceedTime(timeTag, uSupportiveRanges, isBurnIn=False):
+        # Here, at the outer loop, time tag is 0, start from the last iteration
+        # Since we have separate resample_assignment process into multiple
         # iteration.
-        if shouldWriteBackup or shouldWriteState or isLastIteration:
-            with open('mcmc_samples.txt', 'a') as mcmcf:
-                llhsAndTimes = [
-                    (itr, llh, itr_time)
-                    for (tssb, itr, llh
-                         ), itr_time in zip(unwrittenTreeL, mcmcSampleTimesL)
-                ]
-                llhsAndTimes = '\n'.join([
-                    '%s\t%s\t%s' % (itr, llh, itr_time)
-                    for itr, llh, itr_time in llhsAndTimes
-                ])
-                mcmcf.write(llhsAndTimes + '\n')
-            treeWriter.write_trees(unwrittenTreeL)
-            stateManager.write_state(state)
-            unwrittenTreeL = []
-            mcmcSampleTimesL = []
-            if shouldWriteBackup:
-                backupManager.save_backup()
+        if 0 == timeTag:
+            iterRanges = range(startIter, state['num_samples'])
+        else:
+            iterRanges = range(-state['burnin'], state['num_samples'])
+
+        for iteration in iterRanges:
+            if 0 == timeTag:
+                state['last_iteration'] = iteration
+                state['total_iteration'] = totalIter
+
+            tssb = state['tssb']
+            safeToExit.set()
+            tssb.resample_assignments(timeTag, uSupportiveRanges)
+            if timeTag < state['time_tags'][-1]:
+                tssb.mark_time_tag(timeTag)
+                uNext = uSupportiveRanges - tssb.get_u_segL()
+                if not isBurnIn and 0 < Iteration:
+                    proceedTime(timeTag+1, uNext, False)
+                else:
+                    proceedTime(timeTag+1, uNext, True)
+            else:
+                if isBurnIn:
+                    logmsg(totalIter)
+
+                tssb.resample_assignments(timeTag, uSupportiveRanges)
+                tssb.cull_tree()
+
+                # assign node ids
+                wts, nodes = tssb.get_mixture()
+                for i, node in enumerate(nodes):
+                    node.id = i
+
+                ##################################################
+                # some useful info about the tree,
+                # used by CNV related computations,
+                # to be called only after resampling assignments
+                set_node_height(tssb)
+                set_path_from_root_to_node(tssb)
+                map_datum_to_node(tssb)
+                ##################################################
+
+                state['mh_acc'] = metropolis(
+                    tssb,
+                    state['mh_itr'],
+                    state['mh_std'],
+                    state['mh_burnin'],
+                    stripeNum,
+                    state['stripes_text_file'],
+                    state['rand_seed'],
+                    state['max_copy_number'],
+                    state['baseline'],
+                    config['tmp_dir'])
+
+                if float(state['mh_acc']) < 0.08 and state['mh_std'] < 10000:
+                    state['mh_std'] = state['mh_std'] * 2.0
+                    logmsg("Shrinking MH proposals. Now %f" % state['mh_std'])
+                if float(state['mh_acc']) > 0.5 and float(state['mh_acc']) < 0.99:
+                    state['mh_std'] = state['mh_std'] / 2.0
+                    logmsg("Growing MH proposals. Now %f" % state['mh_std'])
+
+                tssb.resample_sticks()
+                tssb.resample_stick_orders()
+                tssb.resample_hypers(dpAlpha=True, alphaDecay=True, dpGamma=True)
+
+                lastLlh = tssb.complete_data_log_likelihood()
+
+                if not isBurnIn:
+                    cdltIdx = totalIter - state['burnin_cd_llh_traces'].shape[0]
+
+                    state['cd_llh_traces'][cdltIdx] = lastLlh
+                    if True or mod(cdltIdx, 10) == 0:
+                        weights, nodes = tssb.get_mixture()
+                        logmsg(' '.join([
+                            str(v)
+                            for v in (cdltIdx, len(nodes),
+                                    state['cd_llh_traces'][cdltIdx],
+                                    state['mh_acc'], tssb.dpAlpha, tssb.dpGamma,
+                                    tssb.alphaDecay)
+                        ]))
+                    if argmax(state['cd_llh_traces'][:cdltIdx + 1]) == cdltIdx:
+                        logmsg("%f is best per-data complete data likelihood so far." %
+                            (state['cd_llh_traces'][cdltIdx]))
+                else:
+                    # here the save the llh
+                    state['burnin_cd_llh_traces'][totalIter] = lastLlh
+
+                # Can't just put tssb in unwrittenTreeL, as this object will be modified
+                # on subsequent iterations, meaning any stored references in
+                # unwrittenTreeL will all point to the same sample.
+                serialized = pickle.dumps(tssb, protocol=pickle.HIGHEST_PROTOCOL)
+                unwrittenTreeL.append((serialized, totalIter, lastLlh))
+                state['tssb'] = tssb
+                state['rand_state'] = get_state()
+
+                if len([
+                        C for C in state['tssb'].root['children']
+                        if C['node'].has_data()
+                ]) > 1:
+                    logmsg('Polyclonal tree detected with %s clones.' % len(
+                        state['tssb'].root['children']))
+
+                newMcmcSampleTime = time.time()
+                mcmcSampleTimesL.append(newMcmcSampleTime - lastMcmcSampleTime)
+                lastMcmcSampleTime = newMcmcSampleTime
+
+                # It's not safe to exit while performing file IO, as we don't want
+                # trees.zip or the computation state file to become corrupted from an
+                # interrupted write.
+                safeToExit.clear()
+                # here remove
+                # shouldWriteBackup = totalIter % state['write_backups_every'] == 0 and totalIter != startIter
+                shouldWriteBackup = totalIter % state['write_backups_every'] == 0
+                shouldWriteState = totalIter % state['write_state_every'] == 0
+                isLastIteration = (totalIter == state['cd_llh_traces'].shape[0] - 1)
+
+                # If backup is scheduled to be written, write both it and full program
+                # state regardless of whether we're scheduled to write state this
+                # totalIter.
+                if shouldWriteBackup or shouldWriteState or isLastIteration:
+                    with open('mcmc_samples.txt', 'a') as mcmcf:
+                        llhsAndTimes = [
+                            (itr, llh, itr_time)
+                            for (tssb, itr, llh
+                                ), itr_time in zip(unwrittenTreeL, mcmcSampleTimesL)
+                        ]
+                        llhsAndTimes = '\n'.join([
+                            '%s\t%s\t%s' % (itr, llh, itr_time)
+                            for itr, llh, itr_time in llhsAndTimes
+                        ])
+                        mcmcf.write(llhsAndTimes + '\n')
+                    treeWriter.write_trees(unwrittenTreeL)
+                    stateManager.write_state(state)
+                    unwrittenTreeL = []
+                    mcmcSampleTimesL = []
+                    if shouldWriteBackup:
+                        backupManager.save_backup()
+
+                totalIter = totalIter + 1
+
+    proceedTime(state['time_tags'][0], SegmentList([Segment(0,1)]))
 
     backupManager.remove_backup()
     safeToExit.clear()

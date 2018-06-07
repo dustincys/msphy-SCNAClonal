@@ -39,9 +39,33 @@ class MultiRangeSampler(object):
     def remove(self, ranges):
         self._supportiveRanges = self._supportiveRanges - ranges
         self._supportiveRanges.coalesce()
+
+        self._minU = self._supportiveRanges[0][0]
+        self._maxU = self._supportiveRanges[-1][1]
+
         self._cumLens = self._get_cumulative_lens()
 
-    def sample(self, number):
+    def removeLeft(self, boundary):
+        slRm = SegmentList([Segment(self._minU, boundary)])
+        self._supportiveRanges = self._supportiveRanges - slRm
+        self._supportiveRanges.coalesce()
+
+        self._minU = self._supportiveRanges[0][0]
+
+        self._cumLens = self._get_cumulative_lens()
+
+
+    def removeRight(self, boundary):
+        slRm = SegmentList([Segment(boundary, self._maxU)])
+        self._supportiveRanges = self._supportiveRanges - slRm
+        self._supportiveRanges.coalesce()
+
+        self._maxU = self._supportiveRanges[-1][1]
+
+        self._cumLens = self._get_cumulative_lens()
+
+
+    def sample(self):
         index = self._getIndex()
         return np.random.uniform(self._supportiveRanges[index][0],
                                  self._supportiveRanges[index][1])
