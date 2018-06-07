@@ -15,13 +15,12 @@ import sys
 from time import *
 
 import scipy.stats
+from gwpy.segments import Segment, SegmentList
 from numpy import *
 from numpy.random import *
 
-from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
-
-
 from phySCNAClonal.preprocess.utils import get_cn_allele_config
+from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
 
 
 class TSSB(object):
@@ -491,6 +490,56 @@ class TSSB(object):
                 return (node, path)
 
         return descend(self.root, u)
+
+    def get_u_segL(self):
+        """
+        return the non-supportive range of u in the find_node function.
+        here, all the target node is pre-marked in the mark_time_tag function.
+        """
+        def descend(root):
+            if not root['tag']:
+                return None, None
+            elif 0 == len(root['children']):
+                return array([0]), array(root['main'])
+            else:
+                # get edges
+                starts = array([])
+                ends = array([])
+
+                edges = 1.0 - cumprod(1.0 - root['sticks'])
+                edges = hstack([0.0, edges])
+                for index, child in zip(range(len(root['children'])),
+                                        root['children']):
+                    startsChild, endsChild = descend(child)
+                    if startsChild is None or endsChild is None:
+                        continue
+                    else:
+                        startsChild = startsChild *\
+                            (edges[index + 1] - edges[index]) + edges[index]
+                        endsChild = endsChild *\
+                            (edges[index + 1] - edges[index]) + edges[index]
+                        starts = r_[starts, startsChild]
+                        ends = r_[ends, endsChild]
+
+                starts = starts * (1 - root['main']) + root['main']
+                ends = ends * (1 - root['main']) + root['main']
+
+                starts = r_[starts, 0]
+                ends = r_[ends, root['main']]
+                return starts, ends
+
+        starts, ends = descend(self.root)
+        assert(len(starts) == len(ends))
+
+        sl = SegmentList([])
+        for i in range(len(starts)):
+            sl.append(Segment(starts[i], ends[i]))
+        sl.coalesce()
+
+        return sl
+
+
+
 
     def get_nodes(self):
         def descend(root):
