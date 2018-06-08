@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 '''
 # =============================================================================
-#      FileName: uniform.py
+#      FileName: segsupportive.py
 #          Desc: uniform sampler for multiple supportive ranges
 #        Author: Chu Yanshuo
 #         Email: chu@yanshuo.name
 #      HomePage: http://yanshuo.name
 #       Version: 0.0.1
-#    LastChange: 2018-06-06 12:39:43
+#    LastChange: 2018-06-08 09:48:22
 #       History:
 # =============================================================================
 '''
@@ -29,7 +29,7 @@ class MultiRangeSampler(object):
         self._cumLens = self._get_cumulative_lens()
 
     def _get_cumulative_lens(self):
-        lens = np.array([seg[1] - seg[0] for seg in selg._supportiveRanges])
+        lens = np.array([seg[1] - seg[0] for seg in self._supportiveRanges])
         lens = lens / sum(lens)
         return np.cumsum(lens)
 

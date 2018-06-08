@@ -22,23 +22,24 @@ import tempfile
 import threading
 import time
 import traceback
+from copy import deepcopy
 from datetime import datetime
 
-import numpy.random
-from numpy import *
-from numpy.random import *
+import numpy as np
+from gwpy.segments import Segment, SegmentList
 
-from phySCNAClonal.model.params import metropolis, get_c_fnames
+from phySCNAClonal.model.params import get_c_fnames, metropolis
 from phySCNAClonal.model.printo import print_top_trees
 from phySCNAClonal.model.stripenode import StripeNode
 from phySCNAClonal.model.tssb import TSSB
+from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
 from phySCNAClonal.model.util import boundbeta
 from phySCNAClonal.model.util2 import (BackupManager, StateManager, TreeWriter,
                                        load_data, map_datum_to_node,
                                        set_node_height,
                                        set_path_from_root_to_node)
 
-from gwpy.segments import Segment, SegmentList
+
 # sampleNum: number of MCMC samples
 # mhItr: number of metropolis-hasting iterations
 # randSeed: random seed (initialization). Set to None to choose random
@@ -80,9 +81,9 @@ def start_new_run(stateManager,
                 state['rand_seed'] = int(seedf.read().strip())
         except (TypeError, IOError) as E:
             # Can seed with [0, 2**32).
-            state['rand_seed'] = randint(2**32)
+            state['rand_seed'] = np.random.randint(2**32)
 
-    seed(state['rand_seed'])
+    np.random.seed(state['rand_seed'])
     with open('random_seed.txt', 'w') as seedf:
         seedf.write('%s\n' % state['rand_seed'])
 
@@ -113,6 +114,8 @@ def start_new_run(stateManager,
 
     # stripe list
     state['stripe_list'] = [stripe.name for stripe in stripes]
+    # max copy number
+    state['max_copy_number'] = maxCopyNumber
 
     # MCMC settings
     state['burnin_sample_number'] = burninSampleNum
@@ -127,15 +130,17 @@ def start_new_run(stateManager,
     state['mh_itr'] = mhItr  # No. of iterations in metropolis-hastings
     state['mh_std'] = mhStd
 
-    state['cd_llh_traces'] = zeros((power(state['sample_number'],
-                                          len(state['time_tags'])), 1))
-    state['burnin_cd_llh_traces'] = zeros((
-        power((state['burnin_sample_number']+ state['sample_number']), len(state['time_tags']))-
-        power(state['sample_number'], len(state['time_tags'])),
+
+    state['cd_llh_traces'] = np.zeros((np.power(int(state['sample_number']),
+                                                int(len(state['time_tags']))),
+                                       1))
+    state['burnin_cd_llh_traces'] = np.zeros((
+        np.power((state['burnin_sample_number']+ state['sample_number']),
+                 len(state['time_tags']))- np.power(state['sample_number'],
+                                                    len(state['time_tags'])),
         1))
 
     state['working_directory'] = os.getcwd()
-    state['max_copy_number'] = maxCopyNumber
 
     root = StripeNode(conc=0.1)
 
@@ -151,7 +156,7 @@ def start_new_run(stateManager,
     # 初始化把所有数据放到第一个孩子节点
     if 1:
         depth = 0
-        state['tssb'].root['sticks'] = vstack([
+        state['tssb'].root['sticks'] = np.vstack([
             state['tssb'].root['sticks'],
             boundbeta(1, state['tssb'].dpGamma) if depth != 0 else .999999
         ])
@@ -163,7 +168,7 @@ def start_new_run(stateManager,
                             (depth + 1)) * state['tssb'].dpAlpha)
             if state['tssb'].minDepth <= (depth + 1) else 0.0,
             'sticks':
-            empty((0, 1)),
+            np.empty((0, 1)),
             'children': []
         })
         newNode = state['tssb'].root['children'][0]['node']
@@ -271,7 +276,7 @@ def do_mcmc(stateManager,
     # temporary directory. This is the desired behaviour.
     config['tmp_dir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmpDir)
 
-    global totalIter = state['total_iteration']
+    totalIter = state['total_iteration']
 
     def proceedTime(timeTag, uSupportiveRanges, isBurnIn=False):
         # Here, at the outer loop, time tag is 0, start from the last iteration
@@ -292,7 +297,8 @@ def do_mcmc(stateManager,
             tssb.resample_assignments(timeTag, uSupportiveRanges)
             if timeTag < state['time_tags'][-1]:
                 tssb.mark_time_tag(timeTag)
-                uNext = uSupportiveRanges - tssb.get_u_segL()
+                uNext = deepcopy(uSupportiveRanges)
+                uNext.remove(tssb.get_u_segL())
                 if not isBurnIn and 0 < Iteration:
                     proceedTime(timeTag+1, uNext, False)
                 else:
@@ -390,7 +396,8 @@ def do_mcmc(stateManager,
                 # shouldWriteBackup = totalIter % state['write_backups_every'] == 0 and totalIter != startIter
                 shouldWriteBackup = totalIter % state['write_backups_every'] == 0
                 shouldWriteState = totalIter % state['write_state_every'] == 0
-                isLastIteration = (totalIter == state['cd_llh_traces'].shape[0] - 1)
+                isLastIteration = (totalIter == state['cd_llh_traces'].shape[0]
+                                   - 1 + state['burnin_cd_llh_traces'].shape[0])
 
                 # If backup is scheduled to be written, write both it and full program
                 # state regardless of whether we're scheduled to write state this
@@ -416,7 +423,7 @@ def do_mcmc(stateManager,
 
                 totalIter = totalIter + 1
 
-    proceedTime(state['time_tags'][0], SegmentList([Segment(0,1)]))
+    proceedTime(state['time_tags'][0], MultiRangeSampler(0,1))
 
     backupManager.remove_backup()
     safeToExit.clear()
