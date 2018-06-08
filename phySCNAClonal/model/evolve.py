@@ -29,7 +29,7 @@ import numpy as np
 from gwpy.segments import Segment, SegmentList
 
 from phySCNAClonal.model.params import get_c_fnames, metropolis
-from phySCNAClonal.model.printo import print_top_trees
+from phySCNAClonal.model.printo import print_top_trees, print_tree_latex
 from phySCNAClonal.model.stripenode import StripeNode
 from phySCNAClonal.model.tssb import TSSB
 from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
@@ -169,7 +169,8 @@ def start_new_run(stateManager,
             if state['tssb'].minDepth <= (depth + 1) else 0.0,
             'sticks':
             np.empty((0, 1)),
-            'children': []
+            'children': [],
+            'tag': False
         })
         newNode = state['tssb'].root['children'][0]['node']
         for n in range(state['tssb'].dataNum):
@@ -233,7 +234,7 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
         state = stateManager.load_state()
         treeWriter = TreeWriter(resumeRun=True)
 
-    set_state(state['rand_state'])  # Restore NumPy's RNG state.
+    np.random.set_state(state['rand_state'])  # Restore NumPy's RNG state.
 
     stripes, baseline = load_data(state['stripes_file'])
 
@@ -278,14 +279,23 @@ def do_mcmc(stateManager,
 
     totalIter = state['total_iteration']
 
-    def proceedTime(timeTag, uSupportiveRanges, isBurnIn=False):
+    def proceedTime(timeTag, uSupportiveRanges, isBurnIn, args):
         # Here, at the outer loop, time tag is 0, start from the last iteration
         # Since we have separate resample_assignment process into multiple
         # iteration.
+
+        totalIter, state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime,\
+            config, stateManager, backupManager = (item[0] for item in args)
+
+
         if 0 == timeTag:
-            iterRanges = range(startIter, state['num_samples'])
+            iterRanges = range(startIter, state['sample_number'])
+            if 0 < startIter:
+                isBurnIn = False
+            else:
+                isBurnIn = True
         else:
-            iterRanges = range(-state['burnin'], state['num_samples'])
+            iterRanges = range(-state['burnin_sample_number'], state['sample_number'])
 
         for iteration in iterRanges:
             if 0 == timeTag:
@@ -294,20 +304,36 @@ def do_mcmc(stateManager,
 
             tssb = state['tssb']
             safeToExit.set()
+
+            # here resample
+            if timeTag > state['time_tags'][0]:
+                show_tree_structure(tssb, "iter{0}_time{1}".format(iteration,
+                                                                   timeTag))
+
             tssb.resample_assignments(timeTag, uSupportiveRanges)
+
+            show_tree_structure(tssb, "iter{0}_time{1}".format(iteration,
+                                                               timeTag))
+
             if timeTag < state['time_tags'][-1]:
                 tssb.mark_time_tag(timeTag)
+                show_tree_structure(tssb, "iter{0}_time{1}".format(iteration,
+                                                                   timeTag))
                 uNext = deepcopy(uSupportiveRanges)
                 uNext.remove(tssb.get_u_segL())
+
+                argsNext = ([totalIter], [state], [unwrittenTreeL],
+                        [mcmcSampleTimesL], [lastMcmcSampleTime], [config],
+                        [stateManager], [backupManager])
+
                 if not isBurnIn and 0 < Iteration:
-                    proceedTime(timeTag+1, uNext, False)
+                    proceedTime(timeTag+1, uNext, False, argsNext)
                 else:
-                    proceedTime(timeTag+1, uNext, True)
+                    proceedTime(timeTag+1, uNext, True, argsNext)
             else:
                 if isBurnIn:
                     logmsg(totalIter)
 
-                tssb.resample_assignments(timeTag, uSupportiveRanges)
                 tssb.cull_tree()
 
                 # assign node ids
@@ -375,7 +401,7 @@ def do_mcmc(stateManager,
                 serialized = pickle.dumps(tssb, protocol=pickle.HIGHEST_PROTOCOL)
                 unwrittenTreeL.append((serialized, totalIter, lastLlh))
                 state['tssb'] = tssb
-                state['rand_state'] = get_state()
+                state['rand_state'] = np.random.get_state()
 
                 if len([
                         C for C in state['tssb'].root['children']
@@ -423,7 +449,9 @@ def do_mcmc(stateManager,
 
                 totalIter = totalIter + 1
 
-    proceedTime(state['time_tags'][0], MultiRangeSampler(0,1))
+    args = ([totalIter], [state], [unwrittenTreeL], [mcmcSampleTimesL],
+            [lastMcmcSampleTime], [config], [stateManager], [backupManager])
+    proceedTime(state['time_tags'][0], MultiRangeSampler(0,1), True, args)
 
     backupManager.remove_backup()
     safeToExit.clear()
@@ -582,6 +610,12 @@ def process(args):
 
 def logmsg(msg, fd=sys.stdout):
     print >> fd, '[%s] %s' % (datetime.now(), msg)
+
+def show_tree_structure(tssb, texFileName):
+    print_tree_latex(tssb, texFileName+".tex", 0)
+    command = "/usr/local/texlive/2017/bin/x86_64-linux/pdflatex {0}.tex && /usr/bin/okular {0}.pdf 2>&1 >/dev/null &".format(texFileName)
+    os.system(command)
+
 
 def main():
     process()

@@ -36,39 +36,61 @@ class MultiRangeSampler(object):
     def _get_supportive_ranges(self):
         return SegmentList([Segment(self._minU, self._maxU)])
 
+    @property
+    def lowerBoundary(self):
+        return self._minU
+
+    @property
+    def upperBoundary(self):
+        return self._maxU
+
     def remove(self, ranges):
         self._supportiveRanges = self._supportiveRanges - ranges
         self._supportiveRanges.coalesce()
 
-        self._minU = self._supportiveRanges[0][0]
-        self._maxU = self._supportiveRanges[-1][1]
+        if 0 < len(self._supportiveRanges):
+            self._minU = self._supportiveRanges[0][0]
+            self._maxU = self._supportiveRanges[-1][1]
+            self._cumLens = self._get_cumulative_lens()
+        else:
+            # this is not possible
+            self._minU = 0
+            self._maxU = 0
+            self._cumLens = np.array([])
+            raise Exception("remove range error!")
 
-        self._cumLens = self._get_cumulative_lens()
 
     def removeLeft(self, boundary):
         slRm = SegmentList([Segment(self._minU, boundary)])
         self._supportiveRanges = self._supportiveRanges - slRm
         self._supportiveRanges.coalesce()
 
-        self._minU = self._supportiveRanges[0][0]
-
-        self._cumLens = self._get_cumulative_lens()
-
+        if 0 < len(self._supportiveRanges):
+            self._minU = self._supportiveRanges[0][0]
+            self._cumLens = self._get_cumulative_lens()
+        else:
+            self._minU = self._maxU
+            self._cumLens = np.array([])
 
     def removeRight(self, boundary):
         slRm = SegmentList([Segment(boundary, self._maxU)])
         self._supportiveRanges = self._supportiveRanges - slRm
         self._supportiveRanges.coalesce()
 
-        self._maxU = self._supportiveRanges[-1][1]
-
-        self._cumLens = self._get_cumulative_lens()
-
+        if 0 < len(self._supportiveRanges):
+            self._maxU = self._supportiveRanges[-1][1]
+            self._cumLens = self._get_cumulative_lens()
+        else:
+            self._maxU = self._minU
+            self._cumLens = np.array([])
 
     def sample(self):
-        index = self._getIndex()
-        return np.random.uniform(self._supportiveRanges[index][0],
-                                 self._supportiveRanges[index][1])
+        if 0 == len(self._supportiveRanges):
+            return self._maxU
+        else:
+            index = self._getIndex()
+            return np.random.uniform(self._supportiveRanges[index][0],
+                                     self._supportiveRanges[index][1])
 
     def _getIndex(self):
         prn = np.random.uniform(0, 1)

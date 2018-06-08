@@ -141,7 +141,7 @@ class TSSB(object):
         # 需要保存索引号码
         tagL = array([int(item.tag) for item in self.data])
 
-        for n in where(tagL <= tag):
+        for n in where(tagL == tag)[0]:
             llhMapD = {}
             # Get an initial uniform variate.
             ancestors = self.assignments[n].get_ancestors()
@@ -154,9 +154,9 @@ class TSSB(object):
                 indices.append(index)
 
             # change to segment operation
-            # maxU = 1.0
-            # minU = 0.0
             tempUSegL = deepcopy(uSegL)
+            minU = tempUSegL.lowerBoundary
+            maxU = tempUSegL.upperBoundary
 
             oldLlh = self.assignments[n].logprob_restricted(self.data[n:n + 1],
                                                             self.alleleConfig,
@@ -210,6 +210,8 @@ class TSSB(object):
                         tempUSegL.removeRight(newU)
                     else:
                         raise Exception("Slice sampler weirdness.")
+                    minU = tempUSegL.lowerBoundary
+                    maxU = tempUSegL.upperBoundary
             lengths.append(len(newPath))
         lengths = array(lengths)
 
@@ -434,12 +436,12 @@ class TSSB(object):
                 else:
                     return False
             else:
-                isTaken = False
-                for child in root['children']:
-                    isTaken = isTaken or descend(child, tag)
-                root['tag'] = isTaken
+                if 0 < sum([descend(child, tag) for child in root['children']]):
+                    root['tag'] = True
+                else:
+                    root['tag'] = False
 
-                if isTaken:
+                if root['tag']:
                     return True
                 else:
                     timeTags = [int(item.tag) for item in root['node'].get_data() if

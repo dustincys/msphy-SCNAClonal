@@ -75,15 +75,23 @@ global count
 # writes code for tree
 # root: root of the tree
 # tree_file: string with latex code
-def write_tree(root, tree_file):
+def write_tree(root):
     global count
     count+=1
-    tree_file+='node {{{0}}}'.format(count)
-    for child in root.children():
-        tree_file+='child {'
-        tree_file=write_tree(child, tree_file)
-        tree_file+='}'
-    return tree_file
+
+    reStr = "{0}".format(count)
+
+    if 'tag' not in root.keys():
+        print "not tag"
+    if root['tag']:
+        reStr += ",draw=red"
+    else:
+        reStr += ",draw=black"
+
+    for child in root['children']:
+        reStr += write_tree(child)
+
+    return "[{}]".format(reStr)
 
 # writes code for index
 # root: root of the tree
@@ -94,21 +102,22 @@ def print_index(root, tree_file):
     tree_file+='{0} & '.format(count)
 
     stripes=''
-    for sp in root.get_data():
+    for sp in root['node'].get_data():
         # stripes+='{0}, '.format(sp.name)
         stripes += "{0}, ".format(sp.tag)
+    stripes += str(root['tag'])
     stripes = stripes.replace("_","-")
 
     tree_file+=stripes.strip().strip(',')
 
-    if root.get_data()==[]:
+    if root['node'].get_data()==[]:
         tree_file+='-- '
 
     tree_file+=' & '
-    tree_file+=str(around(root.param,3))
+    tree_file+=str(around(root['node'].param,3))
     tree_file+='\\\\\n'
 
-    for child in root.children():
+    for child in root['children']:
         tree_file=print_index(child, tree_file)
     return tree_file
 
@@ -121,24 +130,17 @@ def print_tree_latex(tssb,fout,score):
     count=-1
     #tree_file='\documentclass{article}\n'
     tree_file='\\documentclass{standalone}\n'
+    tree_file+='\\usepackage{forest}\n'
     tree_file+='\\usepackage{tikz}\n'
     tree_file+='\\usepackage{multicol}\n'
     tree_file+='\\usetikzlibrary{fit,positioning}\n'
     tree_file+='\\begin{document}\n'
     tree_file+='\\begin{tikzpicture}\n'
     tree_file+='\\node (a) at (0,0){\n'
-    tree_file+='\\begin{tikzpicture}\n'
-    tree_file+='[grow=east, ->, level distance=20mm,\
-        every node/.style={circle, minimum size = 8mm, thick, draw =black,inner sep=2mm},\
-        every label/.append style={shape=rectangle, yshift=-1mm},\
-        level 2/.style={sibling distance=50mm},\
-        level 3/.style={sibling distance=20mm},\
-        level 4/.style={sibling distance=20mm},\
-        every edge/.style={-latex, thick}]\n'
-    tree_file+='\n\\'
-    tree_file=write_tree(tssb.root['node'], tree_file)
-    tree_file+=';\n'
-    tree_file+='\\end{tikzpicture}\n'
+    tree_file+='\\begin{forest}\n'
+    tree_file+='before typesetting nodes={for descendants={edge=->}}\n'
+    tree_file+=write_tree(tssb.root)
+    tree_file+='\\end{forest}\n'
     tree_file+='};\n'
     count=-1
     tree_file+='\\node (b) at (a.south)[anchor=north,yshift=-.5cm]{\n'
@@ -150,7 +152,7 @@ def print_tree_latex(tssb,fout,score):
     tree_file+='\\hline\n'
     tree_file+='Node & \multicolumn{{1}}{{|c|}}{{Mutations}} & \multicolumn{{1}}{{|c|}}{{Frequencies}} \\\\\n'.format("1")
     tree_file+='\\hline\n'
-    tree_file=print_index(tssb.root['node'], tree_file)
+    tree_file=print_index(tssb.root, tree_file)
     tree_file+='\\hline\n'
     tree_file+='\\end{tabular}\n'
     tree_file+='};\n'
