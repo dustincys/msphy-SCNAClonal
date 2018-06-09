@@ -97,7 +97,11 @@ def start_new_run(stateManager,
 
     # 此处载入数据，此处含有baseline
     stripes, baseline = load_data(state['stripes_file'])
-    modify_stripes_time_tag(stripes, 3)
+
+    ########################
+    #  test, set time tag  #
+    ########################
+    # modify_stripes_time_tag(stripes, 3)
 
 
     state['baseline'] = baseline
@@ -134,6 +138,9 @@ def start_new_run(stateManager,
     state['mh_std'] = mhStd
 
 
+    ########################
+    #  Power relationship  #
+    ########################
     state['cd_llh_traces'] = np.zeros((np.power(int(state['sample_number']),
                                                 int(len(state['time_tags']))),
                                        1))
@@ -200,6 +207,9 @@ def start_new_run(stateManager,
     stateManager.write_initial_state(state)
 
     logmsg("Starting MCMC run...")
+    ###########################################################################
+    #  here last iteration means the last outer iteration (initial time tag)  #
+    ###########################################################################
     state['last_iteration'] = -state['burnin_sample_number'] - 1
     state['total_iteration'] = 0
 
@@ -241,7 +251,7 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
 
     stripes, baseline = load_data(state['stripes_file'])
 
-    print [sp.tag for sp in stripes]
+    # print [sp.tag for sp in stripes]
 
     stripeNum = len(stripes)
 
@@ -308,20 +318,15 @@ def do_mcmc(stateManager,
             tssb = state['tssb']
             safeToExit.set()
 
-            # here resample
-            if timeTag > state['time_tags'][0]:
-                show_tree_structure(tssb, "iter{0}_time{1}".format(iteration,
-                                                                   timeTag))
-
             tssb.resample_assignments(timeTag, uSupportiveRanges)
-
-            show_tree_structure(tssb, "iter{0}_time{1}".format(iteration,
-                                                               timeTag))
 
             if timeTag < state['time_tags'][-1]:
                 tssb.mark_time_tag(timeTag)
-                show_tree_structure(tssb, "iter{0}_time{1}".format(iteration,
-                                                                   timeTag))
+                ################################
+                #  debug, show tree structure  #
+                ################################
+                # show_tree_structure(tssb, "iter{0}_time{1}".format(iteration,
+                                                                   # timeTag))
                 uNext = deepcopy(uSupportiveRanges)
                 uNext.remove(tssb.get_u_segL())
 
@@ -622,7 +627,8 @@ def logmsg(msg, fd=sys.stdout):
 
 def show_tree_structure(tssb, texFileName):
     print_tree_latex(tssb, texFileName+".tex", 0)
-    command = "/usr/local/texlive/2017/bin/x86_64-linux/pdflatex {0}.tex && /usr/bin/okular {0}.pdf 2>&1 >/dev/null &".format(texFileName)
+    command = "/usr/local/texlive/2017/bin/x86_64-linux/pdflatex {0}.tex\
+        && /usr/bin/okular {0}.pdf 2>&1 >/dev/null &".format(texFileName)
     os.system(command)
 
 def modify_stripes_time_tag(stripes, times):
