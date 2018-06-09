@@ -97,6 +97,9 @@ def start_new_run(stateManager,
 
     # 此处载入数据，此处含有baseline
     stripes, baseline = load_data(state['stripes_file'])
+    modify_stripes_time_tag(stripes, 3)
+
+
     state['baseline'] = baseline
     state['time_tags'] = sorted(list(set([int(item.tag) for item in
                                              stripes])))
@@ -611,10 +614,21 @@ def process(args):
 def logmsg(msg, fd=sys.stdout):
     print >> fd, '[%s] %s' % (datetime.now(), msg)
 
+
+################################################################################
+#                              function for debug                              #
+################################################################################
+
+
 def show_tree_structure(tssb, texFileName):
     print_tree_latex(tssb, texFileName+".tex", 0)
     command = "/usr/local/texlive/2017/bin/x86_64-linux/pdflatex {0}.tex && /usr/bin/okular {0}.pdf 2>&1 >/dev/null &".format(texFileName)
     os.system(command)
+
+def modify_stripes_time_tag(stripes, times):
+    sliceLen = round(len(stripes) / times)
+    for index, stripe in zip(range(len(stripes)), stripes):
+        stripe.tag = str(int(index / sliceLen))
 
 
 def main():
