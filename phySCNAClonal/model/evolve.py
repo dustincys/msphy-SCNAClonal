@@ -29,7 +29,7 @@ import numpy as np
 from gwpy.segments import Segment, SegmentList
 
 from phySCNAClonal.model.params import get_c_fnames, metropolis
-from phySCNAClonal.model.printo import print_top_trees, print_tree_latex
+from phySCNAClonal.model.printo import print_top_trees, print_tree_latex, print_tree_latex2
 from phySCNAClonal.model.stripenode import StripeNode
 from phySCNAClonal.model.tssb import TSSB
 from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
@@ -101,7 +101,8 @@ def start_new_run(stateManager,
     ########################
     #  test, set time tag  #
     ########################
-    # modify_stripes_time_tag(stripes, 3)
+    stripes = stripes[0:30]
+    modify_stripes_time_tag(stripes, 3)
 
 
     state['baseline'] = baseline
@@ -318,15 +319,16 @@ def do_mcmc(stateManager,
             tssb = state['tssb']
             safeToExit.set()
 
+            show_tree_structure(tssb, "iter{0}_time{1}_before".format(iteration, timeTag), timeTag, state['time_tags'])
             tssb.resample_assignments(timeTag, uSupportiveRanges)
+            show_tree_structure(tssb, "iter{0}_time{1}_after".format(iteration, timeTag), timeTag, state['time_tags'])
+
 
             if timeTag < state['time_tags'][-1]:
                 tssb.mark_time_tag(timeTag)
                 ################################
                 #  debug, show tree structure  #
                 ################################
-                # show_tree_structure(tssb, "iter{0}_time{1}".format(iteration,
-                                                                   # timeTag))
                 uNext = deepcopy(uSupportiveRanges)
                 uNext.remove(tssb.get_u_segL())
 
@@ -625,8 +627,8 @@ def logmsg(msg, fd=sys.stdout):
 ################################################################################
 
 
-def show_tree_structure(tssb, texFileName):
-    print_tree_latex(tssb, texFileName+".tex", 0)
+def show_tree_structure(tssb, texFileName, timeTag, timeTags):
+    print_tree_latex2(tssb, texFileName+".tex", 0, timeTag, timeTags)
     command = "/usr/local/texlive/2017/bin/x86_64-linux/pdflatex {0}.tex\
         && /usr/bin/okular {0}.pdf 2>&1 >/dev/null &".format(texFileName)
     os.system(command)

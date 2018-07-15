@@ -8,6 +8,7 @@ from numpy.random import *
 from tssb import *
 from util import *
 from util2 import remove_empty_nodes, TreeReader
+from collections import Counter
 
 ctr=0
 def print_top_trees(treeArchive, fout, k=5):
@@ -93,6 +94,38 @@ def write_tree(root):
 
     return "[{}]".format(reStr)
 
+
+def write_tree2(root, timeTag, timeTags):
+    global count
+    count+=1
+
+    def colorize(num, t, timeTag):
+        if t == timeTag and num > 0:
+            return "\\textcolor{red}{" + str(num) + "}"
+        else:
+            return str(num)
+
+    reStr = ""
+    tempTimeTags = Counter([int(item.tag) for item in root['node'].get_data()])
+    if len(tempTimeTags) > 0:
+        for t in timeTags:
+            reStr += "{0}$|$".format(colorize(tempTimeTags[t], t, timeTag))
+        reStr = reStr.strip("$|$")
+    else:
+        pass
+
+    if 'tag' not in root.keys():
+        print "not tag"
+    if root['tag']:
+        reStr += ",draw=black,fill=black!20!white"
+    else:
+        reStr += ",draw=black"
+
+    for child in root['children']:
+        reStr += write_tree2(child, timeTag, timeTags)
+
+    return "[{}]".format(reStr)
+
 # writes code for index
 # root: root of the tree
 # tree_file: string with latex code
@@ -164,3 +197,22 @@ def print_tree_latex(tssb,fout,score):
     fout.write(tree_file)
     fout.close()
 
+def print_tree_latex2(tssb,fout,score,timeTag,timeTags):
+    global count
+    fout = open(fout,'w')
+    count=-1
+    #tree_file='\documentclass{article}\n'
+    tree_file='\\documentclass{standalone}\n'
+    tree_file+='\\usepackage{forest}\n'
+    tree_file+='\\usepackage{xcolor}\n'
+    tree_file+='\\usepackage{tikz}\n'
+    tree_file+='\\usepackage{multicol}\n'
+    tree_file+='\\usetikzlibrary{fit,positioning}\n'
+    tree_file+='\\begin{document}\n'
+    tree_file+='\\begin{forest}\n'
+    tree_file+='before typesetting nodes={for descendants={edge=->}}\n'
+    tree_file+=write_tree2(tssb.root, timeTag, timeTags)
+    tree_file+='\\end{forest}\n'
+    tree_file+='\end{document}\n'
+    fout.write(tree_file)
+    fout.close()
