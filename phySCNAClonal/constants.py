@@ -20,9 +20,6 @@ import numpy as np
 
 MINIMUM_POSITIVE=0.0000001
 
-
-
-
 ###########################
 #  MCMC model parameters  #
 ###########################
@@ -46,22 +43,22 @@ COVERAGE = 30
 ####################
 #  BAF parameters  #
 ####################
-BAF_THRESHOLD = 0.5
-BAF_N_MIN = 0.49
+BAF_THRESHOLD = 0.35
+BAF_N_MIN = 0.35
 
 # BAF_COUNTS_MIN = 10
 # BAF_COUNTS_MAX = 95
 
 BAF_BINS = np.array(range(0, 100 + 1))/100.0
 LOH_FRAC_MAX = 0.25
-SITES_NUM_MIN = 20
+SITES_NUM_MIN = 5
 BINOM_TEST_P = 0.5
 # default BINOM_TEST_THRED = 0.025
 # for 30x read depth,
 BINOM_TEST_THRED = 0.025
 BINOM_TEST_THRED_APM = 0.18
 
-APM_N_MIN = 0.4
+APM_N_MIN = 0.3
 
 EMPIRI_BAF = 0.485
 EMPIRI_AAF = 1.0 - EMPIRI_BAF
@@ -114,3 +111,9 @@ YDOWNL = [-5, -5]
 YUPL = [5, 5]
 STRIPENUML = [6, 6]
 NOISESTRIPENUML = [1, 1]
+
+#################################
+#  Stripe decompose parameters  #
+#################################
+
+DECOMPOSE_NUMBER_THRESHOLD = 10

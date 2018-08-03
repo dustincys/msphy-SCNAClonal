@@ -74,7 +74,8 @@ def BEDParser(bedName):
         if chromIdx == -1:
             continue
 
-        chromName, start, end, gc = fields[0:4]
+        chromName, start, end = fields[0:3]
+        gc = fields[-1]
 
         chromNameL.append(chromName)
         startL.append(int(start))
@@ -131,19 +132,19 @@ def get_chrom_format(chromNameL):
         return format
 
 
-def get_chrom_lens_idxs(chromIdxL, samSQ):
-    chromLenL = []
-    chromIdxL = []
-    for i in range(0, len(chromIdxL)):
-        chromIdx = chromIdxL[i]
+def get_chrom_lens_idxs(chrom_idx_list, sam_SQ):
+    chrom_lens = []
+    chrom_idxs = []
+    for i in range(0, len(chrom_idx_list)):
+        chrom_idx = chrom_idx_list[i]
 
-        for j in range(0, len(samSQ)):
-            if chromIdx == chrom_name_to_idx(samSQ[j]['SN']):
-                chromLenL.append(int(samSQ[j]['LN']))
-                chromIdxL.append(chromIdx)
+        for j in range(0, len(sam_SQ)):
+            if chrom_idx == chrom_name_to_idx(sam_SQ[j]['SN']):
+                chrom_lens.append(int(sam_SQ[j]['LN']))
+                chrom_idxs.append(chrom_idx)
                 break
 
-    return (chromLenL, chromIdxL)
+    return (chrom_lens, chrom_idxs)
 
 
 def get_segment_name(chromName, start, end):
