@@ -173,7 +173,7 @@ class GCStripePlot():
 
             """
             self.alpha = salpha.val
-            pts.set_alpha(self.alpham)
+            pts.set_alpha(self.alpha)
             # fig.canvas.draw_idle()
 
         def update_area(val):

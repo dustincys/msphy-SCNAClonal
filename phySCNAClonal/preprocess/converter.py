@@ -249,6 +249,7 @@ class BamConverter:
                                           self.__baselineThredAPM,
                                           isPreprocess=True)
             blSegsL.append(tempBL)
+            self.visualize(segPool)
 
         return blSegsL
 
@@ -288,7 +289,7 @@ class BamConverter:
 
     def visualize(self, segPool):
         gsp = GCStripePlot(segPool.segments, len(segPool.segments))
-        print "total number: {}".format(segPool.segNum)
+        print "total number: {}".format(len(segPool.segments))
         gsp.plot()
         x, y, m, c = gsp.output()
         print "x, y, m, c"
