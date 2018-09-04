@@ -188,7 +188,7 @@ class StripePool(object):
                 tempDis = tempDis
                 mostClosedCluster = key
 
-        index = np.where(clusters == tempCluster)
+        index = np.where(clusters == mostClosedCluster)
         for i in index[0]:
             self.segPool.segments[i].tag = "BASELINE"
 
