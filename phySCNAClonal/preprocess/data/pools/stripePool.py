@@ -192,7 +192,8 @@ class StripePool(object):
         for i in index[0]:
             self.segPool.segments[i].tag = "BASELINE"
 
-        blSegL = filter(lambda item:item.tag == "BASELINE", self.segments)
+        blSegL = filter(lambda item:item.tag == "BASELINE",
+                        self.segPool.segments)
 
         return mostClosedCluster, blSegL
 
