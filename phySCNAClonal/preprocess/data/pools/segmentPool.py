@@ -137,17 +137,13 @@ class SegmentPool:
         self._get_APM_frac()
         self._get_APM_status(baselineThredAPM)
 
-        if mergeSeg:
-            self.baseline = self._calc_baseline_clusterd(maxCopyNumber,
-                                                subcloneNum,
-                                                isPreprocess)
+        self.baseline = self._calc_baseline_clusterd(maxCopyNumber,
+                                                     subcloneNum,
+                                                     isPreprocess)
 
+        if mergeSeg:
             return self._get_baseline_segs_from_stripe()
         else:
-            self.baseline = self._calc_baseline(maxCopyNumber,
-                                                subcloneNum,
-                                                isPreprocess)
-
             return self._get_baseline_segs_by_label()
 
 
