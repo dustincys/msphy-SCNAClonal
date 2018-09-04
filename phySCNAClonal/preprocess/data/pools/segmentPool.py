@@ -128,64 +128,99 @@ class SegmentPool:
             self.segments.append(tempSeg)
 
     def get_baseline(self, maxCopyNumber, subcloneNum, baselineThredLOH,
-                     baselineThredAPM, isPreprocess=False):
+                     baselineThredAPM, mergeSeg=False, isPreprocess=False):
+        """
+        return the baseline segment list
+        """
         self._get_LOH_frac()
         self._get_LOH_status(baselineThredLOH, isPreprocess)
         self._get_APM_frac()
         self._get_APM_status(baselineThredAPM)
-        self._calc_baseline(maxCopyNumber, subcloneNum, isPreprocess)
 
-        self._get_baseline_stripe()
+        if mergeSeg:
+            self.baseline = self._calc_baseline_clusterd(maxCopyNumber,
+                                                subcloneNum,
+                                                isPreprocess)
 
-        # 此处转换成了stripe之后再返回
-        return self.get_seg_by_tag()
+            return self._get_baseline_segs_from_stripe()
+        else:
+            self.baseline = self._calc_baseline(maxCopyNumber,
+                                                subcloneNum,
+                                                isPreprocess)
+
+            return self._get_baseline_segs_by_label()
+
 
     def get_seg_by_tag(self, tag="BASELINE"):
         """
-        return seg list
+        return seg sub set by tag
         """
         return filter(lambda item: item.tag==tag, self.segments)
 
+    def _get_baseline_segs_by_label(self):
+        """
+        return baseline segments by baseline label
+        """
+        return filter(lambda item: item.baselineLabel == 'TRUE', self.segments)
 
-    def _get_baseline_stripe(self):
+    def _get_baseline_segs_from_stripe(self):
         # 此处应该获取基线的条带，使用StripePool中的功能获取条带
         # def __init__(self, segPool, baseline=0.0, yDown, yUp, stripeNum, noiseStripeNum=2):
-
         # 获取yDown 和yUp 等相应的参数值，此处应该使用手动输入
+        # print self.idx
 
-
-        print self.idx
         yDown = constants.YDOWNL[self.idx]
         yUp = constants.YUPL[self.idx]
         # 此处应该近似为最大拷贝数与亚克隆数的乘积，作为手工输入也可以
         stripeNum = constants.STRIPENUML[self.idx]
         noiseStripeNum = constants.NOISESTRIPENUML[self.idx]
 
-        tempSP = StripePool(self, self.baseline, yDown, yUp, stripeNum, noiseStripeNum)
-        tempSP.get()
-
-        # 从条带中找到与基线最接近的条带作为基线条带
-
-        self.nReadNum = -1.0
-        self.tReadNum = -1.0
-
-        tempDis = float("Inf")
-        targetSP = None
-        for sp in tempSP.stripes:
-            spr = np.abs(self.baseline - np.log((sp.tReadNum + 1.0) /
-                                                (sp.tReadNum + 1.0)))
-            if tempDis > spr:
-                tempDis = spr
-                targetSP = sp
-
-        # 将该条带之内的所有片段标注标签
-        assert targetSP is not None
-
-        for idx in targetSP.segsIdxL:
-            self.segments[idx].tag = "BASELINE"
-
+        tempSP = StripePool(self, self.baseline, yDown, yUp, stripeNum,
+                            noiseStripeNum)
+        return tempSP.get_baseline_segs()
 
     def _calc_baseline(self, maxCopyNumber, subcloneNum, isPreprocess=False):
+        """
+        compute the Lambda S, no clustering
+        """
+        if not isPreprocess:
+            print >> sys.stdout, "compute_Lambda_S function called from model"
+            return
+
+        rdRatioLog = []
+        for j in range(0, len(self.segments)):
+            if self.segments[j].APMStatus == 'TRUE' and\
+                    self.segments[j].LOHStatus == 'FALSE':
+                ratio = self.segments[j].tReadNum*1.0/\
+                    self.segments[j].nReadNum
+                rdRatioLog.append(np.log(ratio))
+
+        rdRatioLog = np.array(rdRatioLog)
+        if rdRatioLog.shape[0] == 0:
+            print >> sys.stderr, 'Error: no APM-LOH position found, existing...'
+            print >> sys.stderr, 'Either the baselineThredAPM is too large, or\
+            the constants APM_N_MIN is too large; Or, the baseline_thred_LOH is\
+            too small'
+            sys.exit(1)
+
+        rdrMinLog = np.min(rdRatioLog)
+
+        for j in range(0, len(self.segments)):
+            if self.segments[j].APMStatus == 'TRUE' and\
+                    self.segments[j].LOHStatus == 'FALSE':
+                ratio = self.segments[j].tReadNum*1.0/\
+                    self.segments[j].nReadNum
+                if rdrMinLog == np.log(ratio):
+                    self.segments[j].baselineLabel = 'TRUE'
+                else:
+                    self.segments[j].baselineLabel = 'FALSE'
+            else:
+                self.segments[j].baselineLabel = 'FALSE'
+
+        return rdrMinLog
+
+
+    def _calc_baseline_clusterd(self, maxCopyNumber, subcloneNum, isPreprocess=False):
         """
         compute the Lambda S, through hierarchy clustering
         """
@@ -256,7 +291,7 @@ class SegmentPool:
             print >> sys.stderr, 'Error: No diploid segments found, existing...'
             sys.exit(1)
 
-        self.baseline = rdrMinLog
+        return rdrMinLog
 
     def _get_LOH_frac(self):
         for j in range(0, len(self.segments)):

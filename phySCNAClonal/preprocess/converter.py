@@ -26,7 +26,7 @@ from phySCNAClonal.preprocess.data.pools.stripePool import StripePool
 from phySCNAClonal.preprocess.iofun import (PairedCountsIterator,
                                             PairedPileupIterator)
 from phySCNAClonal.preprocess.mcmc import MCMCLM
-from phySCNAClonal.preprocess.plotGC import GCStripePlot
+from phySCNAClonal.preprocess.plotGC import GCStripePlot, GCStripePoolPlot
 from phySCNAClonal.preprocess.utils import (get_BAF_counts,
                                             normal_heterozygous_filter)
 
@@ -77,7 +77,7 @@ class BamConverter:
 
         self._segPoolL = []
 
-    def convert(self, readFromBed=True, method="auto", pklFlag=False):
+    def convert(self, readFromBed=True, method="auto", mergeSeg=False, pklFlag=False):
         if not pklFlag:
             self._load_segs(readFromBed)
             # self._correct_bias(method)
@@ -92,12 +92,14 @@ class BamConverter:
             self._segPoolL = pkl.load(pklFile )
             pklFile .close()
 
-        blSegsL = self._get_baseline()
+        blSegsL = self._get_baseline(mergeSeg)
         self._mark_timestamp(blSegsL)
-        stripePool = self._generate_stripe()
 
-        self._dump(stripePool, "stripePool.pkl")
-        self._dump_txt(stripePool, "stripePool.txt")
+        if mergeSeg:
+            stripePool = self._generate_stripe()
+            self._dump(stripePool, "stripePool.pkl")
+            self._dump_txt(stripePool, "stripePool.txt")
+
         self._dump(self._segPoolL, "segPoolL.pkl")
 
     def _dump_txt(self, stripePool, outFilePath):
@@ -135,6 +137,11 @@ class BamConverter:
         tempSP = StripePool(self._segPoolL[-1], self._segPoolL[-1].baseline,
                             yDown, yUp, stripeNum, noiseStripeNum)
         tempSP.get(byTag = True)
+
+        # 如上一步中添加了baseline选项
+        # 那么这里的排序需要先排除baseline选项
+        gspp = GCStripePoolPlot(tempSP)
+        gspp.plot()
 
         tempSP.stripes.sort(key = lambda item: int(item.tag))
 
@@ -233,7 +240,7 @@ class BamConverter:
             elif "visual" == method:
                 self._V_GC_C(segPool, len(segPool.segments))
 
-    def _get_baseline(self):
+    def _get_baseline(self, mergeSeg=False):
         """
         get the baseline segments
         calculate baseline of each SegmentPool
@@ -247,9 +254,10 @@ class BamConverter:
                                           self.__subcloneNumberL[idx],
                                           self.__baselineThredLOH,
                                           self.__baselineThredAPM,
+                                          mergeSeg,
                                           isPreprocess=True)
             blSegsL.append(tempBL)
-            self.visualize(segPool)
+            # self.visualize(segPool)
 
         return blSegsL
 

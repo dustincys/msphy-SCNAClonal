@@ -262,8 +262,14 @@ class GCStripePoolPlot(GCStripePlot):
 
     def getColorVec(self):
 
-        colorVec = np.ones((1, len(self._stripePool.segPool.segments)))[0]
+        colorVec = np.ones((1, len(self._stripePool.segPool.segments)))[0] * (-1)
+        print "____>>> getColorVec: colorVec____"
+        print colorVec
+        print "_________end getColorVec:colorVec______________"
+
         for idx, sp in enumerate(self._stripePool.stripes):
+            if sp.tag == "-999999":
+                continue
             tempIdxl = np.array(sp.segsIdxL)
             colorVec[tempIdxl] = idx
 
@@ -281,9 +287,19 @@ class GCStripePoolPlot(GCStripePlot):
 
         fig, ax = plt.subplots()
 
+        # here it needs to be filtered out segments not in the stripes
         colorVec = self.getColorVec()
-        pts = ax.scatter(x0, y0, s=self.area0, alpha=self.alpha0,
-                         c=colorVec)
+
+        inIndices = np.where(colorVec != -1)[0]
+        pts = ax.scatter(x0[inIndices], y0[inIndices], s=self.area0,
+                         alpha=self.alpha0, c=colorVec[inIndices])
+
+        spBaselines = filter(lambda sp:sp.tag == "-999999",
+                            self._stripePool.stripes)
+        if spBaselines != []:
+            baselineIndices = np.array(spBaselines[0].segsIdxL)
+            pts2 = ax.scatter(x0[baselineIndices], y0[baselineIndices], s=100,
+                            alpha=1, marker='s', c="0000")
 
         ax.set_xlabel("GC content")
         ax.set_ylabel(r'$\log(D^T/D^N)$')
@@ -421,7 +437,38 @@ class BAFPlot(object):
         plt.hist(self._BAF, bins='auto')
         plt.show()
 
-def plotMeanShift(X, labels, cluster_centers):
+def plotMeanShift(sid, X, labels, cluster_centers):
+
+    # The function to write the data used in
+    # plotting to a file.
+    # sid : the id for the stripe
+    # X: the X axis used in plotting
+    # k_List: k value associated with the X axis
+    def writeToFile(sid, X_list, k_List):
+        if not os.path.exists("plot_data/BAF_plot_data"):
+            os.makedirs("plot_data/BAF_plot_data")
+        if not os.path.isfile("plot_data/BAF_plot_data/BAFPlot_data.txt"):
+            outputFile = open("plot_data/BAF_plot_data/BAFPlot_data.txt", "wr")
+            outputFile.write("#{0}\t{1}\t{2}\n".format("BAF", "class", "stripe"))
+        else:
+            outputFile = open("plot_data/BAF_plot_data/BAFPlot_data.txt", "a")
+        for i in range(0, len(k_List)):
+            for j in range(0, len(X_list[i])):
+                outputFile.write("{0}\t{1}\t{2}\n".format(X_list[i][j], k_List[i], sid))
+        outputFile.close()
+
+    def writeCenterToFile(sid,cluster_center_list):
+        if not os.path.exists("plot_data/BAF_plot_data"):
+            os.makedirs("plot_data/BAF_plot_data")
+        if not os.path.isfile("plot_data/BAF_plot_data/BAFPlot_centers_data.txt"):
+            outputFile = open("plot_data/BAF_plot_data/BAFPlot_centers_data.txt","wr")
+            outputFile.write("#cluster_centers\tstripe\n")
+        else:
+            outputFile = open("plot_data/BAF_plot_data/BAFPlot_centers_data.txt", "a")
+        for i in range(0,len(cluster_center_list)):
+            outputFile.write("{0}\t{1}\n".format(cluster_center_list[i],sid))
+
+        outputFile.close()
 
     labels_unique = np.unique(labels)
     n_clusters_ = len(labels_unique)
@@ -431,16 +478,28 @@ def plotMeanShift(X, labels, cluster_centers):
     plt.figure(1)
     plt.clf()
 
+    #the following three parameters are for write to file only
+    X_list = [] # the x coordinate that get's plotted
+    k_list = [] # the corresponding k for every X get's plotted
+    cluster_center_list = []
+
     colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
     for k, col in zip(range(n_clusters_), colors):
         my_members = labels == k
         cluster_center = cluster_centers[k]
         plt.plot(X[my_members, 0], X[my_members, 1], col + '.')
         plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
-                markeredgecolor='k', markersize=14)
+                 markeredgecolor='k', markersize=14)
+        X_list.append(X[my_members, 0])
+        k_list.append(k)
+        cluster_center_list.append(cluster_center[0])
 
-    plt.title('Estimated number of clusters: %d' % n_clusters_)
+    writeToFile(sid,X_list,k_list)
+    writeCenterToFile(sid,cluster_center_list)
+    plt.title(str(sid) + ' estimated number of clusters: %d' % n_clusters_)
+    plt.xlabel("BAF")
     plt.show()
+
 
 
 

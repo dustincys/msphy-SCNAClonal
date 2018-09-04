@@ -38,6 +38,11 @@ def process(args):
 
     time_start = time.time()
 
+    #
+    #  Add option for the Situation that segments need not to be clusted
+    #  <01-09-18, Chu Yanshuo> #
+    #
+
     converter = BamConverter(
         args.nBamName,
         args.tBamNameL,
