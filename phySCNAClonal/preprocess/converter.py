@@ -20,6 +20,8 @@ from multiprocessing import Pool
 import numpy as np
 import pysam
 
+from copy import deepcopy
+
 import phySCNAClonal.constants as constants
 from phySCNAClonal.preprocess.data.pools.segmentPool import SegmentPool
 from phySCNAClonal.preprocess.data.pools.stripePool import StripePool
@@ -99,24 +101,34 @@ class BamConverter:
             stripePool = self._generate_stripe()
             self._dump(stripePool, "stripePool.pkl")
             self._dump_txt(stripePool, "stripePool.txt")
+        else:
+            segmentPool = self._generate_segment()
+            self._dump(segmentPool, "lastSegPoolNoBlSegs.pkl")
 
-        self._dump(self._segPoolL, "segPoolL.pkl")
+        self._dump(self._segPoolL, "allSegPoolL.pkl")
 
     def _dump_txt(self, stripePool, outFilePath):
         """
         out put stripePool into plain txt
         """
-        stripePool.output_txt(self.__pathPrefix + outFilePath)
+        stripePool.output_txt(self.__pathPrefix + "/" + outFilePath)
 
     def _load_allele_counts(self):
         for tBamName, segPool in zip(self._tBamNameL, self._segPoolL):
             self._get_counts(tBamName, segPool)
 
     def _dump(self, data, dpFileName):
-        fileName = self.__pathPrefix + dpFileName
+        fileName = self.__pathPrefix + "/" + dpFileName
         outFile = open(fileName, 'wb')
         pkl.dump(data, outFile, protocol=2)
         outFile.close()
+
+    def _generate_segment(self):
+        # or no need to copy it?
+        lastSegPool = deepcopy(self._segPoolL[-1])
+        lastSegPool.segments = filter(lambda item:item.baselineLabel != "TRUE",
+                                      lastSegPool.segments)
+        return lastSegPool
 
     def _generate_stripe(self):
         """
