@@ -18,6 +18,15 @@ import argparse
 from phySCNAClonal.preprocess.run_preprocess import process as run_process
 from phySCNAClonal.model.evolve import process
 
+
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 parser = argparse.ArgumentParser(
     description=
         'Run phySCNAClonal to infer subclonal composition from SCNA stripes',
@@ -92,7 +101,13 @@ parserPreprocess.add_argument('--gcCorrectionMethod', default="auto",
                              help='''The gc correction method, one of auto and
                              visual''')
 
-parserPreprocess.add_argument('--pklFlag', default=False, type=bool,
+parserPreprocess.add_argument('--readFromBed', default=False, type=str2bool,
+                               help='''get read from Bed (True), from bam file if set it False ''')
+
+parserPreprocess.add_argument('--mergeSeg', default=False, type=str2bool,
+                               help='''to merge segment or not to''')
+
+parserPreprocess.add_argument('--pklFlag', default=False, type=str2bool,
                                help='''The pkl flag''')
 
 parserPreprocess.set_defaults(func=run_process)
