@@ -67,7 +67,7 @@ def process(args):
     converter.convert(readFromBed = args.readFromBed,
                       method = args.gcCorrectionMethod,
                       mergeSeg=args.mergeSeg,
-                      pklFlag = args.pklPath)
+                      pklFlag = args.pklFlag)
 
     time_end = time.time()
 
