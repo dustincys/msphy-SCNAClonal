@@ -44,7 +44,7 @@ class StripePool(object):
 
         self.stripes = []  # stripes
 
-    def get(self, byTag=False, plot=True):
+    def get(self, byTag=False, plot=False):
         """
         if byTag, the output of Stripe should contains tag too.
         """
@@ -185,7 +185,7 @@ class StripePool(object):
         for key in clusterCenters.keys():
             tempDis = np.abs(self.baseline - clusterCenters[key])
             if minDis > tempDis:
-                tempDis = tempDis
+                minDis = tempDis
                 mostClosedCluster = key
 
         index = np.where(clusters == mostClosedCluster)
@@ -235,6 +235,8 @@ class StripePool(object):
                 subSegL, subSegIdxL = map(list, zip(*segsLnoPCIDL))
                 tempStripe.init_segs(subSegL, subSegIdxL)
                 self.stripes.append(tempStripe)
+                for segIdx in subSegIdxL:
+                    self.segPool.segments[segIdx].stripeID = tempStripe.sid
             else:
                 tempTags = set([seg.tag for seg, idx in segsLnoPCIDL])
                 for tempTag in tempTags:
@@ -255,6 +257,8 @@ class StripePool(object):
                     tempStripe.init_segs(subSegL, subSegIdxL)
                     tempStripe.tag = tempTag
                     self.stripes.append(tempStripe)
+                    for segIdx in subSegIdxL:
+                        self.segPool.segments[segIdx].stripeID = tempStripe.sid
                     tagIdx = tagIdx + 1
 
         if len(segsIDL) > 0:
@@ -273,6 +277,8 @@ class StripePool(object):
                     tempStripe.sid = "{0}".format(str(cId))
                     tempStripe.init_segs(segL, segIdxL)
                     self.stripes.append(tempStripe)
+                    for segIdx in segIdxL:
+                        self.segPool.segments[segIdx].stripeID = tempStripe.sid
                 else:
                     tempTags = set([seg.tag for seg in segL])
                     for tempTag in tempTags:
@@ -294,6 +300,8 @@ class StripePool(object):
                         tempStripe.init_segs(subSegL, subSegIdxL)
                         tempStripe.tag = tempTag
                         self.stripes.append(tempStripe)
+                        for segIdx in subSegIdxL:
+                            self.segPool.segments[segIdx].stripeID = tempStripe.sid
                         tagIdx = tagIdx + 1
             else:
                 pT = np.array(segsBAFL)
@@ -333,6 +341,8 @@ class StripePool(object):
                         tempStripe.sid = "{0}_{1}".format(str(cId), str(label))
                         tempStripe.init_segs(subSegL, subSegIdxL)
                         self.stripes.append(tempStripe)
+                        for segIdx in subSegIdxL:
+                            self.segPool.segments[segIdx].stripeID = tempStripe.sid
                     else:
                         tempTags = set([seg.tag for seg in subSegL])
                         for tempTag in tempTags:
@@ -355,6 +365,8 @@ class StripePool(object):
                             tempStripe.init_segs(subSubSegL, subSubSegIdxL)
                             tempStripe.tag = tempTag
                             self.stripes.append(tempStripe)
+                            for segIdx in subSubSegIdxL:
+                                self.segPool.segments[segIdx].stripeID = tempStripe.sid
                             tagIdx = tagIdx + 1
 
         # merge baseline, or not baseline in the stripe? toggle

@@ -34,16 +34,48 @@ class Segment:
 
         self.BAFCounts = None
 
-        self.baselineLabel = 'FALSE'
-        self.tag = '0'
+        self.baselineLabel = 'FALSE' # only used for calculation value of baseline
+        self.tag = '0' # mark baseline for stripe value, clustering method
         self.stripeIdx = -1
+        self.stripeID = ''
         self.alleleType = 'NONE'
 
         self.copyNumber = -1
-        self.genotype = ""
+        self.genotype = "__"
+        # phi应该放在node结点中
+        self.phi = -1
 
         self.tssb=None
         self.node=None
+
+    def toName(self):
+        return "chrom\t\
+            start\t\
+            end\t\
+            LOHFrac\t\
+            LOHStatus\t\
+            APMFrac\t\
+            APMStatus\t\
+            nReadNum\t\
+            tReadNum\t\
+            baselineLabel\t\
+            tag\t\
+            stripeIdx\t\
+            stripeID\t\
+            allleleType\t\
+            copyNumber\t\
+            genotype\t\
+            phi"
+
+    def toString(self):
+        return "{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\
+            \t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}".format(
+                str(self.chrom), str(self.start), str(self.end),
+                str(self.LOHFrac), str(self.LOHStatus), str(self.APMFrac),
+                str(self.APMStatus), str(self.nReadNum), str(self.tReadNum),
+                str(self.baselineLabel), str(self.tag), str(self.stripeIdx),
+                str(self.stripeID), str(self.allleleType), str(self.copyNumber),
+                str(self.genotype), str(self.phi))
 
     def _log_likelihood(self,
                         phi,
