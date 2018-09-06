@@ -45,7 +45,7 @@ def metropolis(tssb,
                iters=1000,
                std=0.01,
                burnin=0,
-               n_stripes=0,
+               nInputData=0,
                fin='',
                rseed=1,
                maxCopyNumber=6,
@@ -54,7 +54,7 @@ def metropolis(tssb,
     wts, nodes = tssb.get_mixture()
 
     # file names
-    FNAME_STRIPE_DATA = fin
+    FNAME_INPUT_DATA = fin
     FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO = get_c_fnames(tmp_dir)
 
     ## initialize the MH sampler###########
@@ -70,27 +70,27 @@ def metropolis(tssb,
 
     MH_ITR = str(iters)
     MH_STD = str(std)
-    N_STRIPE_DATA = str(n_stripes)
+    N_INPUT_DATA = str(nInputData)
     NNODES = str(len(nodes))
     TREE_HEIGHT = str(max([node.ht for node in nodes]) + 1)
     MAX_COPY_NUMBER=str(maxCopyNumber)
     BASELINE=str(baseline)
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
-    print [ '%s/mh.o' % script_dir, MH_ITR, MH_STD, N_STRIPE_DATA, NNODES,
-           TREE_HEIGHT, MAX_COPY_NUMBER, BASELINE, FNAME_STRIPE_DATA,
+    print [ '%s/mh.o' % script_dir, MH_ITR, MH_STD, N_INPUT_DATA, NNODES,
+           TREE_HEIGHT, MAX_COPY_NUMBER, BASELINE, FNAME_INPUT_DATA,
            FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO]
 
     sp.check_call([
         '%s/mh.o' % script_dir,
         MH_ITR,
         MH_STD,
-        N_STRIPE_DATA,
+        N_INPUT_DATA,
         NNODES,
         TREE_HEIGHT,
         MAX_COPY_NUMBER,
         BASELINE,
-        FNAME_STRIPE_DATA,
+        FNAME_INPUT_DATA,
         FNAME_C_TREE,
         FNAME_C_PARAMS,
         FNAME_C_MH_ARATIO])

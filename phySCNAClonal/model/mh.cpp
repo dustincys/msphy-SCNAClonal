@@ -38,7 +38,7 @@ int main(int argc, char* argv[]){
 	char* FNAME_C_PARAMS = argv[10];
 	char* FNAME_C_MH_AR = argv[11];
 
-	Stripe *data = new Stripe[conf.N_STRIPE_DATA];
+	SCNA *data = new SCNA[conf.N_STRIPE_DATA];
 
 	load_stripe_data(FNAME_STRIPE_DATA, data, conf);
 
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]){
 
 
 // done for multi-sample
-void mh_loop(struct node nodes[], Stripe data[], char* fname, struct config conf){
+void mh_loop(struct node nodes[], SCNA data[], char* fname, struct config conf){
 
 	/************************
 	*  cn genotype config  *
@@ -149,12 +149,12 @@ void sample_cons_params(struct node nodes[], struct config conf, gsl_rng *rand){
 
 // done for multi-sample
 // todo: double check log_ll
-double multi_param_post(struct node nodes[], Stripe data[], int old,
+double multi_param_post(struct node nodes[], SCNA data[], int old,
 		struct config conf, CNGenotype& cngenotype){
 	return param_post(nodes, data, old, conf, cngenotype);
 }
 
-double param_post(struct node nodes[], Stripe data[], int old,
+double param_post(struct node nodes[], SCNA data[], int old,
 		struct config conf, CNGenotype& cngenotype){
 	double llh = 0.0;
 	for(int i=0;i<conf.NNODES;i++){
@@ -204,7 +204,7 @@ void write_params(char fname[], struct node *nodes, struct config conf){
 
 
 // done for multi-sample
-void load_stripe_data(char fname[],Stripe *data, struct config conf){
+void load_stripe_data(char fname[],SCNA *data, struct config conf){
 	string line,token,token1,token2;
 	ifstream dfile (fname);
 	int ctr = 0, id = -1, ab = 1;

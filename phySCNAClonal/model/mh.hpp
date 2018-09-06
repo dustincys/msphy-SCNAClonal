@@ -39,7 +39,7 @@ struct node{
 	int ht;
 };
 
-class Stripe
+class SCNA
 {
 public:
 
@@ -58,7 +58,7 @@ public:
 
 
 
-	Stripe (){};
+	SCNA (){};
 
 	double log_ll(double phi, CNGenotype& cgn, int maxCopyNumber,
 			double baseline){
@@ -107,12 +107,12 @@ public:
 
 
 void sample_cons_params(struct node nodes[],struct config conf,gsl_rng *rand);
-double multi_param_post(struct node nodes[], Stripe data[], int old, struct config conf, CNGenotype& cngenotype);
-double param_post(struct node nodes[], Stripe data[], int old, struct config conf, CNGenotype& cngenotype);
+double multi_param_post(struct node nodes[], SCNA data[], int old, struct config conf, CNGenotype& cngenotype);
+double param_post(struct node nodes[], SCNA data[], int old, struct config conf, CNGenotype& cngenotype);
 void update_params(struct node nodes[], struct config conf);
 void get_pi(struct node nodes[], double pi[], struct config conf, int old);
-void load_stripe_data(char fname[],Stripe *data, struct config conf);
+void load_stripe_data(char fname[],SCNA *data, struct config conf);
 void load_tree(char fname[], struct node nodes[], struct config conf);
 void write_params(char fname[], struct node nodes[], struct config conf);
-void mh_loop(struct node nodes[], Stripe data[], char* fname, struct config conf);
+void mh_loop(struct node nodes[], SCNA data[], char* fname, struct config conf);
 #endif

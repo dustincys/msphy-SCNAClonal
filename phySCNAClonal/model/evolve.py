@@ -30,7 +30,7 @@ from gwpy.segments import Segment, SegmentList
 
 from phySCNAClonal.model.params import get_c_fnames, metropolis
 from phySCNAClonal.model.printo import print_top_trees, print_tree_latex, print_tree_latex2
-from phySCNAClonal.model.stripenode import StripeNode
+from phySCNAClonal.model.datanode import DataNode
 from phySCNAClonal.model.tssb import TSSB
 from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
 from phySCNAClonal.model.util import boundbeta
@@ -50,8 +50,8 @@ def start_new_run(stateManager,
                   safeToExit,
                   runSucceeded,
                   config,
-                  stripesFile,
-                  stripesTextFile,
+                  inputDataFile,
+                  inputDataTextFile,
                   paramsFile,
                   topKTreesFile,
                   clonalFreqsFile,
@@ -87,8 +87,8 @@ def start_new_run(stateManager,
     with open('random_seed.txt', 'w') as seedf:
         seedf.write('%s\n' % state['rand_seed'])
 
-    state['stripes_file'] = stripesFile
-    state['stripes_text_file'] = stripesTextFile
+    state['input_data_file'] = inputDataFile
+    state['input_data_text_file'] = inputDataTextFile
     state['tmp_dir'] = tmpDir
     state['top_k_trees_file'] = topKTreesFile
     state['clonal_freqs_file'] = clonalFreqsFile
@@ -96,23 +96,23 @@ def start_new_run(stateManager,
     state['write_backups_every'] = writeBackupsEvery
 
     # 此处载入数据，此处含有baseline
-    stripes, baseline = load_data(state['stripes_file'])
+    inputData, baseline = load_data(state['input_data_file'])
 
     ########################
     #  test, set time tag  #
     ########################
-    stripes = stripes[0:30]
-    modify_stripes_time_tag(stripes, 3)
+    inputData = inputData[0:30]
+    modify_inputData_time_tag(inputData, 3)
 
 
     state['baseline'] = baseline
     state['time_tags'] = sorted(list(set([int(item.tag) for item in
-                                             stripes])))
+                                             inputData])))
 
-    stripeNum = len(stripes)
+    dataNum = len(inputData)
 
-    if len(stripes) == 0:
-        logmsg('No stripes provided. Exiting.', sys.stderr)
+    if len(inputData) == 0:
+        logmsg('No inputData provided. Exiting.', sys.stderr)
         return
 
     # sample 个数
@@ -120,8 +120,8 @@ def start_new_run(stateManager,
     # gene list
     # state['glist'] = [datum.name for datum in codes if len(datum.name) > 0]
 
-    # stripe list
-    state['stripe_list'] = [stripe.name for stripe in stripes]
+    # data list
+    state['data_list'] = [data.name for data in inputData]
     # max copy number
     state['max_copy_number'] = maxCopyNumber
 
@@ -153,14 +153,14 @@ def start_new_run(stateManager,
 
     state['working_directory'] = os.getcwd()
 
-    root = StripeNode(conc=0.1)
+    root = DataNode(conc=0.1)
 
     state['tssb'] = TSSB(
         dpAlpha=state['dp_alpha'],
         dpGamma=state['dp_gamma'],
         alphaDecay=state['alpha_decay'],
         rootNode=root,
-        data=stripes,
+        data=inputData,
         baseline=baseline,
         maxCopyNumber=state['max_copy_number'])
     # hack...
@@ -189,8 +189,8 @@ def start_new_run(stateManager,
             newNode.add_datum(n)
             state['tssb'].assignments[n] = newNode
 
-    for stripe in stripes:
-        stripe.tssb = state['tssb']
+    for data in inputData:
+        data.tssb = state['tssb']
 
     treeWriter = TreeWriter()
     # 此处放入压缩文件中的额外的配置文件
@@ -226,8 +226,8 @@ def start_new_run(stateManager,
             config,
             state,
             treeWriter,
-            stripes,
-            stripeNum,
+            inputData,
+            dataNum,
             tmpDir)
 
 
@@ -250,11 +250,11 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
 
     np.random.set_state(state['rand_state'])  # Restore NumPy's RNG state.
 
-    stripes, baseline = load_data(state['stripes_file'])
+    inputData, baseline = load_data(state['input_data_file'])
 
-    # print [sp.tag for sp in stripes]
+    # print [sp.tag for sp in inputData]
 
-    stripeNum = len(stripes)
+    dataNum = len(inputData)
 
     do_mcmc(stateManager,
             backupManager,
@@ -263,8 +263,8 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
             config,
             state,
             treeWriter,
-            stripes,
-            stripeNum,
+            inputData,
+            dataNum,
             state['tmp_dir'])
 
 
@@ -275,8 +275,8 @@ def do_mcmc(stateManager,
             config,
             state,
             treeWriter,
-            stripes,
-            stripeNum,
+            inputData,
+            dataNum,
             tmpDir):
     # here, the start iteration is saved in the state of 'last_iteration'
     # It should resample last incomplete iteration.
@@ -365,8 +365,8 @@ def do_mcmc(stateManager,
                     state['mh_itr'],
                     state['mh_std'],
                     state['mh_burnin'],
-                    stripeNum,
-                    state['stripes_text_file'],
+                    dataNum,
+                    state['input_data_text_file'],
                     state['rand_seed'],
                     state['max_copy_number'],
                     state['baseline'],
@@ -470,12 +470,12 @@ def do_mcmc(stateManager,
                     state['top_k'])
 
     # save clonal frequencies
-    freq = dict([(g, []) for g in state['stripe_list']])
-    stripeL = array(freq.keys(), str)
-    stripeL.shape = (1, len(stripeL))
+    freq = dict([(g, []) for g in state['data_list']])
+    dataL = array(freq.keys(), str)
+    dataL.shape = (1, len(dataL))
     savetxt(
         state['clonal_freqs_file'],
-        vstack((stripeL, array([freq[g] for g in freq.keys()]).T)),
+        vstack((dataL, array([freq[g] for g in freq.keys()]).T)),
         fmt='%s',
         delimiter=', ')
 
@@ -502,8 +502,8 @@ def run(args, safeToExit, runSucceeded, config):
     else:
         # Ensure input files exist and can be read.
         try:
-            stripesFile = open(args.stripesFile)
-            stripesFile.close()
+            inputDataFile = open(args.inputDataFile)
+            inputDataFile.close()
         except IOError as e:
             sys.stderr.write(str(e) + '\n')
             sys.exit(1)
@@ -514,8 +514,8 @@ def run(args, safeToExit, runSucceeded, config):
             safeToExit,
             runSucceeded,
             config,
-            args.stripesFile,
-            args.stripesTextFile,
+            args.inputDataFile,
+            args.inputDataTextFile,
             args.paramsFile,
             topKTreesFile=args.topKTrees,
             clonalFreqsFile=args.clonalFreqs,
@@ -633,10 +633,10 @@ def show_tree_structure(tssb, texFileName, timeTag, timeTags):
         && /usr/bin/okular {0}.pdf 2>&1 >/dev/null &".format(texFileName)
     os.system(command)
 
-def modify_stripes_time_tag(stripes, times):
-    sliceLen = round(len(stripes) / times)
-    for index, stripe in zip(range(len(stripes)), stripes):
-        stripe.tag = str(int(index / sliceLen))
+def modify_inputData_time_tag(inputData, times):
+    sliceLen = round(len(inputData) / times)
+    for index, data in zip(range(len(inputData)), inputData):
+        data.tag = str(int(index / sliceLen))
 
 
 def main():

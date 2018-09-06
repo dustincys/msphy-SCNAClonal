@@ -21,14 +21,14 @@ import phySCNAClonal.constants as constants
 from phySCNAClonal.model.node import Node
 
 
-class StripeNode(Node):
+class DataNode(Node):
 
     initMean = 0.5
     minConc = 0.01
     maxConc = 0.1
 
     def __init__(self, parent=None, tssb=None, conc=0.1):
-        super(StripeNode, self).__init__(parent=parent, tssb=tssb)
+        super(DataNode, self).__init__(parent=parent, tssb=tssb)
 
         # pi is a first-class citizen
         self.pi = 0.0
