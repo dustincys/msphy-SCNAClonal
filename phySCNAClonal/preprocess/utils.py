@@ -21,6 +21,7 @@ from scipy.stats import beta, binom
 
 import phySCNAClonal.constants as constants
 
+
 class AnswerIndex(object):
 
     """Break points for segments. for searching index"""
@@ -109,6 +110,22 @@ class AnswerIndex(object):
         return self._answerDict[key]
 
 
+def dump_seg_to_txt(segPool, idx, answerFilePath, pathPreFix):
+    ansIdx = AnswerIndex(answerFilePath)
+
+    outFilePath = pathPreFix + "/segments_stage{}.txt".format(str(idx))
+    with open(outFilePath, 'w') as outFile:
+        outFile.write(segPool.segments[0].toName() +
+                        "\tcopyNumberAnswer\tgenotypeAnswer\tphiAnswer\n")
+        for seg in segPool.segments:
+            value = ansIdx.getValue(seg.chromName,
+                                    seg.start,
+                                    seg.end)
+            value = value.strip()
+            listValue = value.split('\t')
+
+            outFile.write(seg.toString() +"\t{0}\t{1}\t{2}\n".format(
+                listValue[-3], listValue[-2], listValue[-1]))
 
 def BEDnParser(bedName):
     """TODO: Docstring for BEDnParser.

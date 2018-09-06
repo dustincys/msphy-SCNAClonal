@@ -59,7 +59,8 @@ def process(args):
         minMqual=float(args.minMqual),
         processNum=int(args.processNum),
         bedCorrectedPath=args.bedCorrectedPath,
-        pklPath=args.pklPath)
+        pklPath=args.pklPath,
+        answerFilePath=args.answerFilePath)
 
     # print "pilflag"
     # print args.pkl_flag

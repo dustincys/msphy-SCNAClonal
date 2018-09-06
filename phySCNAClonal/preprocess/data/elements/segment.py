@@ -52,30 +52,25 @@ class Segment:
         return "chrom\t\
             start\t\
             end\t\
-            LOHFrac\t\
-            LOHStatus\t\
-            APMFrac\t\
-            APMStatus\t\
+            gc\t\
             nReadNum\t\
             tReadNum\t\
             baselineLabel\t\
             tag\t\
-            stripeIdx\t\
             stripeID\t\
-            allleleType\t\
             copyNumber\t\
             genotype\t\
             phi"
 
     def toString(self):
         return "{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\
-            \t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}".format(
-                str(self.chrom), str(self.start), str(self.end),
-                str(self.LOHFrac), str(self.LOHStatus), str(self.APMFrac),
-                str(self.APMStatus), str(self.nReadNum), str(self.tReadNum),
-                str(self.baselineLabel), str(self.tag), str(self.stripeIdx),
-                str(self.stripeID), str(self.allleleType), str(self.copyNumber),
-                str(self.genotype), str(self.phi))
+            \t{8}\t{9}\t{10}\t{11}".format(
+                str(self.chromName), str(self.start),
+                str(self.end),str(self.gc),
+                str(self.nReadNum), str(self.tReadNum), str(self.baselineLabel),
+                str(self.tag), str(self.stripeID),
+                str(self.copyNumber), str(self.genotype),
+                str(self.phi))
 
     def _log_likelihood(self,
                         phi,

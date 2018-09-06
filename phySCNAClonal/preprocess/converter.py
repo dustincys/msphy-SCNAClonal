@@ -29,7 +29,8 @@ from phySCNAClonal.preprocess.iofun import (PairedCountsIterator,
                                             PairedPileupIterator)
 from phySCNAClonal.preprocess.mcmc import MCMCLM
 from phySCNAClonal.preprocess.plotGC import GCStripePlot, GCStripePoolPlot
-from phySCNAClonal.preprocess.utils import (get_BAF_counts,
+from phySCNAClonal.preprocess.utils import (get_BAF_counts,AnswerIndex,
+                                            dump_seg_to_txt,
                                             normal_heterozygous_filter)
 
 np.set_printoptions(threshold=np.inf)
@@ -55,7 +56,8 @@ class BamConverter:
                  minMqual=10,
                  processNum=1,
                  bedCorrectedPath="",
-                 pklPath=""):
+                 pklPath="",
+                 answerFilePath=""):
         self._nBamName = nBamName
         self._tBamNameL = tBamNameL
         self._bedNameL = bedNameL
@@ -76,6 +78,7 @@ class BamConverter:
         self.__processNum = processNum
         self.__bedCorrectedPath=bedCorrectedPath
         self.__pklPath = pklPath
+        self.__answerFilePath = answerFilePath
 
         self._segPoolL = []
 
@@ -94,6 +97,15 @@ class BamConverter:
             self._segPoolL = pkl.load(pklFile )
             pklFile .close()
 
+
+
+        print "____>>> convert: len(self._segPoolL[0].segments)____"
+        print len(self._segPoolL[0].segments)
+        print "_________end convert:len(self._segPoolL[0].segments)______________"
+        print "____>>> convert: len(self._segPoolL[1].segments)____"
+        print len(self._segPoolL[1].segments)
+        print "_________end convert:len(self._segPoolL[1].segments)______________"
+
         blSegsL = self._get_baseline(mergeSeg)
         self._mark_timestamp(blSegsL)
 
@@ -106,6 +118,16 @@ class BamConverter:
             self._dump(segmentPool, "lastSegPoolNoBlSegs.pkl")
 
         self._dump(self._segPoolL, "allSegPoolL.pkl")
+        if self.__answerFilePath != "":
+            self._dump_seg_to_txt()
+
+    def _dump_seg_to_txt(self):
+
+        dump_seg_to_txt(self._segPoolL[-1],
+                        len(self._segPoolL) - 1,
+                        self.__answerFilePath,
+                        self.__pathPrefix)
+
 
     def _dump_txt(self, stripePool, outFilePath):
         """
@@ -212,6 +234,8 @@ class BamConverter:
         overlapIdx = np.array(list(robjects.r.fom)).reshape(tuple(reversed(robjects.r.fom.dim))) - 1
         # [[2, 2, 3, 3],
         # [1, 2, 1, 2]]
+        #
+        print overlapIdx
 
         for index in set(overlapIdx[0,]):
             yIdxes = np.where(overlapIdx[0,]==index)[0]
@@ -268,6 +292,7 @@ class BamConverter:
                                           self.__baselineThredAPM,
                                           mergeSeg,
                                           isPreprocess=True)
+            print len(tempBL)
             blSegsL.append(tempBL)
             # self.visualize(segPool)
 

@@ -96,6 +96,8 @@ parserPreprocess.add_argument('--bedCorrectedPath',
 parserPreprocess.add_argument('--pklPath',
                           help='''Load the pkl path''')
 
+parserPreprocess.add_argument('--answerFilePath',
+                          help='''Load the answer file path''')
 
 parserPreprocess.add_argument('--gcCorrectionMethod', default="auto",
                              help='''The gc correction method, one of auto and
