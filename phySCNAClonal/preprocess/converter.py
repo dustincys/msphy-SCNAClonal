@@ -97,15 +97,6 @@ class BamConverter:
             self._segPoolL = pkl.load(pklFile )
             pklFile .close()
 
-
-
-        print "____>>> convert: len(self._segPoolL[0].segments)____"
-        print len(self._segPoolL[0].segments)
-        print "_________end convert:len(self._segPoolL[0].segments)______________"
-        print "____>>> convert: len(self._segPoolL[1].segments)____"
-        print len(self._segPoolL[1].segments)
-        print "_________end convert:len(self._segPoolL[1].segments)______________"
-
         blSegsL = self._get_baseline(mergeSeg)
         self._mark_timestamp(blSegsL)
 
@@ -116,24 +107,27 @@ class BamConverter:
         else:
             segmentPool = self._generate_segment()
             self._dump(segmentPool, "lastSegPoolNoBlSegs.pkl")
+            self._dump_txt(segmentPool, "lastSegPoolNoBlSegs.txt")
 
         self._dump(self._segPoolL, "allSegPoolL.pkl")
         if self.__answerFilePath != "":
             self._dump_seg_to_txt()
 
     def _dump_seg_to_txt(self):
-
+        """
+        output table for R, draw figures
+        """
         dump_seg_to_txt(self._segPoolL[-1],
                         len(self._segPoolL) - 1,
                         self.__answerFilePath,
                         self.__pathPrefix)
 
 
-    def _dump_txt(self, stripePool, outFilePath):
+    def _dump_txt(self, pool, outFilePath):
         """
-        out put stripePool into plain txt
+        out put pool into plain txt
         """
-        stripePool.output_txt(self.__pathPrefix + "/" + outFilePath)
+        pool.output_txt(self.__pathPrefix + "/" + outFilePath)
 
     def _load_allele_counts(self):
         for tBamName, segPool in zip(self._tBamNameL, self._segPoolL):

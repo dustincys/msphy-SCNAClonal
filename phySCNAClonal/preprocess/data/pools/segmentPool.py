@@ -325,3 +325,27 @@ class SegmentPool:
                 APMNum = APMNum + 1
 
         print "APMNum/segNum = {0}/{1}".format(APMNum, len(self.segments))
+
+
+    def output_txt(self, outFileName):
+        with open(outFileName, 'w') as outFile:
+            outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
+                "name", "sid", "segsIdxL", "pairedCounts", "tReadNum",
+                "nReadNum", "tag"))
+
+            for s in self.segments:
+                aT = s.pairedCounts[:,2]
+                bT = s.pairedCounts[:,3]
+                aTstrl = np.array_str(aT).strip("[]").split()
+                bTstrl = np.array_str(bT).strip("[]").split()
+
+                print s.name
+                outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
+                    s.name,
+                    s.chromIdx,
+                    ",",
+                    "{0}|{1}".format(",".join(aTstrl), ",".join(bTstrl)),
+                    s.tReadNum,
+                    s.nReadNum,
+                    s.tag))
+
