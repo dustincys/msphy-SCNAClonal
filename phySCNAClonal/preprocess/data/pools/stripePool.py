@@ -310,10 +310,14 @@ class StripePool(object):
                 pTy = np.hstack((pT, y))
                 pTy = pTy[~np.isnan(pTy).any(axis=1)]
 
-                bandwidth = estimate_bandwidth(pTy, quantile=0.2, n_samples=500)
+                # here n_samples is used as pTy[:n_samples]
+                # so if number of samples is less than 500, it means all the
+                # sample all selected
+                bandwidth = estimate_bandwidth(pTy, quantile=0.5, n_samples=500)
                 if bandwidth == 0:
                     bandwidth = 1
-                ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+                ms = MeanShift(bandwidth=bandwidth, bin_seeding=True,
+                               cluster_all=False)
                 ms.fit(pTy)
                 labels = ms.labels_
                 clusterCenters = ms.cluster_centers_
