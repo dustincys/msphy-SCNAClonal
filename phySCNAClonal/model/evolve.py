@@ -246,29 +246,29 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
         traceback.print_exc()
         logmsg('Restoring from backup and trying again.', sys.stderr)
         backupManager.restore_backup()
-
         state = stateManager.load_state()
         treeWriter = TreeWriter(resumeRun=True)
 
-    np.random.set_state(state['rand_state'])  # Restore NumPy's RNG state.
-
-    inputData, baseline = load_data(state['input_data_file'])
-
-    # print [sp.tag for sp in inputData]
-
-    dataNum = len(inputData)
-
-    do_mcmc(stateManager,
-            backupManager,
-            safeToExit,
-            runSucceeded,
-            config,
-            state,
-            treeWriter,
-            inputData,
-            dataNum,
-            state['tmp_dir'],
-            state['tmp_para_dir'])
+    if state['total_iteration'] >= np.power(
+        (state['burnin_sample_number']+ state['sample_number']),
+        len(state['time_tags'])) - 1:
+        logmsg('Previous job is finished already!', sys.stderr)
+    else:
+        np.random.set_state(state['rand_state'])  # Restore NumPy's RNG state.
+        inputData, baseline = load_data(state['input_data_file'])
+        # print [sp.tag for sp in inputData]
+        dataNum = len(inputData)
+        do_mcmc(stateManager,
+                backupManager,
+                safeToExit,
+                runSucceeded,
+                config,
+                state,
+                treeWriter,
+                inputData,
+                dataNum,
+                state['tmp_dir'],
+                state['tmp_para_dir'])
 
 
 def do_mcmc(stateManager,
@@ -286,9 +286,9 @@ def do_mcmc(stateManager,
     # It should resample last incomplete iteration.
     startIter = state['last_iteration']
 
-    unwrittenTreeL = []
-    mcmcSampleTimesL = []
-    lastMcmcSampleTime = time.time()
+    unwrittenTreeL = [[]]
+    mcmcSampleTimesL = [[]]
+    lastMcmcSampleTime = [time.time()]
 
     # If --tmp-dir is not specified on the command line, it will by default be
     # None, which will cause mkdtemp() to place this directory under the system's
@@ -301,7 +301,7 @@ def do_mcmc(stateManager,
         # iteration.
 
         state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime,\
-            config, stateManager, backupManager = (item[0] for item in args)
+            config, stateManager, backupManager = (item for item in args)
 
         if 0 == timeTag:
             iterRanges = range(startIter, state['sample_number'] + 1)
@@ -353,9 +353,9 @@ def do_mcmc(stateManager,
                 uNext = deepcopy(uSupportiveRanges)
                 uNext.remove(tssb.get_u_segL())
 
-                argsNext = ([state], [unwrittenTreeL],
-                        [mcmcSampleTimesL], [lastMcmcSampleTime], [config],
-                        [stateManager], [backupManager])
+                argsNext = (state, unwrittenTreeL, mcmcSampleTimesL,
+                            lastMcmcSampleTime, config, stateManager,
+                            backupManager)
 
                 proceedTime(timeTag+1, uNext, isBurnIn, argsNext)
 
@@ -424,11 +424,11 @@ def do_mcmc(stateManager,
                     # here the save the llh
                     state['burnin_cd_llh_traces'][state['total_iteration']] = lastLlh
 
-                # Can't just put tssb in unwrittenTreeL, as this object will be modified
+                # Can't just put tssb in unwrittenTreeL[0], as this object will be modified
                 # on subsequent iterations, meaning any stored references in
-                # unwrittenTreeL will all point to the same sample.
+                # unwrittenTreeL[0] will all point to the same sample.
                 serialized = pickle.dumps(tssb, protocol=pickle.HIGHEST_PROTOCOL)
-                unwrittenTreeL.append((serialized, state['total_iteration'], lastLlh))
+                unwrittenTreeL[0].append((serialized, state['total_iteration'], lastLlh))
                 state['tssb'] = tssb
                 state['rand_state'] = np.random.get_state()
 
@@ -440,8 +440,8 @@ def do_mcmc(stateManager,
                         state['tssb'].root['children']))
 
                 newMcmcSampleTime = time.time()
-                mcmcSampleTimesL.append(newMcmcSampleTime - lastMcmcSampleTime)
-                lastMcmcSampleTime = newMcmcSampleTime
+                mcmcSampleTimesL[0].append(newMcmcSampleTime - lastMcmcSampleTime[0])
+                lastMcmcSampleTime[0] = newMcmcSampleTime
 
                 # It's not safe to exit while performing file IO, as we don't want
                 # trees.zip or the computation state file to become corrupted from an
@@ -462,24 +462,26 @@ def do_mcmc(stateManager,
                         llhsAndTimes = [
                             (itr, llh, itr_time)
                             for (tssb, itr, llh
-                                ), itr_time in zip(unwrittenTreeL, mcmcSampleTimesL)
+                                ), itr_time in zip(unwrittenTreeL[0], mcmcSampleTimesL[0])
                         ]
                         llhsAndTimes = '\n'.join([
                             '%s\t%s\t%s' % (itr, llh, itr_time)
                             for itr, llh, itr_time in llhsAndTimes
                         ])
                         mcmcf.write(llhsAndTimes + '\n')
-                    treeWriter.write_trees(unwrittenTreeL)
+                    treeWriter.write_trees(unwrittenTreeL[0])
                     stateManager.write_state(state)
-                    unwrittenTreeL = []
-                    mcmcSampleTimesL = []
+
+                    unwrittenTreeL[0] = []
+                    mcmcSampleTimesL[0] = []
+
                     if shouldWriteBackup:
                         backupManager.save_backup()
 
                 state['total_iteration'] = state['total_iteration'] + 1
 
-    args = ([state], [unwrittenTreeL], [mcmcSampleTimesL],
-            [lastMcmcSampleTime], [config], [stateManager], [backupManager])
+    args = (state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime, config,
+            stateManager, backupManager)
     proceedTime(state['time_tags'][0], MultiRangeSampler(0,1), True, args)
 
     backupManager.remove_backup()
@@ -490,11 +492,11 @@ def do_mcmc(stateManager,
 
     # save clonal frequencies
     freq = dict([(g, []) for g in state['data_list']])
-    dataL = array(freq.keys(), str)
+    dataL = np.array(freq.keys(), str)
     dataL.shape = (1, len(dataL))
-    savetxt(
+    np.savetxt(
         state['clonal_freqs_file'],
-        vstack((dataL, array([freq[g] for g in freq.keys()]).T)),
+        np.vstack((dataL, np.array([freq[g] for g in freq.keys()]).T)),
         fmt='%s',
         delimiter=', ')
 

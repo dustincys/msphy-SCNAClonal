@@ -93,16 +93,13 @@ class MultiRangeSampler(object):
             index = self._getIndex()
             # Samples are uniformly distributed over the half-open interval
             # [low, high) (includes low, but excludes high). I
-            rv = np.random.uniform(self._supportiveRanges[index][0],
-                                   self._supportiveRanges[index][1])
 
-            # let rv be in (low, high)
-            if rv == self._supportiveRanges[index][0]:
-                rv = self._supportiveRanges[index][0] + sys.float_info.min * (
-                    self._supportiveRanges[index][1] -
-                    self._supportiveRanges[index][0])
+            leftBorder = self._supportiveRanges[index][0] +\
+                sys.float_info.min * (self._supportiveRanges[index][1] -
+                                      self._supportiveRanges[index][0])
 
-            return rv
+            return np.random.uniform(leftBorder,
+                                     self._supportiveRanges[index][1])
 
     def _getIndex(self):
         prn = np.random.uniform(0, 1)
