@@ -15,6 +15,7 @@
 
 from gwpy.segments import Segment, SegmentList
 import numpy as np
+import sys
 
 
 class MultiRangeSampler(object):
@@ -30,7 +31,8 @@ class MultiRangeSampler(object):
 
     def _get_cumulative_lens(self):
         lens = np.array([seg[1] - seg[0] for seg in self._supportiveRanges])
-        lens = lens / sum(lens)
+        # here need to transform to float
+        lens = lens * 1.0 / sum(lens)
         return np.cumsum(lens)
 
     def _get_supportive_ranges(self):
@@ -89,8 +91,18 @@ class MultiRangeSampler(object):
             return self._maxU
         else:
             index = self._getIndex()
-            return np.random.uniform(self._supportiveRanges[index][0],
-                                     self._supportiveRanges[index][1])
+            # Samples are uniformly distributed over the half-open interval
+            # [low, high) (includes low, but excludes high). I
+            rv = np.random.uniform(self._supportiveRanges[index][0],
+                                   self._supportiveRanges[index][1])
+
+            # let rv be in (low, high)
+            if rv == self._supportiveRanges[index][0]:
+                rv = self._supportiveRanges[index][0] + sys.float_info.min * (
+                    self._supportiveRanges[index][1] -
+                    self._supportiveRanges[index][0])
+
+            return rv
 
     def _getIndex(self):
         prn = np.random.uniform(0, 1)
