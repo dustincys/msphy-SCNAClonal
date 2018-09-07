@@ -63,8 +63,11 @@ def start_new_run(stateManager,
                   writeBackupsEvery,
                   randSeed,
                   tmpDir,
+                  tmpParaDir,
                   maxCopyNumber):
     state = {}
+
+    state['tmp_para_dir'] = tmpParaDir
 
     try:
         state['rand_seed'] = int(randSeed)
@@ -101,9 +104,9 @@ def start_new_run(stateManager,
     ########################
     #  test, set time tag  #
     ########################
-    inputData = inputData[0:30]
-    modify_inputData_time_tag(inputData, 3)
-
+    # inputData = inputData[0:30]
+    # modify_inputData_time_tag(inputData, 3)
+    ########################
 
     state['baseline'] = baseline
     state['time_tags'] = sorted(list(set([int(item.tag) for item in
@@ -145,11 +148,12 @@ def start_new_run(stateManager,
     state['cd_llh_traces'] = np.zeros((np.power(int(state['sample_number']),
                                                 int(len(state['time_tags']))),
                                        1))
-    state['burnin_cd_llh_traces'] = np.zeros((
-        np.power((state['burnin_sample_number']+ state['sample_number']),
+    state['burnin_cd_llh_traces'] = np.zeros(
+        ( np.power((state['burnin_sample_number']+ state['sample_number']),
                  len(state['time_tags']))- np.power(state['sample_number'],
                                                     len(state['time_tags'])),
-        1))
+        1)
+    )
 
     state['working_directory'] = os.getcwd()
 
@@ -172,14 +176,11 @@ def start_new_run(stateManager,
             boundbeta(1, state['tssb'].dpGamma) if depth != 0 else .999999
         ])
         state['tssb'].root['children'].append({
-            'node':
-            state['tssb'].root['node'].spawn(),
-            'main':
-            boundbeta(1.0, (state['tssb'].alphaDecay**
+            'node': state['tssb'].root['node'].spawn(),
+            'main': boundbeta(1.0, (state['tssb'].alphaDecay**
                             (depth + 1)) * state['tssb'].dpAlpha)
             if state['tssb'].minDepth <= (depth + 1) else 0.0,
-            'sticks':
-            np.empty((0, 1)),
+            'sticks': np.empty((0, 1)),
             'children': [],
             'tag': False
         })
@@ -211,7 +212,7 @@ def start_new_run(stateManager,
     ###########################################################################
     #  here last iteration means the last outer iteration (initial time tag)  #
     ###########################################################################
-    state['last_iteration'] = -state['burnin_sample_number'] - 1
+    state['last_iteration'] = 1 - state['burnin_sample_number']
     state['total_iteration'] = 0
 
     # This will overwrite file if it already exists, which is the desired
@@ -228,7 +229,8 @@ def start_new_run(stateManager,
             treeWriter,
             inputData,
             dataNum,
-            tmpDir)
+            tmpDir,
+            tmpParaDir)
 
 
 def resume_existing_run(stateManager, backupManager, safeToExit,
@@ -265,7 +267,8 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
             treeWriter,
             inputData,
             dataNum,
-            state['tmp_dir'])
+            state['tmp_dir'],
+            state['tmp_para_dir'])
 
 
 def do_mcmc(stateManager,
@@ -277,7 +280,8 @@ def do_mcmc(stateManager,
             treeWriter,
             inputData,
             dataNum,
-            tmpDir):
+            tmpDir,
+            tmpParaDir):
     # here, the start iteration is saved in the state of 'last_iteration'
     # It should resample last incomplete iteration.
     startIter = state['last_iteration']
@@ -291,37 +295,49 @@ def do_mcmc(stateManager,
     # temporary directory. This is the desired behaviour.
     config['tmp_dir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmpDir)
 
-    totalIter = state['total_iteration']
-
-    def proceedTime(timeTag, uSupportiveRanges, isBurnIn, args):
+    def proceedTime(timeTag, uSupportiveRanges, isBurnInLast, args):
         # Here, at the outer loop, time tag is 0, start from the last iteration
         # Since we have separate resample_assignment process into multiple
         # iteration.
 
-        totalIter, state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime,\
+        state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime,\
             config, stateManager, backupManager = (item[0] for item in args)
 
-
         if 0 == timeTag:
-            iterRanges = range(startIter, state['sample_number'])
-            if 0 < startIter:
-                isBurnIn = False
-            else:
-                isBurnIn = True
+            iterRanges = range(startIter, state['sample_number'] + 1)
         else:
-            iterRanges = range(-state['burnin_sample_number'], state['sample_number'])
+            iterRanges = range(1 - state['burnin_sample_number'], state['sample_number'] + 1)
+
+        isBurnIn = True
 
         for iteration in iterRanges:
+
+            if iteration > 0:
+                # isBurnInlast should be ignored in the first loop
+                if 0 == timeTag:
+                    isBurnIn = False
+                else:
+                    isBurnIn = isBurnInLast or False
+            else:
+                isBurnIn = True
+
             if 0 == timeTag:
+                # 此处设置最外围为总循环导致后续使用该变量索引树出现bug
+                # 该变量作为形参不改变调用值
                 state['last_iteration'] = iteration
-                state['total_iteration'] = totalIter
 
             tssb = state['tssb']
             safeToExit.set()
 
-            show_tree_structure(tssb, "iter{0}_time{1}_before".format(iteration, timeTag), timeTag, state['time_tags'])
+            show_tree_structure(
+                tssb, "{2}/iter{0}_time{1}_before".format(iteration, timeTag, tmpParaDir),
+                timeTag, state['time_tags'], True)
+
             tssb.resample_assignments(timeTag, uSupportiveRanges)
-            show_tree_structure(tssb, "iter{0}_time{1}_after".format(iteration, timeTag), timeTag, state['time_tags'])
+
+            # show_tree_structure(
+                # tssb, "{2}/iter{0}_time{1}_after".format(iteration, timeTag,tmpParaDir),
+                # timeTag, state['time_tags'])
 
 
             if timeTag < state['time_tags'][-1]:
@@ -329,20 +345,23 @@ def do_mcmc(stateManager,
                 ################################
                 #  debug, show tree structure  #
                 ################################
+                show_tree_structure(
+                    tssb, "{2}/iter{0}_time{1}_marktimetag".format(
+                        iteration, timeTag, tmpParaDir),
+                    timeTag, state['time_tags'], True)
+
                 uNext = deepcopy(uSupportiveRanges)
                 uNext.remove(tssb.get_u_segL())
 
-                argsNext = ([totalIter], [state], [unwrittenTreeL],
+                argsNext = ([state], [unwrittenTreeL],
                         [mcmcSampleTimesL], [lastMcmcSampleTime], [config],
                         [stateManager], [backupManager])
 
-                if not isBurnIn and 0 < Iteration:
-                    proceedTime(timeTag+1, uNext, False, argsNext)
-                else:
-                    proceedTime(timeTag+1, uNext, True, argsNext)
+                proceedTime(timeTag+1, uNext, isBurnIn, argsNext)
+
             else:
                 if isBurnIn:
-                    logmsg(totalIter)
+                    logmsg(state['total_iteration'])
 
                 tssb.cull_tree()
 
@@ -386,7 +405,7 @@ def do_mcmc(stateManager,
                 lastLlh = tssb.complete_data_log_likelihood()
 
                 if not isBurnIn:
-                    cdltIdx = totalIter - state['burnin_cd_llh_traces'].shape[0]
+                    cdltIdx = state['total_iteration'] - state['burnin_cd_llh_traces'].shape[0]
 
                     state['cd_llh_traces'][cdltIdx] = lastLlh
                     if True or mod(cdltIdx, 10) == 0:
@@ -398,18 +417,18 @@ def do_mcmc(stateManager,
                                     state['mh_acc'], tssb.dpAlpha, tssb.dpGamma,
                                     tssb.alphaDecay)
                         ]))
-                    if argmax(state['cd_llh_traces'][:cdltIdx + 1]) == cdltIdx:
+                    if np.argmax(state['cd_llh_traces'][:cdltIdx + 1]) == cdltIdx:
                         logmsg("%f is best per-data complete data likelihood so far." %
                             (state['cd_llh_traces'][cdltIdx]))
                 else:
                     # here the save the llh
-                    state['burnin_cd_llh_traces'][totalIter] = lastLlh
+                    state['burnin_cd_llh_traces'][state['total_iteration']] = lastLlh
 
                 # Can't just put tssb in unwrittenTreeL, as this object will be modified
                 # on subsequent iterations, meaning any stored references in
                 # unwrittenTreeL will all point to the same sample.
                 serialized = pickle.dumps(tssb, protocol=pickle.HIGHEST_PROTOCOL)
-                unwrittenTreeL.append((serialized, totalIter, lastLlh))
+                unwrittenTreeL.append((serialized, state['total_iteration'], lastLlh))
                 state['tssb'] = tssb
                 state['rand_state'] = np.random.get_state()
 
@@ -430,9 +449,9 @@ def do_mcmc(stateManager,
                 safeToExit.clear()
                 # here remove
                 # shouldWriteBackup = totalIter % state['write_backups_every'] == 0 and totalIter != startIter
-                shouldWriteBackup = totalIter % state['write_backups_every'] == 0
-                shouldWriteState = totalIter % state['write_state_every'] == 0
-                isLastIteration = (totalIter == state['cd_llh_traces'].shape[0]
+                shouldWriteBackup = state['total_iteration'] % state['write_backups_every'] == 0
+                shouldWriteState = state['total_iteration'] % state['write_state_every'] == 0
+                isLastIteration = (state['total_iteration'] == state['cd_llh_traces'].shape[0]
                                    - 1 + state['burnin_cd_llh_traces'].shape[0])
 
                 # If backup is scheduled to be written, write both it and full program
@@ -457,9 +476,9 @@ def do_mcmc(stateManager,
                     if shouldWriteBackup:
                         backupManager.save_backup()
 
-                totalIter = totalIter + 1
+                state['total_iteration'] = state['total_iteration'] + 1
 
-    args = ([totalIter], [state], [unwrittenTreeL], [mcmcSampleTimesL],
+    args = ([state], [unwrittenTreeL], [mcmcSampleTimesL],
             [lastMcmcSampleTime], [config], [stateManager], [backupManager])
     proceedTime(state['time_tags'][0], MultiRangeSampler(0,1), True, args)
 
@@ -527,6 +546,7 @@ def run(args, safeToExit, runSucceeded, config):
             writeBackupsEvery=args.writeBackupsEvery,
             randSeed=args.randomSeed,
             tmpDir=args.tmpDir,
+            tmpParaDir=args.tmpParaDir,
             maxCopyNumber=args.maxCopyNumber)
 
 
@@ -627,11 +647,25 @@ def logmsg(msg, fd=sys.stdout):
 ################################################################################
 
 
-def show_tree_structure(tssb, texFileName, timeTag, timeTags):
+def show_tree_structure(tssb, texFileName, timeTag, timeTags, toCompile=False,
+                        toShow=False):
+    folderCommand = "if [ ! -d $(dirname \"{0}\")/pdf ]; then mkdir -p\
+        $(dirname \"{0}\")/pdf; fi".format(texFileName)
+    os.system(folderCommand)
+
     print_tree_latex2(tssb, texFileName+".tex", 0, timeTag, timeTags)
-    command = "/usr/local/texlive/2017/bin/x86_64-linux/pdflatex {0}.tex\
-        && /usr/bin/okular {0}.pdf 2>&1 >/dev/null &".format(texFileName)
-    os.system(command)
+    compileCommand = "cd $(dirname \"{0}\") &&\
+        /usr/local/texlive/2017/bin/x86_64-linux/pdflatex\
+        {0}.tex 2>&1 >/dev/null && mv {0}.pdf $(dirname \"{0}\")/pdf".format(texFileName)
+
+    showCommand = "/usr/bin/okular\
+        $(dirname \"{0}\")/pdf/$(basename \"{0}\").pdf 2>&1 >/dev/null &".format(texFileName)
+
+    if toCompile:
+        print compileCommand
+        os.system(compileCommand)
+        if toShow:
+            os.system(showCommand)
 
 def modify_inputData_time_tag(inputData, times):
     sliceLen = round(len(inputData) / times)
