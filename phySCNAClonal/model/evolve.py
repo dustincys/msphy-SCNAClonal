@@ -109,8 +109,8 @@ def start_new_run(stateManager,
     ########################
 
     state['baseline'] = baseline
-    state['time_tags'] = sorted(list(set([int(item.tag) for item in
-                                             inputData])))
+    state['time_tags'] = np.array(sorted(list(set([int(item.tag) for item in
+                                                   inputData]))))
 
     dataNum = len(inputData)
 
@@ -145,6 +145,11 @@ def start_new_run(stateManager,
     ########################
     #  Power relationship  #
     ########################
+
+    ####################################################
+    #  Here, we use dictionary to store burnin and cd  #
+    ####################################################
+
     state['cd_llh_traces'] = np.zeros((np.power(int(state['sample_number']),
                                                 int(len(state['time_tags']))),
                                        1))
@@ -212,7 +217,8 @@ def start_new_run(stateManager,
     ###########################################################################
     #  here last iteration means the last outer iteration (initial time tag)  #
     ###########################################################################
-    state['last_iteration'] = 1 - state['burnin_sample_number']
+    state['last_iteration'] = np.zeros(int(len(state['time_tags']))) -\
+        state['burnin_sample_number'] + 1
     state['total_iteration'] = 0
 
     # This will overwrite file if it already exists, which is the desired
@@ -282,31 +288,36 @@ def do_mcmc(stateManager,
             dataNum,
             tmpDir,
             tmpParaDir):
-    # here, the start iteration is saved in the state of 'last_iteration'
-    # It should resample last incomplete iteration.
-    startIter = state['last_iteration']
-
-    unwrittenTreeL = [[]]
-    mcmcSampleTimesL = [[]]
-    lastMcmcSampleTime = [time.time()]
-
-    # If --tmp-dir is not specified on the command line, it will by default be
-    # None, which will cause mkdtemp() to place this directory under the system's
-    # temporary directory. This is the desired behaviour.
-    config['tmp_dir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmpDir)
-
-    def proceedTime(timeTag, uSupportiveRanges, isBurnInLast, args):
+    def proceedTime(timeTagIdx, uSupportiveRanges, isBurnInLast, args):
         # Here, at the outer loop, time tag is 0, start from the last iteration
         # Since we have separate resample_assignment process into multiple
         # iteration.
 
-        state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime,\
+        isContinue, state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime,\
             config, stateManager, backupManager = (item for item in args)
 
-        if 0 == timeTag:
+        timeTag = state['time_tags'][timeTagIdx]
+
+        if isContinue[0]:
+            remainTimeNum = len(state['time_tags']) - timeTagIdx - 1
+            isKeep = np.sum(state['last_iteration'][- remainTimeNum:]) <\
+                remainTimeNum * state['sample_number']
+            if isKeep:
+                startIter = state['last_iteration'][timeTagIdx]
+            else:
+                startIter = (state['last_iteration'][timeTagIdx] +\
+                             state['burnin_sample_number']) % (
+                                 state['burnin_sample_number'] +
+                                 state['sample_number'])-\
+                    state['burnin_sample_number'] + 1
+
             iterRanges = range(startIter, state['sample_number'] + 1)
         else:
-            iterRanges = range(1 - state['burnin_sample_number'], state['sample_number'] + 1)
+            iterRanges = range(- state['burnin_sample_number'] + 1,\
+                               state['sample_number'] + 1)
+
+        # 在保存断点时候，要确保循环次数与上一次tssb 状态一致
+        # 所以要完全恢复断点，需要对断点位置进行标识判断
 
         isBurnIn = True
 
@@ -314,24 +325,21 @@ def do_mcmc(stateManager,
 
             if iteration > 0:
                 # isBurnInlast should be ignored in the first loop
-                if 0 == timeTag:
+                if 0 == timeTagIdx:
                     isBurnIn = False
                 else:
                     isBurnIn = isBurnInLast or False
             else:
                 isBurnIn = True
 
-            if 0 == timeTag:
-                # 此处设置最外围为总循环导致后续使用该变量索引树出现bug
-                # 该变量作为形参不改变调用值
-                state['last_iteration'] = iteration
-
             tssb = state['tssb']
             safeToExit.set()
 
-            show_tree_structure(
-                tssb, "{2}/iter{0}_time{1}_before".format(iteration, timeTag, tmpParaDir),
-                timeTag, state['time_tags'], True)
+            state['last_iteration'][timeTagIdx] = iteration
+
+            # show_tree_structure(
+                # tssb, "{2}/iter{0}_time{1}_before".format(state['total_iteration'], timeTag, tmpParaDir),
+                # timeTag, state['time_tags'], True)
 
             tssb.resample_assignments(timeTag, uSupportiveRanges)
 
@@ -345,19 +353,19 @@ def do_mcmc(stateManager,
                 ################################
                 #  debug, show tree structure  #
                 ################################
-                show_tree_structure(
-                    tssb, "{2}/iter{0}_time{1}_marktimetag".format(
-                        iteration, timeTag, tmpParaDir),
-                    timeTag, state['time_tags'], True)
+                # show_tree_structure(
+                    # tssb, "{2}/iter{0}_time{1}_marktimetag".format(
+                        # state['total_iteration'], timeTag, tmpParaDir),
+                    # timeTag, state['time_tags'], True)
 
                 uNext = deepcopy(uSupportiveRanges)
                 uNext.remove(tssb.get_u_segL())
 
-                argsNext = (state, unwrittenTreeL, mcmcSampleTimesL,
+                argsNext = (isContinue, state, unwrittenTreeL, mcmcSampleTimesL,
                             lastMcmcSampleTime, config, stateManager,
                             backupManager)
 
-                proceedTime(timeTag+1, uNext, isBurnIn, argsNext)
+                proceedTime(timeTagIdx+1, uNext, isBurnIn, argsNext)
 
             else:
                 if isBurnIn:
@@ -405,24 +413,26 @@ def do_mcmc(stateManager,
                 lastLlh = tssb.complete_data_log_likelihood()
 
                 if not isBurnIn:
-                    cdltIdx = state['total_iteration'] - state['burnin_cd_llh_traces'].shape[0]
+                    # here requires a not burnin iteration
+                    tempIdx = np.min(np.where(state['cd_llh_traces'] == 0)[0])
+                    state['cd_llh_traces'][tempIdx] = lastLlh
 
-                    state['cd_llh_traces'][cdltIdx] = lastLlh
-                    if True or mod(cdltIdx, 10) == 0:
+                    if True or mod(tempIdx, 10) == 0:
                         weights, nodes = tssb.get_mixture()
                         logmsg(' '.join([
                             str(v)
-                            for v in (cdltIdx, len(nodes),
-                                    state['cd_llh_traces'][cdltIdx],
+                            for v in (tempIdx, len(nodes),
+                                    state['cd_llh_traces'][tempIdx],
                                     state['mh_acc'], tssb.dpAlpha, tssb.dpGamma,
                                     tssb.alphaDecay)
                         ]))
-                    if np.argmax(state['cd_llh_traces'][:cdltIdx + 1]) == cdltIdx:
+                    if np.argmax(state['cd_llh_traces'][:tempIdx + 1]) == tempIdx:
                         logmsg("%f is best per-data complete data likelihood so far." %
-                            (state['cd_llh_traces'][cdltIdx]))
+                            (state['cd_llh_traces'][tempIdx]))
                 else:
-                    # here the save the llh
-                    state['burnin_cd_llh_traces'][state['total_iteration']] = lastLlh
+                    # here requires a burnin iterations
+                    tempIdx = np.min(np.where(state['burnin_cd_llh_traces'] == 0)[0])
+                    state['burnin_cd_llh_traces'][tempIdx] = lastLlh
 
                 # Can't just put tssb in unwrittenTreeL[0], as this object will be modified
                 # on subsequent iterations, meaning any stored references in
@@ -472,17 +482,43 @@ def do_mcmc(stateManager,
                     treeWriter.write_trees(unwrittenTreeL[0])
                     stateManager.write_state(state)
 
+                    isContinue[0] = False
                     unwrittenTreeL[0] = []
                     mcmcSampleTimesL[0] = []
 
                     if shouldWriteBackup:
                         backupManager.save_backup()
 
+                show_tree_structure( state['tssb'],
+                                    "{2}/iter{0}_time{1}_marktimetag".format(
+                                        state['total_iteration'], timeTag,
+                                        state['tmp_para_dir']), timeTag,
+                                    state['time_tags'], True)
+
                 state['total_iteration'] = state['total_iteration'] + 1
 
-    args = (state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime, config,
+    ####################
+    #  Begin sampling  #
+    ####################
+
+    # If --tmp-dir is not specified on the command line, it will by default be
+    # None, which will cause mkdtemp() to place this directory under the system's
+    # temporary directory. This is the desired behaviour.
+    config['tmp_dir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmpDir)
+
+    # 此处进行判断是否是从断点开始继续执行
+    isContinue = [np.sum(state['last_iteration']) !=\
+        int(len(state['time_tags'])) * (- state['burnin_sample_number'] + 1)]
+
+    # It should resample last incomplete iteration.
+    unwrittenTreeL = [[]]
+    mcmcSampleTimesL = [[]]
+    lastMcmcSampleTime = [time.time()]
+
+    args = (isContinue, state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime, config,
             stateManager, backupManager)
-    proceedTime(state['time_tags'][0], MultiRangeSampler(0,1), True, args)
+
+    proceedTime(0, MultiRangeSampler(0,1), True, args)
 
     backupManager.remove_backup()
     safeToExit.clear()

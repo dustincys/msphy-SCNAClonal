@@ -88,7 +88,7 @@ class TSSB(object):
         for n in range(newDataNum):
             logprobs = []
             for k, node in enumerate(nodes):
-                logprobs.append(log(weights[k]) + node.logprob_restricted(data[n],
+                logprobs.append(log(weights[k]) + node.logprob(data[n],
                                                                self.alleleConfig,
                                                                self.baseline,
                                                                self.maxCopyNumber))
@@ -142,6 +142,11 @@ class TSSB(object):
         tagL = array([int(item.tag) for item in self.data])
 
         for n in where(tagL == tag)[0]:
+            # change to segment operation
+            tempUSegL = deepcopy(uSegL)
+            minU = tempUSegL.lowerBoundary
+            maxU = tempUSegL.upperBoundary
+
             llhMapD = {}
             # Get an initial uniform variate.
             ancestors = self.assignments[n].get_ancestors()
@@ -153,18 +158,22 @@ class TSSB(object):
                 current = current['children'][index]
                 indices.append(index)
 
-            # change to segment operation
-            tempUSegL = deepcopy(uSegL)
-            minU = tempUSegL.lowerBoundary
-            maxU = tempUSegL.upperBoundary
+            # Here indices could be used as path to locate v stick
 
-            oldLlh = self.assignments[n].logprob_restricted(self.data[n:n + 1],
-                                                            self.alleleConfig,
-                                                            self.baseline,
-                                                            self.maxCopyNumber)
+            currentVStick = self._locate_v_stick(indices)
+            isInNegativeSpace = currentVStick['tag']
 
-            llhMapD[self.assignments[n]] = oldLlh
-            llhS = log(rand()) + oldLlh
+            llhS = -float('Inf')
+            if isInNegativeSpace:
+                oldLlh = -float('Inf')
+                llhS = -float('Inf')
+            else:
+                oldLlh = self.assignments[n].logprob(self.data[n:n + 1],
+                                                     self.alleleConfig,
+                                                     self.baseline,
+                                                     self.maxCopyNumber)
+                llhMapD[self.assignments[n]] = oldLlh
+                llhS = log(rand()) + oldLlh
 
             while True:
                 newU = tempUSegL.sample()
@@ -183,10 +192,11 @@ class TSSB(object):
                     ####################################
                     #  Record most likely copy number  #
                     ####################################
-                    newLlh = newNode.logprob_restricted(self.data[n:n + 1],
-                                                        self.alleleConfig,
-                                                        self.baseline,
-                                                        self.maxCopyNumber)
+                    newLlh = newNode.logprob(self.data[n:n + 1],
+                                             self.alleleConfig, self.baseline,
+                                             self.maxCopyNumber)
+                    if -float('Inf') == newLlh:
+                        print >> sys.stderr, "Slice sampler weirdness"
                     llhMapD[newNode] = newLlh
                 if newLlh > llhS:
                     break
@@ -214,6 +224,19 @@ class TSSB(object):
                     maxU = tempUSegL.upperBoundary
             lengths.append(len(newPath))
         lengths = array(lengths)
+
+    def _locate_v_stick(self, indices):
+        """locate and return v stick by indices
+
+        :indices: The indices to current data node
+        :returns: v stick
+
+        """
+        target = self.root
+        for index in indices:
+            target = target['children'][index]
+
+        return target
 
     def cull_tree(self):
         def descend(root):
