@@ -24,6 +24,7 @@ import time
 import traceback
 from copy import deepcopy
 from datetime import datetime
+import operator
 
 import numpy as np
 from gwpy.segments import Segment, SegmentList
@@ -150,15 +151,20 @@ def start_new_run(stateManager,
     #  Here, we use dictionary to store burnin and cd  #
     ####################################################
 
-    state['cd_llh_traces'] = np.zeros((np.power(int(state['sample_number']),
-                                                int(len(state['time_tags']))),
-                                       1))
-    state['burnin_cd_llh_traces'] = np.zeros(
-        ( np.power((state['burnin_sample_number']+ state['sample_number']),
-                 len(state['time_tags']))- np.power(state['sample_number'],
-                                                    len(state['time_tags'])),
-        1)
-    )
+
+    # state['cd_llh_traces'] = np.zeros((np.power(int(state['sample_number']),
+                                                # int(len(state['time_tags']))),
+                                       # 1))
+
+    # state['burnin_cd_llh_traces'] = np.zeros(
+        # ( np.power((state['burnin_sample_number']+ state['sample_number']),
+                 # len(state['time_tags']))- np.power(state['sample_number'],
+                                                    # len(state['time_tags'])),
+        # 1)
+    # )
+
+    state['cd_llh_traces'] = {}
+    state['burnin_cd_llh_traces'] = {}
 
     state['working_directory'] = os.getcwd()
 
@@ -303,13 +309,13 @@ def do_mcmc(stateManager,
             isKeep = np.sum(state['last_iteration'][- remainTimeNum:]) <\
                 remainTimeNum * state['sample_number']
             if isKeep:
-                startIter = state['last_iteration'][timeTagIdx]
+                startIter = int(state['last_iteration'][timeTagIdx])
             else:
-                startIter = (state['last_iteration'][timeTagIdx] +\
+                startIter = int((state['last_iteration'][timeTagIdx] +\
                              state['burnin_sample_number']) % (
                                  state['burnin_sample_number'] +
                                  state['sample_number'])-\
-                    state['burnin_sample_number'] + 1
+                    state['burnin_sample_number'] + 1)
 
             iterRanges = range(startIter, state['sample_number'] + 1)
         else:
@@ -412,27 +418,31 @@ def do_mcmc(stateManager,
 
                 lastLlh = tssb.complete_data_log_likelihood()
 
+                stateKey = "_".join(map(str, list(state['last_iteration'])))
                 if not isBurnIn:
-                    # here requires a not burnin iteration
-                    tempIdx = np.min(np.where(state['cd_llh_traces'] == 0)[0])
-                    state['cd_llh_traces'][tempIdx] = lastLlh
+                    state['cd_llh_traces'][stateKey] = lastLlh
 
-                    if True or mod(tempIdx, 10) == 0:
+                    # for debug
+                    if True:
                         weights, nodes = tssb.get_mixture()
                         logmsg(' '.join([
                             str(v)
-                            for v in (tempIdx, len(nodes),
-                                    state['cd_llh_traces'][tempIdx],
+                            for v in (stateKey, len(nodes),
+                                    state['cd_llh_traces'][stateKey],
                                     state['mh_acc'], tssb.dpAlpha, tssb.dpGamma,
                                     tssb.alphaDecay)
                         ]))
-                    if np.argmax(state['cd_llh_traces'][:tempIdx + 1]) == tempIdx:
-                        logmsg("%f is best per-data complete data likelihood so far." %
-                            (state['cd_llh_traces'][tempIdx]))
+
+                    maxStateKey, maxStateLlh = max(
+                        state['cd_llh_traces'].iteritems(),
+                        key=operator.itemgetter(1))
+
+                    if maxStateKey == stateKey:
+                        logmsg("iter {0} with {1} is best per-data complete\
+                               data likelihood so far.".format(maxStateKey,
+                                                               maxStateLlh))
                 else:
-                    # here requires a burnin iterations
-                    tempIdx = np.min(np.where(state['burnin_cd_llh_traces'] == 0)[0])
-                    state['burnin_cd_llh_traces'][tempIdx] = lastLlh
+                    state['burnin_cd_llh_traces'][stateKey] = lastLlh
 
                 # Can't just put tssb in unwrittenTreeL[0], as this object will be modified
                 # on subsequent iterations, meaning any stored references in
@@ -461,12 +471,15 @@ def do_mcmc(stateManager,
                 # shouldWriteBackup = totalIter % state['write_backups_every'] == 0 and totalIter != startIter
                 shouldWriteBackup = state['total_iteration'] % state['write_backups_every'] == 0
                 shouldWriteState = state['total_iteration'] % state['write_state_every'] == 0
-                isLastIteration = (state['total_iteration'] == state['cd_llh_traces'].shape[0]
-                                   - 1 + state['burnin_cd_llh_traces'].shape[0])
+                isLastIteration = state['total_iteration'] ==\
+                    np.power((state['burnin_sample_number']+
+                              state['sample_number']),
+                             len(state['time_tags']))- 1
 
                 # If backup is scheduled to be written, write both it and full program
                 # state regardless of whether we're scheduled to write state this
                 # totalIter.
+
                 if shouldWriteBackup or shouldWriteState or isLastIteration:
                     with open('mcmc_samples.txt', 'a') as mcmcf:
                         llhsAndTimes = [
@@ -489,7 +502,7 @@ def do_mcmc(stateManager,
                     if shouldWriteBackup:
                         backupManager.save_backup()
 
-                show_tree_structure( state['tssb'],
+                show_tree_structure(state['tssb'],
                                     "{2}/iter{0}_time{1}_marktimetag".format(
                                         state['total_iteration'], timeTag,
                                         state['tmp_para_dir']), timeTag,
