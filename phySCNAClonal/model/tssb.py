@@ -20,6 +20,7 @@ from numpy import *
 from numpy.random import *
 
 from phySCNAClonal.preprocess.utils import get_cn_allele_config
+from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
 from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
 
 from copy import deepcopy
@@ -120,7 +121,7 @@ class TSSB(object):
 
             descend(self.root)
 
-    def resample_assignments(self, tag, uSegL):
+    def resample_assignments(self, tag):
         def path_lt(path1, path2):
             if len(path1) == 0 and len(path2) == 0:
                 return 0
@@ -139,7 +140,18 @@ class TSSB(object):
 
         # change data range
         # 需要保存索引号码
+
         tagL = array([int(item.tag) for item in self.data])
+        timeTagSeq = sort(unique(tagL))
+        currentTimeTagIdx = where(timeTagSeq == tag)[0][0]
+        uSegL = MultiRangeSampler(0,1)
+        if currentTimeTagIdx == 0:
+            self.reset_time_tag()
+        else:
+            self.mark_time_tag(timeTagSeq[currentTimeTagIdx - 1])
+            uNegtive = self.get_u_segL()
+            uSegL.remove(uNegtive)
+
 
         for n in where(tagL == tag)[0]:
             # change to segment operation
@@ -476,6 +488,14 @@ class TSSB(object):
 
         descend(self.root, tag)
 
+    def reset_time_tag(self):
+
+        def descend(root):
+            root['tag'] = False
+            for child in root['children']:
+                descend(child)
+
+        descend(self.root)
 
     def find_node(self, u):
         def descend(root, u, depth=0):
@@ -483,6 +503,9 @@ class TSSB(object):
                 # print >>sys.stderr, "WARNING: Reached maximum depth."
                 return (root['node'], [])
             elif u < root['main']:
+                if root['tag']:
+                     print >>sys.stderr, "Negative space located!!."
+
                 return (root['node'], [])
             else:
                 # Rescale the uniform variate to the remaining interval.
@@ -494,6 +517,7 @@ class TSSB(object):
                             1.0 - prod(1.0 - root['sticks'])) < u:
                         root['sticks'] = vstack([
                             root['sticks'],
+                            # 注意此处为右边界
                             boundbeta(1, self.dpGamma) if depth != 0 else .999
                         ])  # shankar
                         root['children'].append({

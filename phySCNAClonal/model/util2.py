@@ -251,6 +251,7 @@ class TreeWriter(object):
     def write_trees(self, serializedTrees):
         self._open_archive()
         for st, idx, llh in serializedTrees:
+            # todo:  此处设置应该为外围传递列表
             isBurnin = idx < 0
             prefix = isBurnin and 'burnin' or 'tree'
             treefn = '%s_%s_%s' % (prefix, idx, llh)

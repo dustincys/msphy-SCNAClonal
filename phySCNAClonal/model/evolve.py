@@ -33,7 +33,6 @@ from phySCNAClonal.model.params import get_c_fnames, metropolis
 from phySCNAClonal.model.printo import print_top_trees, print_tree_latex, print_tree_latex2
 from phySCNAClonal.model.datanode import DataNode
 from phySCNAClonal.model.tssb import TSSB
-from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
 from phySCNAClonal.model.util import boundbeta
 from phySCNAClonal.model.util2 import (BackupManager, StateManager, TreeWriter,
                                        load_data, map_datum_to_node,
@@ -294,7 +293,7 @@ def do_mcmc(stateManager,
             dataNum,
             tmpDir,
             tmpParaDir):
-    def proceedTime(timeTagIdx, uSupportiveRanges, isBurnInLast, args):
+    def proceedTime(timeTagIdx, isBurnInLast, args):
         # Here, at the outer loop, time tag is 0, start from the last iteration
         # Since we have separate resample_assignment process into multiple
         # iteration.
@@ -338,7 +337,7 @@ def do_mcmc(stateManager,
             else:
                 isBurnIn = True
 
-            tssb = state['tssb']
+            # tssb = state['tssb']
             safeToExit.set()
 
             state['last_iteration'][timeTagIdx] = iteration
@@ -347,7 +346,8 @@ def do_mcmc(stateManager,
                 # tssb, "{2}/iter{0}_time{1}_before".format(state['total_iteration'], timeTag, tmpParaDir),
                 # timeTag, state['time_tags'], True)
 
-            tssb.resample_assignments(timeTag, uSupportiveRanges)
+
+            state['tssb'].resample_assignments(timeTag)
 
             # show_tree_structure(
                 # tssb, "{2}/iter{0}_time{1}_after".format(iteration, timeTag,tmpParaDir),
@@ -355,7 +355,7 @@ def do_mcmc(stateManager,
 
 
             if timeTag < state['time_tags'][-1]:
-                tssb.mark_time_tag(timeTag)
+                state['tssb'].mark_time_tag(timeTag)
                 ################################
                 #  debug, show tree structure  #
                 ################################
@@ -364,14 +364,12 @@ def do_mcmc(stateManager,
                         # state['total_iteration'], timeTag, tmpParaDir),
                     # timeTag, state['time_tags'], True)
 
-                uNext = deepcopy(uSupportiveRanges)
-                uNext.remove(tssb.get_u_segL())
 
                 argsNext = (isContinue, state, unwrittenTreeL, mcmcSampleTimesL,
                             lastMcmcSampleTime, config, stateManager,
                             backupManager)
 
-                proceedTime(timeTagIdx+1, uNext, isBurnIn, argsNext)
+                proceedTime(timeTagIdx+1, isBurnIn, argsNext)
 
             else:
                 # Here, to ensure tssb save the current total_itteration
@@ -380,10 +378,10 @@ def do_mcmc(stateManager,
                 if isBurnIn:
                     logmsg(state['total_iteration'])
 
-                tssb.cull_tree()
+                state['tssb'].cull_tree()
 
                 # assign node ids
-                wts, nodes = tssb.get_mixture()
+                wts, nodes = state['tssb'].get_mixture()
                 for i, node in enumerate(nodes):
                     node.id = i
 
@@ -391,13 +389,13 @@ def do_mcmc(stateManager,
                 # some useful info about the tree,
                 # used by CNV related computations,
                 # to be called only after resampling assignments
-                set_node_height(tssb)
-                set_path_from_root_to_node(tssb)
-                map_datum_to_node(tssb)
+                set_node_height(state['tssb'])
+                set_path_from_root_to_node(state['tssb'])
+                map_datum_to_node(state['tssb'])
                 ##################################################
 
                 state['mh_acc'] = metropolis(
-                    tssb,
+                    state['tssb'],
                     state['mh_itr'],
                     state['mh_std'],
                     state['mh_burnin'],
@@ -415,11 +413,11 @@ def do_mcmc(stateManager,
                     state['mh_std'] = state['mh_std'] / 2.0
                     logmsg("Growing MH proposals. Now %f" % state['mh_std'])
 
-                tssb.resample_sticks()
-                tssb.resample_stick_orders()
-                tssb.resample_hypers(dpAlpha=True, alphaDecay=True, dpGamma=True)
+                state['tssb'].resample_sticks()
+                state['tssb'].resample_stick_orders()
+                state['tssb'].resample_hypers(dpAlpha=True, alphaDecay=True, dpGamma=True)
 
-                lastLlh = tssb.complete_data_log_likelihood()
+                lastLlh = state['tssb'].complete_data_log_likelihood()
 
                 stateKey = "_".join(map(str, list(state['last_iteration'])))
                 if not isBurnIn:
@@ -427,13 +425,13 @@ def do_mcmc(stateManager,
 
                     # for debug
                     if True:
-                        weights, nodes = tssb.get_mixture()
+                        weights, nodes = state['tssb'].get_mixture()
                         logmsg(' '.join([
                             str(v)
                             for v in (stateKey, len(nodes),
                                     state['cd_llh_traces'][stateKey],
-                                    state['mh_acc'], tssb.dpAlpha, tssb.dpGamma,
-                                    tssb.alphaDecay)
+                                    state['mh_acc'], state['tssb'].dpAlpha, state['tssb'].dpGamma,
+                                    state['tssb'].alphaDecay)
                         ]))
 
                     maxStateKey, maxStateLlh = max(
@@ -450,9 +448,19 @@ def do_mcmc(stateManager,
                 # Can't just put tssb in unwrittenTreeL[0], as this object will be modified
                 # on subsequent iterations, meaning any stored references in
                 # unwrittenTreeL[0] will all point to the same sample.
-                serialized = pickle.dumps(tssb, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+                show_tree_structure(
+                    state['tssb'], "{2}/iter{0}_time{1}_serialized".format(
+                                        state['total_iteration'], timeTag,
+                                        state['tmp_para_dir']),
+                    timeTag, state['time_tags'], True)
+
+                serialized = pickle.dumps(state['tssb'], protocol=pickle.HIGHEST_PROTOCOL)
                 unwrittenTreeL[0].append((serialized, state['total_iteration'], lastLlh))
-                state['tssb'] = tssb
+                # But it would affect the result
+                # 此处的使用本地变量进行操作加快
+                # state['tssb'] = tssb
                 state['rand_state'] = np.random.get_state()
 
                 if len([
@@ -504,12 +512,6 @@ def do_mcmc(stateManager,
                     if shouldWriteBackup:
                         backupManager.save_backup()
 
-                show_tree_structure(state['tssb'],
-                                    "{2}/iter{0}_time{1}_marktimetag".format(
-                                        state['total_iteration'], timeTag,
-                                        state['tmp_para_dir']), timeTag,
-                                    state['time_tags'], True)
-
     ####################
     #  Begin sampling  #
     ####################
@@ -531,7 +533,7 @@ def do_mcmc(stateManager,
     args = (isContinue, state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime, config,
             stateManager, backupManager)
 
-    proceedTime(0, MultiRangeSampler(0,1), True, args)
+    proceedTime(0, True, args)
 
     backupManager.remove_backup()
     safeToExit.clear()
