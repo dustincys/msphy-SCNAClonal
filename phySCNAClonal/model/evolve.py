@@ -225,7 +225,7 @@ def start_new_run(stateManager,
     ###########################################################################
     state['last_iteration'] = np.zeros(int(len(state['time_tags']))) -\
         state['burnin_sample_number'] + 1
-    state['total_iteration'] = 0
+    state['total_iteration'] = -1
 
     # This will overwrite file if it already exists, which is the desired
     # behaviour for a fresh run.
@@ -374,6 +374,9 @@ def do_mcmc(stateManager,
                 proceedTime(timeTagIdx+1, uNext, isBurnIn, argsNext)
 
             else:
+                # Here, to ensure tssb save the current total_itteration
+                state['total_iteration'] = state['total_iteration'] + 1
+
                 if isBurnIn:
                     logmsg(state['total_iteration'])
 
@@ -472,9 +475,8 @@ def do_mcmc(stateManager,
                 shouldWriteBackup = state['total_iteration'] % state['write_backups_every'] == 0
                 shouldWriteState = state['total_iteration'] % state['write_state_every'] == 0
                 isLastIteration = state['total_iteration'] ==\
-                    np.power((state['burnin_sample_number']+
-                              state['sample_number']),
-                             len(state['time_tags']))- 1
+                    np.power((state['burnin_sample_number'] +
+                              state['sample_number']), len(state['time_tags']))
 
                 # If backup is scheduled to be written, write both it and full program
                 # state regardless of whether we're scheduled to write state this
@@ -507,8 +509,6 @@ def do_mcmc(stateManager,
                                         state['total_iteration'], timeTag,
                                         state['tmp_para_dir']), timeTag,
                                     state['time_tags'], True)
-
-                state['total_iteration'] = state['total_iteration'] + 1
 
     ####################
     #  Begin sampling  #
