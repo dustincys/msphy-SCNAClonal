@@ -15,6 +15,7 @@
 import argparse
 import cPickle as pickle
 import json
+import operator
 import os
 import signal
 import sys
@@ -24,14 +25,14 @@ import time
 import traceback
 from copy import deepcopy
 from datetime import datetime
-import operator
 
 import numpy as np
-from gwpy.segments import Segment, SegmentList
 
-from phySCNAClonal.model.params import get_c_fnames, metropolis
-from phySCNAClonal.model.printo import print_top_trees, print_tree_latex, print_tree_latex2
+from gwpy.segments import Segment, SegmentList
 from phySCNAClonal.model.datanode import DataNode
+from phySCNAClonal.model.params import get_c_fnames, metropolis
+from phySCNAClonal.model.printo import (print_top_trees, print_tree_latex,
+                                        print_tree_latex2, show_tree_structure)
 from phySCNAClonal.model.tssb import TSSB
 from phySCNAClonal.model.util import boundbeta
 from phySCNAClonal.model.util2 import (BackupManager, StateManager, TreeWriter,
@@ -63,11 +64,9 @@ def start_new_run(stateManager,
                   writeBackupsEvery,
                   randSeed,
                   tmpDir,
-                  tmpParaDir,
                   maxCopyNumber):
     state = {}
 
-    state['tmp_para_dir'] = tmpParaDir
 
     try:
         state['rand_seed'] = int(randSeed)
@@ -240,8 +239,7 @@ def start_new_run(stateManager,
             treeWriter,
             inputData,
             dataNum,
-            tmpDir,
-            tmpParaDir)
+            tmpDir)
 
 
 def resume_existing_run(stateManager, backupManager, safeToExit,
@@ -291,8 +289,7 @@ def do_mcmc(stateManager,
             treeWriter,
             inputData,
             dataNum,
-            tmpDir,
-            tmpParaDir):
+            tmpDir):
     def proceedTime(timeTagIdx, isBurnInLast, args):
         # Here, at the outer loop, time tag is 0, start from the last iteration
         # Since we have separate resample_assignment process into multiple
@@ -342,27 +339,10 @@ def do_mcmc(stateManager,
 
             state['last_iteration'][timeTagIdx] = iteration
 
-            # show_tree_structure(
-                # tssb, "{2}/iter{0}_time{1}_before".format(state['total_iteration'], timeTag, tmpParaDir),
-                # timeTag, state['time_tags'], True)
-
-
             state['tssb'].resample_assignments(timeTag)
-
-            # show_tree_structure(
-                # tssb, "{2}/iter{0}_time{1}_after".format(iteration, timeTag,tmpParaDir),
-                # timeTag, state['time_tags'])
-
 
             if timeTag < state['time_tags'][-1]:
                 state['tssb'].mark_time_tag(timeTag)
-                ################################
-                #  debug, show tree structure  #
-                ################################
-                # show_tree_structure(
-                    # tssb, "{2}/iter{0}_time{1}_marktimetag".format(
-                        # state['total_iteration'], timeTag, tmpParaDir),
-                    # timeTag, state['time_tags'], True)
 
 
                 argsNext = (isContinue, state, unwrittenTreeL, mcmcSampleTimesL,
@@ -429,10 +409,10 @@ def do_mcmc(stateManager,
                         logmsg(' '.join([
                             str(v)
                             for v in (stateKey, len(nodes),
-                                    state['cd_llh_traces'][stateKey],
-                                    state['mh_acc'], state['tssb'].dpAlpha, state['tssb'].dpGamma,
-                                    state['tssb'].alphaDecay)
-                        ]))
+                                      state['cd_llh_traces'][stateKey],
+                                      state['mh_acc'], state['tssb'].dpAlpha,
+                                      state['tssb'].dpGamma,
+                                      state['tssb'].alphaDecay)]))
 
                     maxStateKey, maxStateLlh = max(
                         state['cd_llh_traces'].iteritems(),
@@ -445,19 +425,25 @@ def do_mcmc(stateManager,
                 else:
                     state['burnin_cd_llh_traces'][stateKey] = lastLlh
 
-                # Can't just put tssb in unwrittenTreeL[0], as this object will be modified
-                # on subsequent iterations, meaning any stored references in
-                # unwrittenTreeL[0] will all point to the same sample.
+                # Can't just put tssb in unwrittenTreeL[0], as this object will
+                # be modified on subsequent iterations, meaning any stored
+                # references in unwrittenTreeL[0] will all point to the same
+                # sample.
 
-
+                #######################################################
+                           #  debug, show tree structure  #
+                #######################################################
                 show_tree_structure(
-                    state['tssb'], "{2}/iter{0}_time{1}_serialized".format(
-                                        state['total_iteration'], timeTag,
-                                        state['tmp_para_dir']),
+                    state['tssb'], config['tmp_tex_dir'], config['tmp_pdf_dir'],
+                    "iter{0}_time{1}_serialized".format(
+                        state['total_iteration'], timeTag),
                     timeTag, state['time_tags'], True)
+                #######################################################
 
-                serialized = pickle.dumps(state['tssb'], protocol=pickle.HIGHEST_PROTOCOL)
-                unwrittenTreeL[0].append((serialized, state['total_iteration'], lastLlh))
+                serialized = pickle.dumps(
+                    state['tssb'], protocol=pickle.HIGHEST_PROTOCOL)
+                unwrittenTreeL[0].append(
+                    (serialized, state['total_iteration'], lastLlh, isBurnIn))
                 # But it would affect the result
                 # 此处的使用本地变量进行操作加快
                 # state['tssb'] = tssb
@@ -471,36 +457,37 @@ def do_mcmc(stateManager,
                         state['tssb'].root['children']))
 
                 newMcmcSampleTime = time.time()
-                mcmcSampleTimesL[0].append(newMcmcSampleTime - lastMcmcSampleTime[0])
+                mcmcSampleTimesL[0].append(
+                    newMcmcSampleTime - lastMcmcSampleTime[0])
                 lastMcmcSampleTime[0] = newMcmcSampleTime
 
-                # It's not safe to exit while performing file IO, as we don't want
-                # trees.zip or the computation state file to become corrupted from an
-                # interrupted write.
+                # It's not safe to exit while performing file IO, as we don't
+                # want trees.zip or the computation state file to become
+                # corrupted from an interrupted write.
                 safeToExit.clear()
                 # here remove
-                # shouldWriteBackup = totalIter % state['write_backups_every'] == 0 and totalIter != startIter
-                shouldWriteBackup = state['total_iteration'] % state['write_backups_every'] == 0
-                shouldWriteState = state['total_iteration'] % state['write_state_every'] == 0
+                # shouldWriteBackup = totalIter % state['write_backups_every']
+                # == 0 and totalIter != startIter
+                shouldWriteBackup = state['total_iteration'] % state[
+                    'write_backups_every'] == 0
+                shouldWriteState = state['total_iteration'] % state[
+                    'write_state_every'] == 0
                 isLastIteration = state['total_iteration'] ==\
                     np.power((state['burnin_sample_number'] +
                               state['sample_number']), len(state['time_tags']))
 
-                # If backup is scheduled to be written, write both it and full program
-                # state regardless of whether we're scheduled to write state this
-                # totalIter.
+                # If backup is scheduled to be written, write both it and full
+                # program state regardless of whether we're scheduled to write
+                # state this totalIter.
 
                 if shouldWriteBackup or shouldWriteState or isLastIteration:
                     with open('mcmc_samples.txt', 'a') as mcmcf:
-                        llhsAndTimes = [
-                            (itr, llh, itr_time)
-                            for (tssb, itr, llh
-                                ), itr_time in zip(unwrittenTreeL[0], mcmcSampleTimesL[0])
-                        ]
+                        llhsAndTimes = [(itr, llh, itr_time, isBi)
+                            for (tssb, itr, llh, isBi), itr_time in zip(
+                                unwrittenTreeL[0], mcmcSampleTimesL[0])]
                         llhsAndTimes = '\n'.join([
-                            '%s\t%s\t%s' % (itr, llh, itr_time)
-                            for itr, llh, itr_time in llhsAndTimes
-                        ])
+                            '%s\t%s\t%s\t%s' % (itr, llh, itr_time, isBi)
+                            for itr, llh, itr_time, isBi in llhsAndTimes])
                         mcmcf.write(llhsAndTimes + '\n')
                     treeWriter.write_trees(unwrittenTreeL[0])
                     stateManager.write_state(state)
@@ -517,11 +504,15 @@ def do_mcmc(stateManager,
     ####################
 
     # If --tmp-dir is not specified on the command line, it will by default be
-    # None, which will cause mkdtemp() to place this directory under the system's
-    # temporary directory. This is the desired behaviour.
-    config['tmp_dir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmpDir)
+    # None, which will cause mkdtemp() to place this directory under the
+    # system's temporary directory. This is the desired behaviour.
 
-    # 此处进行判断是否是从断点开始继续执行
+    config['tmp_dir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmpDir)
+    config['tmp_tex_dir'] = tempfile.mkdtemp(prefix='textemp.', dir=tmpDir)
+    config['tmp_pdf_dir'] = tempfile.mkdtemp(prefix='pdftemp.', dir=config['tmp_tex_dir'])
+
+    # If it does not start at very Beginning, it recovers the last iteration
+    # point
     isContinue = [np.sum(state['last_iteration']) !=\
         int(len(state['time_tags'])) * (- state['burnin_sample_number'] + 1)]
 
@@ -530,8 +521,8 @@ def do_mcmc(stateManager,
     mcmcSampleTimesL = [[]]
     lastMcmcSampleTime = [time.time()]
 
-    args = (isContinue, state, unwrittenTreeL, mcmcSampleTimesL, lastMcmcSampleTime, config,
-            stateManager, backupManager)
+    args = (isContinue, state, unwrittenTreeL, mcmcSampleTimesL,
+            lastMcmcSampleTime, config, stateManager, backupManager)
 
     proceedTime(0, True, args)
 
@@ -599,7 +590,6 @@ def run(args, safeToExit, runSucceeded, config):
             writeBackupsEvery=args.writeBackupsEvery,
             randSeed=args.randomSeed,
             tmpDir=args.tmpDir,
-            tmpParaDir=args.tmpParaDir,
             maxCopyNumber=args.maxCopyNumber)
 
 
@@ -699,26 +689,6 @@ def logmsg(msg, fd=sys.stdout):
 #                              function for debug                              #
 ################################################################################
 
-
-def show_tree_structure(tssb, texFileName, timeTag, timeTags, toCompile=False,
-                        toShow=False):
-    folderCommand = "if [ ! -d $(dirname \"{0}\")/pdf ]; then mkdir -p\
-        $(dirname \"{0}\")/pdf; fi".format(texFileName)
-    os.system(folderCommand)
-
-    print_tree_latex2(tssb, texFileName+".tex", 0, timeTag, timeTags)
-    compileCommand = "cd $(dirname \"{0}\") &&\
-        /usr/local/texlive/2017/bin/x86_64-linux/pdflatex\
-        {0}.tex 2>&1 >/dev/null && mv {0}.pdf $(dirname \"{0}\")/pdf".format(texFileName)
-
-    showCommand = "/usr/bin/okular\
-        $(dirname \"{0}\")/pdf/$(basename \"{0}\").pdf 2>&1 >/dev/null &".format(texFileName)
-
-    if toCompile:
-        print compileCommand
-        os.system(compileCommand)
-        if toShow:
-            os.system(showCommand)
 
 def modify_inputData_time_tag(inputData, times):
     sliceLen = round(len(inputData) / times)

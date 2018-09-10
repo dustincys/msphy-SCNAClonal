@@ -13,21 +13,26 @@ from collections import Counter
 import os
 
 
-def show_tree_structure(tssb, texFileName, timeTag, timeTags, toCompile=False,
+def show_tree_structure(tssb,
+                        texFolder,
+                        pdfFolder,
+                        filePrefix,
+                        currentTimeTag,
+                        allTimeTags,
+                        toCompile=False,
                         toShow=False):
-    folderCommand = "if [ ! -d $(dirname \"{0}\")/pdf ]; then mkdir -p\
-        $(dirname \"{0}\")/pdf; fi".format(texFileName)
-    os.system(folderCommand)
 
-    print_tree_latex2(tssb, texFileName+".tex", 0, timeTag, timeTags)
+    texFileFullPath = os.path.join(texFolder, filePrefix + ".tex")
+    print_tree_latex2(tssb, texFileFullPath, 0, currentTimeTag, allTimeTags)
+
     compileCommand = "cd $(dirname \"{0}\") &&\
         /usr/local/texlive/2017/bin/x86_64-linux/pdflatex\
-        {0}.tex 2>&1 >/dev/null && mv {0}.pdf $(dirname \"{0}\")/pdf".format(
-            texFileName)
+        {0} 2>&1 >/dev/null && mv {1}.pdf {2}".format(
+            texFileFullPath, filePrefix, pdfFolder)
 
     showCommand = "/usr/bin/okular\
-        $(dirname \"{0}\")/pdf/$(basename \"{0}\").pdf 2>&1 >/dev/null &".format(
-            texFileName)
+        {0}/$(basename \"{1}\").pdf 2>&1 >/dev/null &".format(
+            pdfFolder, texFileFullPath)
 
     if toCompile:
         print compileCommand
@@ -42,19 +47,13 @@ def print_top_trees(treeArchive, fout, k=5):
     foutF = open(fout,'w')
     treeReader = TreeReader(treeArchive)
     i = 0
-    for idx, (tidx, llh, tree) in enumerate(treeReader.load_trees_and_metadata(k)):
+    for idx, (tidx, llh, tree) in enumerate(
+        treeReader.load_trees_and_metadata(k)):
             ctr=0
-            show_tree_structure(
-                tree, "{0}_before_remove_empty_nodes".format(i, fout),
-                1, array([0,1]), True)
             remove_empty_nodes(tree.root, None)
             # print top K trees in ascii
             if i < 5 :
                 print_best_tree_pdf(tree, fout+"temp{}.tex".format(i))
-
-                show_tree_structure(
-                    tree, "{0}_remove_empty_nodes".format(i),
-                    1, array([0,1]), True)
             print_best_tree(tree, foutF)
             i = i + 1
 

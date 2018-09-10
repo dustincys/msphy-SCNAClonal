@@ -250,11 +250,9 @@ class TreeWriter(object):
 
     def write_trees(self, serializedTrees):
         self._open_archive()
-        for st, idx, llh in serializedTrees:
-            # todo:  此处设置应该为外围传递列表
-            isBurnin = idx < 0
+        for st, idx, llh, isBurnin in serializedTrees:
             prefix = isBurnin and 'burnin' or 'tree'
-            treefn = '%s_%s_%s' % (prefix, idx, llh)
+            treefn = '{0}_{1}_{2}'.format(prefix, idx, llh)
             self._archive.writestr(treefn, st)
         self._close_archive()
 
@@ -275,12 +273,13 @@ class TreeReader(object):
 
         for info in treeInfoL:
             idx, llh = self._extract_metadata(info)
-            assert idx == len(self._treeL)
             self._treeL.append((idx, llh, info))
         for info in burninInfoL:
             idx = self._extract_burnin_idx(info)
-            assert len(burninInfoL) + idx == len(self._burninTreeL)
             self._burninTreeL.append((idx, info))
+
+        assert len(burninInfoL) + len(treeInfoL) == len(self._burninTreeL) +\
+            len( self._treeL)
 
     def read_extra_file(self, filename):
         return self._archive.read(filename)
