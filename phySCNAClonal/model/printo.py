@@ -25,20 +25,25 @@ def show_tree_structure(tssb,
     texFileFullPath = os.path.join(texFolder, filePrefix + ".tex")
     print_tree_latex2(tssb, texFileFullPath, 0, currentTimeTag, allTimeTags)
 
-    compileCommand = "cd $(dirname \"{0}\") &&\
-        /usr/local/texlive/2017/bin/x86_64-linux/pdflatex\
-        {0} 2>&1 >/dev/null && mv {1}.pdf {2}".format(
-            texFileFullPath, filePrefix, pdfFolder)
-
-    showCommand = "/usr/bin/okular\
-        {0}/$(basename \"{1}\").pdf 2>&1 >/dev/null &".format(
-            pdfFolder, texFileFullPath)
 
     if toCompile:
-        print compileCommand
-        os.system(compileCommand)
+        try:
+            callList = ["/usr/local/texlive/2017/bin/x86_64-linux/pdflatex",
+                        "-interaction=nonstopmode",
+                        "-output-directory={}".format(pdfFolder),
+                        texFileFullPath]
+            call(" ".join(callList), shell=True)
+            call("rm {0}/{1}.aux {0}/{1}.log".format(pdfFolder, filePrefix),
+                 shell=True)
+        except OSError as oser:  # pdflatex not available, do not die
+            print >> sys.stderr, 'pdflatex not available'
         if toShow:
-            os.system(showCommand)
+            try:
+                callList = ["/usr/bin/okular",
+                            os.path.basename(texFileFullPath)]
+                call(" ".join(callList), shell=True)
+            except OSError:  # pdflatex not available, do not die
+                print >> sys.stderr, 'okular not available'
 
 
 ctr=0
@@ -47,7 +52,7 @@ def print_top_trees(treeArchive, fout, k=5):
     foutF = open(fout,'w')
     treeReader = TreeReader(treeArchive)
     i = 0
-    for idx, (tidx, llh, tree) in enumerate(
+    for idx, (tidx, llh, tree, dp) in enumerate(
         treeReader.load_trees_and_metadata(k)):
             ctr=0
             remove_empty_nodes(tree.root, None)

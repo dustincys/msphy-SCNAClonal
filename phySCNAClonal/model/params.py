@@ -34,8 +34,9 @@ def get_c_fnames(tmp_dir):
     FNAME_C_TREE = _make_c_fname('tree')
     FNAME_C_PARAMS = _make_c_fname('params')
     FNAME_C_MH_ARATIO = _make_c_fname('mh_ar')
+    FNAME_OUTPUT_DATA = _make_c_fname('data_params')
 
-    return (FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO)
+    return (FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO, FNAME_OUTPUT_DATA)
 
 
 # done for multi-sample
@@ -55,7 +56,8 @@ def metropolis(tssb,
 
     # file names
     FNAME_INPUT_DATA = fin
-    FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO = get_c_fnames(tmp_dir)
+    FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO, FNAME_OUTPUT_DATA\
+        = get_c_fnames(tmp_dir)
 
     ## initialize the MH sampler###########
     # sample_cons_params(tssb)
@@ -79,7 +81,7 @@ def metropolis(tssb,
 
     print [ '%s/mh.o' % script_dir, MH_ITR, MH_STD, N_INPUT_DATA, NNODES,
            TREE_HEIGHT, MAX_COPY_NUMBER, BASELINE, FNAME_INPUT_DATA,
-           FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO]
+           FNAME_C_TREE, FNAME_C_PARAMS, FNAME_C_MH_ARATIO, FNAME_OUTPUT_DATA]
 
     sp.check_call([
         '%s/mh.o' % script_dir,
@@ -93,13 +95,32 @@ def metropolis(tssb,
         FNAME_INPUT_DATA,
         FNAME_C_TREE,
         FNAME_C_PARAMS,
-        FNAME_C_MH_ARATIO])
+        FNAME_C_MH_ARATIO,
+        FNAME_OUTPUT_DATA])
+
     ar = str(loadtxt(FNAME_C_MH_ARATIO, dtype='string'))
+
+    dp= load_data_params(FNAME_OUTPUT_DATA)
     # update the tree with the new parameters sampled using the c++ code
     update_tree_params(tssb, FNAME_C_PARAMS)
 
-    return ar
+    return ar, dp
 
+
+def load_data_params(inputFilePath):
+    data_params = []
+
+    with open(inputFilePath) as inputFile:
+        for line in inputFile:
+            line = line.strip()
+            if line == "" or line.startswith("i\tid"):
+                continue
+            listLine = line.split("\t")
+            data_params.append(listLine)
+            pass
+        pass
+
+    return data_params
 
 # done for multi-sample
 

@@ -14,9 +14,9 @@
 
 using namespace std;
 
-//g++ -o mh.o mh.cpp util.cpp constants.cpp -L /usr/local/lib  -lgsl -lgslcblas -lm  -std=c++11   -I ../../dependencies/eigen   `gsl-config --cflags --libs`
+//g++ -o mh.o mh.cpp util.cpp constants.cpp cngenotype.cpp -L /usr/local/lib -pthread  -lgsl -lgslcblas -lm  -std=c++11   -I ../../dependencies/eigen   `gsl-config --cflags --libs`
 //
-// ./mh.o [int|iteration] [float|std] [int|stripe no.] [int|nodes no.] [int|tree height] [int|maximum copy number] [float|baseline] [string|stripe data file name] [string| tree file name] [string| parameters file name] [string | MH_AR file name]
+// ./mh.o [int|iteration] [float|std] [int|SCNA no.] [int|nodes no.] [int|tree height] [int|maximum copy number] [float|baseline] [string|SCNA data file name] [string| tree file name] [string| parameters file name] [string | MH_AR file name]
 //
 //  https://www.gnu.org/software/gsl/manual/html_node/Shared-Libraries.html
 
@@ -27,29 +27,31 @@ int main(int argc, char* argv[]){
 	struct config conf;
 	conf.MH_ITR=atoi(argv[1]);//5000 iteration
 	conf.MH_STD=atof(argv[2]);//100 STD
-	conf.N_STRIPE_DATA=atoi(argv[3]);//12; // no. of stripe data points
+	conf.N_SCNA_DATA=atoi(argv[3]);//12; // no. of SCNA data points
 	conf.NNODES=atoi(argv[4]); //17, no. of nodes in the tree
 	conf.TREE_HEIGHT=atoi(argv[5]);//6
 	conf.MAX_COPY_NUMBER=atoi(argv[6]);//6
 	conf.BASELINE=atof(argv[7]);//6
 
-	char* FNAME_STRIPE_DATA = argv[8];
+	char* FNAME_IN_SCNA_DATA = argv[8];
 	char* FNAME_C_TREE = argv[9];
 	char* FNAME_C_PARAMS = argv[10];
 	char* FNAME_C_MH_AR = argv[11];
+	char* FNAME_OUT_SCNA_DATA = argv[12];
 
-	SCNA *data = new SCNA[conf.N_STRIPE_DATA];
+	SCNA *data = new SCNA[conf.N_SCNA_DATA];
 
-	load_stripe_data(FNAME_STRIPE_DATA, data, conf);
+	load_SCNA_data(FNAME_IN_SCNA_DATA, data, conf);
 
 	struct node *nodes = new node[conf.NNODES];
-	load_tree(FNAME_C_TREE,nodes,conf);
+	load_tree(FNAME_C_TREE, nodes, conf);
 
 	//start MH loop
-	mh_loop(nodes,data,FNAME_C_MH_AR,conf);
+	mh_loop(nodes, data, FNAME_C_MH_AR, conf);
 
 	// write updated params to disk
-	write_params(FNAME_C_PARAMS,nodes,conf);
+	write_params(FNAME_C_PARAMS, nodes, conf);
+	output_SCNA_data(FNAME_OUT_SCNA_DATA, data, conf);
 
 	delete [] data;
 	delete [] nodes;
@@ -193,19 +195,34 @@ void get_pi(struct node nodes[], double pi[], struct config conf, int old){
 
 // done for multi-sample
 void write_params(char fname[], struct node *nodes, struct config conf){
+	//here should output the genotype and copy number information too
+	/* TODO: output genotype and copy number <11-09-18, Chu Yanshuo> */
 	ofstream dfile;
 	dfile.open(fname);
-	for(int i=0;i<conf.NNODES;i++){
-		dfile<<nodes[i].id<<'\t'<<nodes[i].param<<'\t'<<nodes[i].pi
-			<<'\n';
+	for(int i=0; i<conf.NNODES; i++){
+		dfile << nodes[i].id << '\t' << nodes[i].param << '\t'
+			<< nodes[i].pi << '\n';
 	}
 	dfile.close();
 }
 
+void output_SCNA_data(char fname[], SCNA data[], struct config conf){
+	ofstream dfile;
+	dfile.open(fname);
+
+	dfile << "i\tid\tcopyNumber\tgenotype\n";
+
+	for(int i=0; i<conf.N_SCNA_DATA; i++){
+		dfile << i << data[i].id << "\t" << data[i].copyNumber
+			<< data[i].genotype;
+	}
+
+	dfile.close();
+}
 
 // done for multi-sample
-void load_stripe_data(char fname[],SCNA *data, struct config conf){
-	string line,token,token1,token2;
+void load_SCNA_data(char fname[], SCNA *data, struct config conf){
+	string line, token, token1, token2;
 	ifstream dfile (fname);
 	int ctr = 0, id = -1, ab = 1;
 

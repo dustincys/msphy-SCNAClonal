@@ -21,7 +21,7 @@ using namespace Eigen;
 struct config{
 	int MH_ITR;
 	float MH_STD;
-	int N_STRIPE_DATA; // no. of data points
+	int N_SCNA_DATA; // no. of data points
 	int NNODES; // no. of nodes in the tree
 	int TREE_HEIGHT;
 	int MAX_COPY_NUMBER; // maximum copy number
@@ -106,13 +106,25 @@ public:
 
 
 
-void sample_cons_params(struct node nodes[],struct config conf,gsl_rng *rand);
-double multi_param_post(struct node nodes[], SCNA data[], int old, struct config conf, CNGenotype& cngenotype);
-double param_post(struct node nodes[], SCNA data[], int old, struct config conf, CNGenotype& cngenotype);
+void sample_cons_params(struct node nodes[], struct config conf, gsl_rng *rand);
+
+double multi_param_post(struct node nodes[], SCNA data[], int old,
+		struct config conf, CNGenotype& cngenotype);
+
+double param_post(struct node nodes[], SCNA data[], int old,
+		struct config conf, CNGenotype& cngenotype);
+
 void update_params(struct node nodes[], struct config conf);
+
 void get_pi(struct node nodes[], double pi[], struct config conf, int old);
-void load_stripe_data(char fname[],SCNA *data, struct config conf);
-void load_tree(char fname[], struct node nodes[], struct config conf);
-void write_params(char fname[], struct node nodes[], struct config conf);
+
+void output_SCNA_data(char fname[], SCNA data[], struct config conf);
+
+void load_SCNA_data(char fname[], SCNA *data, struct config conf);
+
+void load_tree(char fname[], struct node *nodes, struct config conf);
+
+void write_params(char fname[], struct node *nodes, struct config conf);
+
 void mh_loop(struct node nodes[], SCNA data[], char* fname, struct config conf);
 #endif

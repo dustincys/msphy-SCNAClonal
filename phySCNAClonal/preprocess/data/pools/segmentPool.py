@@ -341,8 +341,8 @@ class SegmentPool:
 
                 print s.name
                 outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
-                    s.name,
-                    s.chromIdx,
+                    "{0}_{1}_{2}".format(s.chromName, str(s.start), str(s.end)),
+                    "{0}_{1}_{2}".format(s.chromName, str(s.start), str(s.end)),
                     ",",
                     "{0}|{1}".format(",".join(aTstrl), ",".join(bTstrl)),
                     s.tReadNum,

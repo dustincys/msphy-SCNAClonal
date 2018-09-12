@@ -250,10 +250,12 @@ class TreeWriter(object):
 
     def write_trees(self, serializedTrees):
         self._open_archive()
-        for st, idx, llh, isBurnin in serializedTrees:
+        for st, idx, llh, dp, isBurnin in serializedTrees:
             prefix = isBurnin and 'burnin' or 'tree'
             treefn = '{0}_{1}_{2}'.format(prefix, idx, llh)
+            treeDPfn = '{0}DataParameter_{1}_{2}'.format(prefix, idx, llh)
             self._archive.writestr(treefn, st)
+            self._archive.writestr(treeDPfn, dp)
         self._close_archive()
 
 
@@ -264,22 +266,31 @@ class TreeReader(object):
         treeInfoL = [t for t in infolist if t.filename.startswith('tree_')]
         burninInfoL = [t for t in infolist if t.filename.startswith('burnin_')]
 
+        treeDPInfoL = [t for t in infolist if t.filename.startswith('treeDataParameter_')]
+        burninDPInfoL = [t for t in infolist if t.filename.startswith('burininDataParameter_')]
+
+        assert len(treeInfoL) == len(treeDPInfoL)
+        assert len(burninInfoL) == len(burninDPInfoL)
+
         # Sort by index
         treeInfoL.sort(key=lambda tinfo: self._extract_metadata(tinfo)[0])
         burninInfoL.sort(key=lambda tinfo: self._extract_burnin_idx(tinfo))
 
+        treeDPInfoL.sort(key=lambda tinfo: self._extract_metadata(tinfo)[0])
+        burninDPInfoL.sort(key=lambda tinfo: self._extract_burnin_idx(tinfo))
+
         self._treeL = []
         self._burninTreeL = []
 
-        for info in treeInfoL:
-            idx, llh = self._extract_metadata(info)
-            self._treeL.append((idx, llh, info))
-        for info in burninInfoL:
-            idx = self._extract_burnin_idx(info)
-            self._burninTreeL.append((idx, info))
 
-        assert len(burninInfoL) + len(treeInfoL) == len(self._burninTreeL) +\
-            len( self._treeL)
+        for tinfo, tdpinfo in zip(treeInfoL, treeDPInfoL):
+            idx, llh = self._extract_metadata(tinfo)
+            self._treeL.append((idx, llh, tinfo, tdpinfo))
+
+        for binfo, bdpinfo in zip(burninInfoL, burninDPInfoL):
+            idx = self._extract_burnin_idx(binfo)
+            self._burninTreeL.append((idx, binfo, bdpinfo))
+
 
     def read_extra_file(self, filename):
         return self._archive.read(filename)
@@ -307,23 +318,31 @@ class TreeReader(object):
             remove_empty_nodes(tree.root)
         return tree
 
+    def _parse_data_parameter(self, zinfo):
+        pickled = self._archive.read(zinfo)
+        dp = pickle.loads(pickled)
+        return dp
+
     def load_tree(self, idx, removeEmptyVertices=False):
-        tidx, llh, zinfo = self._treeL[idx]
-        assert tidx == idx
-        return self._parse_tree(zinfo, removeEmptyVertices)
+        tidx, llh, zinfo, dpinfo = self._treeL[idx]
+        tree = self._parse_tree(zinfo, removeEmptyVertices)
+        dp = self._parse_data_parameter(dpinfo)
+        return tree, dp
 
     def load_trees(self, numTrees=None, removeEmptyVertices=False):
-        for idx, llh, tree in self.load_trees_and_metadata(
+        for idx, llh, tree, dp in self.load_trees_and_metadata(
                 numTrees, removeEmptyVertices):
             yield tree
 
     def load_trees_and_burnin(self, removeEmptyVertices=False):
-        for tidx, zinfo in self._burninTreeL:
+        for tidx, zinfo, dpinfo in self._burninTreeL:
             tree = self._parse_tree(zinfo, removeEmptyVertices)
-            yield (tidx, tree)
-        for tidx, llh, zinfo in self._treeL:
+            dp = self._parse_data_parameter(dpinfo)
+            yield (tidx, tree, dp)
+        for tidx, llh, zinfo, dpinfo in self._treeL:
             tree = self._parse_tree(zinfo, removeEmptyVertices)
-            yield (tidx, tree)
+            dp = self._parse_data_parameter(dpinfo)
+            yield (tidx, tree, dp)
 
     def load_trees_and_metadata(
             self,
@@ -339,6 +358,7 @@ class TreeReader(object):
             numTrees = min(numTrees, len(trees))
             trees = trees[:numTrees]
 
-        for tidx, llh, zinfo in trees:
+        for tidx, llh, zinfo, dpinfo in trees:
             tree = self._parse_tree(zinfo, removeEmptyVertices)
-            yield (tidx, llh, tree)
+            dp = self._parse_data_parameter(dpinfo)
+            yield (tidx, llh, tree, dp)

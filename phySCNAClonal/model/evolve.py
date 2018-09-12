@@ -276,8 +276,7 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
                 treeWriter,
                 inputData,
                 dataNum,
-                state['tmp_dir'],
-                state['tmp_para_dir'])
+                state['tmp_dir'])
 
 
 def do_mcmc(stateManager,
@@ -374,7 +373,7 @@ def do_mcmc(stateManager,
                 map_datum_to_node(state['tssb'])
                 ##################################################
 
-                state['mh_acc'] = metropolis(
+                state['mh_acc'], state['data_params'] = metropolis(
                     state['tssb'],
                     state['mh_itr'],
                     state['mh_std'],
@@ -440,10 +439,13 @@ def do_mcmc(stateManager,
                     timeTag, state['time_tags'], True)
                 #######################################################
 
-                serialized = pickle.dumps(
+                tSerialized = pickle.dumps(
                     state['tssb'], protocol=pickle.HIGHEST_PROTOCOL)
+                dpSerialized = pickle.dumps(
+                    state['data_params'], protocol=pickle.HIGHEST_PROTOCOL)
                 unwrittenTreeL[0].append(
-                    (serialized, state['total_iteration'], lastLlh, isBurnIn))
+                    (tSerialized, state['total_iteration'], lastLlh,
+                     dpSerialized, isBurnIn))
                 # But it would affect the result
                 # 此处的使用本地变量进行操作加快
                 # state['tssb'] = tssb
@@ -482,12 +484,12 @@ def do_mcmc(stateManager,
 
                 if shouldWriteBackup or shouldWriteState or isLastIteration:
                     with open('mcmc_samples.txt', 'a') as mcmcf:
-                        llhsAndTimes = [(itr, llh, itr_time, isBi)
-                            for (tssb, itr, llh, isBi), itr_time in zip(
+                        llhsAndTimes = [(itr, llh, itr_time, dp, isBi)
+                            for (tssb, itr, llh, dp, isBi), itr_time in zip(
                                 unwrittenTreeL[0], mcmcSampleTimesL[0])]
                         llhsAndTimes = '\n'.join([
                             '%s\t%s\t%s\t%s' % (itr, llh, itr_time, isBi)
-                            for itr, llh, itr_time, isBi in llhsAndTimes])
+                            for itr, llh, itr_time, dp, isBi in llhsAndTimes])
                         mcmcf.write(llhsAndTimes + '\n')
                     treeWriter.write_trees(unwrittenTreeL[0])
                     stateManager.write_state(state)
