@@ -10,7 +10,7 @@ import json
 
 
 class ResultGenerator(object):
-    def generate(self, treeFile, SCNALFile, includeStripeNames):
+    def generate(self, treeFile, SCNALFile):
         """
         Load SCNA data from SCNALFile, write population and data parameters
         into SCNA data file
@@ -31,19 +31,21 @@ class ResultGenerator(object):
         allMutAss = {}
         allMutDataParam = {}
 
-        for idx, llh, dp, pops, mutAss, structure, mutPops in self._summarize_all_pops(
-            treeFile):
+        for idx, llh, dp, pops, mutAss, structure, mutPops in\
+                self._summarize_all_pops(treeFile):
             summaries[idx] = {
                 'llh': llh,
                 'structure': structure,
-                'populations': pops,
+                'populations': pops
             }
             allMutDataParam[idx] = dp
             allMutAss[idx] = mutAss
 
-            self._update_SCNAPool(mutPops, dp, SCNAPool, isStripe)
+            currentSCNAPool = copy.deepcopy(SCNAPool)
+            self._update_SCNAPool(mutPops, dp, currentSCNAPool, isStripe)
+            summaries[idx]['SCNAPool'] = currentSCNAPool
 
-        return summaries, mutList, allMutAss, params, SCNAPool, isStripe
+        return summaries, allMutAss, params, isStripe
 
     def _update_SCNAPool(self, mutPops, dp, SCNAPool, isStripe):
 
@@ -117,7 +119,7 @@ class ResultGenerator(object):
             # values should correspond to same vertices.
             pops[currentIdx] = {
                 'cellular_prevalence': cellPrev,
-                'SCNA_number': SCNANum,
+                'num_SCNAs': SCNANum,
             }
 
             # Visit children in order of decreasing phi.

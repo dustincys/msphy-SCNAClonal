@@ -3,10 +3,10 @@ import numpy as np
 
 
 class ResultMunger(object):
-    def __init__(self, tree_summaries, mutlist, mutass):
+    def __init__(self, tree_summaries, mutass, isStripe):
         self._tree_summaries = tree_summaries
-        self._mutlist = mutlist
         self._mutass = mutass
+        self._isStripe = isStripe
 
     def _convert_keys_to_ints(self, dic):
         keys = dic.keys()
@@ -14,10 +14,10 @@ class ResultMunger(object):
             dic[int(key)] = dic[key]
             del dic[key]
 
-    def remove_small_nodes(self, minStripes):
+    def remove_small_nodes(self, minSCNAs):
         for treeIdx, treeFeatures in self._tree_summaries.items():
             smallNodes = self._find_small_nodes(
-                treeIdx, treeFeatures['populations'], minStripes)
+                treeIdx, treeFeatures['populations'], minSCNAs)
             self._remove_nodes(smallNodes, treeIdx, mutDestination='best')
 
         return (self._tree_summaries, self._mutass)
@@ -48,7 +48,7 @@ class ResultMunger(object):
             # At this point, "clone" is the superclone to remove, and "child" will be
             # the new clonal node.
             clone, child = pops[clonalIdx], pops[childIdx]
-            if child['stripe_number'] == 0:
+            if child['num_SCNAs'] == 0:
                 # Prevent division by zero.
                 continue
             # 注意，此处不将data个数作为考虑
@@ -67,17 +67,17 @@ class ResultMunger(object):
 
             print(treeIdx, 'Superclone:', clone, 'actual clone:', child)
             # Revise cellular prevalence to be weighted mean of both nodes.
-            clonal_stripes, clonal_cp = clone['stripe_number'], np.array(
+            clonal_SCNAs, clonal_cp = clone['num_SCNAs'], np.array(
                 clone['cellular_prevalence'])
-            child_stripes, child_cp = child['stripe_number'], np.array(
+            child_SCNAs, child_cp = child['num_SCNAs'], np.array(
                 child['cellular_prevalence'])
-            total_stripes = clonal_stripes + child_stripes
+            total_SCNAs = clonal_SCNAs + child_SCNAs
             # Cellular prevalence is a vector, so we must brought it into NumPy so we
             # can do scalar division on it. We must, however, convert it back to a
             # list so we can dump it to JSON.
             clone['cellular_prevalence'] = list(
-                ((clonal_cp * clonal_stripes) +
-                 (child_cp * child_stripes)) / total_stripes)
+                ((clonal_cp * clonal_SCNAs) +
+                 (child_cp * child_SCNAs)) / total_SCNAs)
 
             # Remove the "true" clonal node and move its mutations to the superclonal
             # node. This is easier than the reverse, as it means that idx=1 always
@@ -184,7 +184,7 @@ class ResultMunger(object):
             # never has SSMs or CNVs.
             if sidx == 0:
                 continue
-            subclone["num_stripes"] = len(self._mutass[treeIdx][sidx])
+            subclone["num_SCNAs"] = len(self._mutass[treeIdx][sidx])
 
     def _remove_nodes(self, nodes, treeIdx, mutDestination):
         subclone_idx_map = {}
@@ -203,20 +203,26 @@ class ResultMunger(object):
         self._reassign_muts(treeIdx, subclone_idx_map, mutDestination)
         self._correct_mut_counts(treeFeatures['populations'], treeIdx)
 
-    def _find_small_nodes(self, treeIdx, populations, minStripes):
+    def _find_small_nodes(self, treeIdx, populations, minSCNAs):
         smallNodes = set()
 
         subclone_idxs = sorted(populations.keys())
         last_phi = None
         last_idx = None
 
-        if minStripes >= 1:
+        if minSCNAs >= 1:
             # This is a count of SSMs, so use it without adjustment (but ensure it's an int).
-            minStripes = int(minStripes)
+            minSCNAs = int(minSCNAs)
         else:
             # This is a fraction of total SSMs.
-            num_ssms = len(self._mutlist['ssms'])
-            minStripes = int(round(float(minStripes) * num_ssms))
+            numData = 0
+            currentSCNAPool = self._tree_summaries[treeIdx]['SCNAPool']
+            if self._isStripe:
+                numData = len(currentSCNAPool.stripes)
+            else:
+                numData = len(currentSCNAPool.segments)
+
+            minSCNAs = int(round(float(minSCNAs) * numData))
 
         for subclone_idx in subclone_idxs:
             for p, children in self._tree_summaries[treeIdx][
@@ -227,11 +233,11 @@ class ResultMunger(object):
             subclone = populations[subclone_idx]
             # Ensure this node's phi is <= the phi of its preceding sibling node, if any exists.
             if subclone_idx > 0 and last_idx in self._tree_summaries[treeIdx]['structure'][parent]:
-                assert np.mean(subclone['cellular_prevalence']) <= last_phi
-            last_phi = np.mean(subclone['cellular_prevalence'])
+                assert subclone['cellular_prevalence'] <= last_phi
+            last_phi = subclone['cellular_prevalence']
             last_idx = subclone_idx
 
-            if subclone_idx == 0 or subclone['num_ssms'] >= minStripes:
+            if subclone_idx == 0 or subclone['num_SCNAs'] >= minSCNAs:
                 continue
             smallNodes.add(subclone_idx)
 
@@ -291,6 +297,7 @@ class ResultMunger(object):
 
                 mutass[best_node][mut_type].append(mut_id)
 
+
     def _move_muts_to_clonal_node(self, muts, mutass, populations, structure):
         rootIdx = 0
         clonalIdx = 1
@@ -308,7 +315,6 @@ class ResultMunger(object):
             assert new_idx < sidx
 
             if new_idx is None:  # Node was removed.
-                # This will comprise both SSMs and CNVs.
                 deleted_muts.append(mutass[sidx])
             else:
                 mutass[new_idx] = mutass[sidx]

@@ -7,10 +7,10 @@ from phySCNAClonal.postprocess.pwgsresults.json_writer import JsonWriter
 
 def process(args):
     # 此处应该生成关于目标的copyNumber, phi等信息
-    summaries, mutlist, mutass, params = ResultGenerator().generate(
-        args.treeFile, args.segPoolFile, args.includeStripeNames)
+    summaries, allMutAss, params, isStripe =\
+        ResultGenerator().generate(args.treeFile, args.segPoolFile)
 
-    munger = ResultMunger(summaries, mutlist, mutass)
+    munger = ResultMunger(summaries, allMutAss, isStripe)
 
     # 此处应该不必去除
     # summaries, mutass = munger.remove_small_nodes(args.min_ssms)
