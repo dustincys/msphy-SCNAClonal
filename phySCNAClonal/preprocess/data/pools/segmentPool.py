@@ -328,6 +328,9 @@ class SegmentPool:
 
 
     def output_txt(self, outFileName):
+        """
+        output txt file as input file of mh model
+        """
         with open(outFileName, 'w') as outFile:
             outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
                 "name", "sid", "segsIdxL", "pairedCounts", "tReadNum",

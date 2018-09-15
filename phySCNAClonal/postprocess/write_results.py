@@ -10,13 +10,7 @@ def process(args):
     summaries, allMutAss, params, isStripe =\
         ResultGenerator().generate(args.treeFile, args.segPoolFile)
 
-    munger = ResultMunger(summaries, allMutAss, isStripe)
-
-    # 此处应该不必去除
-    # summaries, mutass = munger.remove_small_nodes(args.min_ssms)
-    # 去除多克隆和超级克隆，此处可以使用
-    munger.remove_superclones()
-    munger.remove_polyclonal_trees()
+    # 此处生成图形
 
     # 此处将生成关于目标的copyNumber, phi等信息输出到文件
     writer = JsonWriter(args.datasetName)
