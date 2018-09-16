@@ -267,7 +267,7 @@ class TreeReader(object):
         burninInfoL = [t for t in infolist if t.filename.startswith('burnin_')]
 
         treeDPInfoL = [t for t in infolist if t.filename.startswith('treeDataParameter_')]
-        burninDPInfoL = [t for t in infolist if t.filename.startswith('burininDataParameter_')]
+        burninDPInfoL = [t for t in infolist if t.filename.startswith('burninDataParameter_')]
 
         assert len(treeInfoL) == len(treeDPInfoL)
         assert len(burninInfoL) == len(burninDPInfoL)

@@ -1,12 +1,31 @@
-import numpy as np
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+'''
+# =============================================================================
+#      FileName: result_generator.py
+#          Desc:
+#        Author: Chu Yanshuo
+#         Email: chu@yanshuo.name
+#      HomePage: http://yanshuo.name
+#       Version: 0.0.1
+#    LastChange: 2018-09-16 13:48:50
+#       History:
+# =============================================================================
+'''
+
+import copy
+import json
+import os
+import pickle as pkl
+import sys
 from collections import defaultdict
 
-import sys
-import os
+import numpy as np
+
+from phySCNAClonal.model.util2 import TreeReader
+
 sys.path.append(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
-import phySCNAClonal.model.util2
-import json
 
 
 class ResultGenerator(object):
@@ -15,7 +34,7 @@ class ResultGenerator(object):
         Load SCNA data from SCNALFile, write population and data parameters
         into SCNA data file
         """
-        reader = util2.TreeReader(treeFile)
+        reader = TreeReader(treeFile)
         try:
             # to record params, manually
             params = json.loads(reader.read_extra_file('params.json'))
@@ -31,12 +50,13 @@ class ResultGenerator(object):
         allMutAss = {}
         allMutDataParam = {}
 
-        for idx, llh, dp, pops, mutAss, structure, mutPops in\
-                self._summarize_all_pops(treeFile):
+        for idx, llh, dp, tree, pops, mutAss, structure, mutPops in\
+                self._summarize_all_pops(treeFile, isStripe):
             summaries[idx] = {
                 'llh': llh,
                 'structure': structure,
-                'populations': pops
+                'populations': pops,
+                'tree': tree
             }
             allMutDataParam[idx] = dp
             allMutAss[idx] = mutAss
@@ -51,15 +71,15 @@ class ResultGenerator(object):
 
         if isStripe:
             for stripe, sdp, idx in zip(
-                SCNAPool.stripes, dp, range(SCNAPool.stripes)):
-                assert stripe.sid == dp[1]
-                assert idx == int(dp[0])
+                SCNAPool.stripes, dp, range(len(SCNAPool.stripes))):
+                assert stripe.name == sdp[1]
+                assert idx == int(sdp[0])
 
-                pop = mutPops[dp[1]]
+                pop = mutPops[sdp[1]]
 
                 for segIdx in stripe.segsIdxL:
-                    SCNAPool.segPool.segments[segIdx].copyNumber = in(dp[2])
-                    SCNAPool.segPool.segments[segIdx].genotype = str(dp[2])
+                    SCNAPool.segPool.segments[segIdx].copyNumber = int(sdp[2])
+                    SCNAPool.segPool.segments[segIdx].genotype = str(sdp[3])
                     SCNAPool.segPool.segments[segIdx].phi = pop
                     pass
                 pass
@@ -70,22 +90,22 @@ class ResultGenerator(object):
 
                 segmentId = "{0}_{1}_{2}".format(
                     segment.chromName, str(segment.start), str(segment.end))
-                assert segmentId == dp[1]
-                assert idx == int(dp[0])
+                assert segmentId == sdp[1]
+                assert idx == int(sdp[0])
 
-                pop = mutPops[dp[1]]
+                pop = mutPops[sdp[1]]
 
-                segments.copyNumber = in(dp[2])
-                segments.genotype = str(dp[2])
+                segments.copyNumber = int(sdp[2])
+                segments.genotype = str(sdp[2])
                 segments.phi = pop
                 pass
 
     def _summarize_all_pops(self, treeFile, isStripe):
         # 此处根据SCNAPool的类型进行生成DataParameter
-        reader = util2.TreeReader(treeFile)
+        reader = TreeReader(treeFile)
         for idx, llh, tree, dp in reader.load_trees_and_metadata(
                 removeEmptyVertices=True):
-            yield (idx, llh, dp) + self._summarize_pops(tree)
+            yield (idx, llh, dp, tree) + self._summarize_pops(tree)
         reader.close()
 
     def _summarize_pops(self, tree):
@@ -136,10 +156,10 @@ class ResultGenerator(object):
         return (pops, mutAssignments, structure, mutPops)
 
     def __load_SCNAL_from_pkl(self, inputFilePath):
-        inputFile = open(inputFilePath, 'rb')
-        SCNAPoolL = pkl.load(inputFile)
-        lastSCNAPool = SCNAPoolL[-1]
+        pklFile = open(inputFilePath, 'rb')
+        SCNAPool = pkl.load(pklFile)
+        pklFile.close()
         if type(SCNAPool).__name__ == "StripePool":
-            return lastSCNAPool, True
+            return SCNAPool, True
         elif type(SCNAPool).__name__ == "SegmentPool":
-            return lastSCNAPool, False
+            return SCNAPool, False

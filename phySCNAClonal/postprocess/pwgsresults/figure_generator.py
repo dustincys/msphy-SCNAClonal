@@ -13,39 +13,47 @@
 # =============================================================================
 '''
 
+import os
+from collections import Counter
+from subprocess import call
+
+import numpy as np
+
 from phySCNAClonal.model.util2 import remove_empty_nodes
 from phySCNAClonal.preprocess.utils import AnswerIndex
+
 
 class FigureGenerator(object):
 
     """Docstring for FigureGenerator. """
-    self._outputPrefix = "figureGenerator"
-    self._answerFilePath = None
 
     def __init__(self):
         """Initialize input object"""
         self._get_output_prefixes()
         pass
 
-    def __init__(self, outputPrefix, answerFilePath = None):
+    def __init__(self, outputPrefix = "figureGenerator", answerFilePath = None):
         self._outputPrefix = outputPrefix
         self._answerFilePath = answerFilePath
         self._get_output_prefixes()
 
-    def set_output_prefix(, outputPrefix):
+    def set_output_prefix(self, outputPrefix):
         self._outputPrefix = outputPrefix
         self._get_output_prefixes()
 
-    def _get_output_prefixes(self):
-        self._treeOutputPrefix = outputPrefix + "_tree"
-        self._rOutputPrefix = outputPrefix + "_r"
-        self._copyNumberOutputPrefix = outputPrefix + "_copyNumber"
-        self._phiOutputPrefix = outputPrefix + "_phi"
+    def set_answer_file_path(self, answerFilePath = None):
+        self._answerFilePath = answerFilePath
 
-    def draw_tree(self, tssb, score=None):
+    def _get_output_prefixes(self):
+        self._treeOutputPrefix = self._outputPrefix + "_tree"
+        self._rOutputPrefix = self._outputPrefix + "_r"
+        self._copyNumberOutputPrefix = self._outputPrefix + "_copyNumber"
+        self._phiOutputPrefix = self._outputPrefix + "_phi"
+
+    def draw_tree(self, tssb, timeTagsL, score=None):
         texFilePath = self._treeOutputPrefix + ".tex"
         remove_empty_nodes(tssb.root, None)  # removes empty leaves
-        self._print_tree_latex(tssb, texFilePath, score)
+        self._print_tree_latex(tssb, timeTagsL, texFilePath, score)
         self._draw_pdf(texFilePath)
 
     def _draw_pdf(self, texFilePath):
@@ -74,55 +82,50 @@ class FigureGenerator(object):
         self._r_draw_phi(rTablePath, self._phiOutputPrefix)
 
     def draw_all_result(self, SCNAPool, tssb, isStripe=False, score=None):
-        self.draw_tree(tssb, score)
+        timeTagsL = []
+        if isStripe:
+            timeTagsL = sorted(list(set([int(item.tag) for item in
+                                         SCNAPool.stripes])))
+        else:
+            timeTagsL = sorted(list(set([int(item.tag) for item in
+                                         SCNAPool.segments])))
+
+        self.draw_tree(tssb, timeTagsL, score)
         self.draw_data_param(SCNAPool, isStripe)
 
-    def _print_tree_latex(self, tssb, outputFilePath, score):
-        count = -1
+    def _print_tree_latex(self, tssb, timeTagsL, outputFilePath, score):
+        count = {'nodeId': -1}
 
-        def write_tree2(root, timeTag, timeTags):
-            count += 1
+        def write_tree(root, timeTagsL, count):
+            count['nodeId'] += 1
 
-            def colorize(num, t, timeTag):
-                if t == timeTag and num > 0:
-                    return "\\textcolor{red}{" + str(num) + "}"
-                else:
-                    return str(num)
-
-            reStr = "\\textcolor{blue}{{0}}(".format(count)
+            reStr = "\\textcolor{blue}{" + str(count['nodeId']) +  "}("
             tempTimeTags = Counter([int(item.tag) for item in root['node'].get_data()])
             if len(tempTimeTags) > 0:
-                for t in timeTags:
-                    reStr += "{0}$|$".format(colorize(tempTimeTags[t], t, timeTag))
+                for t in timeTagsL:
+                    reStr += "{0}$|$".format(tempTimeTags[t])
                 reStr = reStr.strip("$|$")
             else:
                 pass
             reStr += ")"
-
-
-            if 'tag' not in root.keys():
-                print "not tag"
-            if root['tag']:
-                reStr += ",draw=black,fill=black!20!white"
-            else:
-                reStr += ",draw=black"
+            reStr += ",draw=black"
 
             for child in root['children']:
-                reStr += write_tree2(child, timeTag, timeTags)
+                reStr += write_tree(child, timeTagsL, count)
 
             return "[{}]".format(reStr)
 
-        def print_index(root, treeFile):
-            count+=1
+        def print_index(root, treeFile, count):
+            count['nodeId'] += 1
 
-            treeFile += "\\textcolor{blue}{{0}} & ".format(count)
+            treeFile += "\\textcolor{blue}{" +str(count['nodeId']) +  "} & "
 
             SCNAStr=''
             for s in root['node'].get_data():
-                SCNAStr += "{0}|{1}, ".format(s.tag, s.name)
+                SCNAStr += "{0}\|{1}, ".format(s.tag, s.name)
 
             #  TODO:  <14-09-18, Chu Yanshuo> #
-            SCNAStr = SCNAStr.replace("_","\\\\_")
+            SCNAStr = SCNAStr.replace("_","\\_")
 
             treeFile += SCNAStr.strip().strip(',')
 
@@ -130,11 +133,11 @@ class FigureGenerator(object):
                 treeFile+='-- '
 
             treeFile+=' & '
-            treeFile+=str(around(root['node'].param,3))
+            treeFile+=str(np.around(root['node'].param,3))
             treeFile+='\\\\\n'
 
             for child in root['children']:
-                treeFile=print_index(child, treeFile)
+                treeFile=print_index(child, treeFile, count)
             return treeFile
 
         treeFile = '\documentclass{standalone}\n'
@@ -148,23 +151,18 @@ class FigureGenerator(object):
         treeFile += '\\node (a) at (0,0){\n'
         treeFile += '\\begin{forest}\n'
         treeFile += 'before typesetting nodes={for descendants={edge=->}}\n'
-        treeFile += write_tree2(tssb.root, timeTag, timeTags)
+        treeFile += write_tree(tssb.root, timeTagsL, count)
         treeFile += '\\end{forest}\n'
         treeFile += '};\n'
-        count = -1
+        count['nodeId'] = -1
         treeFile += '\\node (b) at (a.south)[anchor=north,yshift=-.5cm]{\n'
         treeFile += '\\begin{tikzpicture}\n'
         treeFile += '\\node (table){\n'
-        treeFile += '\\begin{tabular}{|c|l|'
-        for i in range(len(tssb.root['node'].param)):
-            treeFile += 'l|'
-        treeFile += '}\n'
+        treeFile += '\\begin{tabular}{|c|l|l|}\n'
         treeFile += '\\hline\n'
-        treeFile += 'Node & \multicolumn{{1}}{{|c|}}{{SCNAs (stage|ID)}} & \multicolumn{\
-            {{0}}}{{|c|}}{{Clonal frequencies}}\\\\\n'.format(
-                len(tssb.root['node'].param))
+        treeFile += 'Node & SCNAs (stage\|ID) & Clonal frequencies\\\\\n'
         treeFile += '\\hline\n'
-        treeFile = print_index(tssb.root, treeFile)
+        treeFile = print_index(tssb.root, treeFile, count)
         treeFile += '\\hline\n'
         treeFile += '\\end{tabular}\n'
         treeFile += '};\n'

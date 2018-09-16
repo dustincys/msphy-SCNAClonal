@@ -34,21 +34,21 @@ class IndexCalculator(object):
 
     def _calc_index(self, reltype):
         tree_pops = self._tree_summ['populations']
-        totalstripes = sum([P['num_stripes'] for P in tree_pops.values()])
+        totalSCNAs = sum([P['num_SCNAs'] for P in tree_pops.values()])
         index = 0
 
         for (popidx1, popidx2), relation in self._poprel.items():
             if relation != reltype:
                 continue
-            nstripes1, nstripes2 = tree_pops[popidx1]['num_stripes'], tree_pops[
-                popidx2]['num_stripes']
-            index += nstripes1 * nstripes2
+            nSCNAs1, nSCNAs2 = tree_pops[popidx1]['num_SCNAs'], tree_pops[
+                popidx2]['num_SCNAs']
+            index += nSCNAs1 * nSCNAs2
 
         # The maximum value of `index` will be `N(N - 1)`, as we exclude the
         # diagonal. If we ignore the diagonal, then if we were to explicitly
         # calculate the N*N matrices corresponding to each of the indices and then
         # sum the matrices, every entry in the sum would be 1.
-        normidx = float(index) / (totalstripes * (totalstripes - 1))
+        normidx = float(index) / (totalSCNAs * (totalSCNAs - 1))
         assert 0. <= normidx <= 1.
         return normidx
 
@@ -75,12 +75,12 @@ class IndexCalculator(object):
         # indices will be 1, we force the diagonal to be zero -- which is why we
         # add nssms(nssms - 1) rather than nssms^2 below.
         ccidx = 0
-        totalstripes = 0
+        totalSCNAs = 0
         for pop in self._tree_summ['populations'].values():
-            nstripes = pop['num_stripes']
-            ccidx += nstripes * (nstripes - 1)
-            totalstripes += nstripes
-        normccidx = float(ccidx) / (totalstripes * (totalstripes - 1))
+            nSCNAs = pop['num_SCNAs']
+            ccidx += nSCNAs * (nSCNAs - 1)
+            totalSCNAs += nSCNAs
+        normccidx = float(ccidx) / (totalSCNAs * (totalSCNAs - 1))
 
         assert 0. <= normccidx <= 1.
         # It's enough just to subtract the other two indices from one to calculate

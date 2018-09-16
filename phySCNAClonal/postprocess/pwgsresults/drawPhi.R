@@ -54,6 +54,6 @@ for(chr in unique(segmentsData$chrom)){
     plot.title = element_text(size=10.5))
   
   png(paste(phiFigurePath, "_chr", chr, ".png", sep = ""), pointsize = 10.5, family = "Times", width = 8, height= 2.5, units="in", res=600)
-  g
+  print(g)
   dev.off()
 }

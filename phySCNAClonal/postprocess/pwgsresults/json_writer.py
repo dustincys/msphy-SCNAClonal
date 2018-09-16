@@ -1,4 +1,4 @@
-from pwgsresults.index_calculator import IndexCalculator
+from index_calculator import IndexCalculator
 import json
 import gzip
 import zipfile
@@ -41,7 +41,7 @@ class JsonWriter(object):
 
     def write_mutlist(self, mutlist, mutlist_outfn):
         with gzip.GzipFile(mutlist_outfn, 'w') as mutf:
-            mutlist['dataset_name'] = self._dataset_name
+            # mutlist['dataset_name'] = self._dataset_name
             json.dump(mutlist, mutf)
 
     def write_summaries(self, summaries, params, summaries_outfn):

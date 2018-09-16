@@ -213,8 +213,8 @@ void output_SCNA_data(char fname[], SCNA data[], struct config conf){
 	dfile << "i\tid\tcopyNumber\tgenotype\n";
 
 	for(int i=0; i<conf.N_SCNA_DATA; i++){
-		dfile << i << data[i].id << "\t" << data[i].copyNumber
-			<< data[i].genotype;
+		dfile << i << "\t" << data[i].id << "\t" << data[i].copyNumber
+			<< "\t" << data[i].genotype << "\n";
 	}
 
 	dfile.close();

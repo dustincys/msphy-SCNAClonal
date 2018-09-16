@@ -3,8 +3,10 @@ library(latex2exp)
 library(ggplot2)
 
 args <- commandArgs(trailingOnly = TRUE)
+
 rTableFilePath <- args[1]
 copyNumberFigurePath <- args[2]
+
 
 segmentsData <- read.table(rTableFilePath, head=T, sep = "\t")
 segmentsData <- segmentsData[segmentsData$gc != 0,]
@@ -32,7 +34,7 @@ if('copyNumberAnswer' %in% colnames(segmentsData)){
 
   png(copyNumberFigurePath, pointsize = 10.5, family = "Times",
       width = 5, height= 2.5, units="in", res=600)
-  g
+  print(g)
   dev.off()
 }else{
   g <- ggplot(data = segmentsData)
@@ -54,6 +56,6 @@ if('copyNumberAnswer' %in% colnames(segmentsData)){
 
   png(copyNumberFigurePath, pointsize = 10.5, family = "Times",
       width = 5, height= 2.5, units="in", res=600)
-  g
+  print(g)
   dev.off()
 }
