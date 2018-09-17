@@ -69,6 +69,8 @@ class ResultGenerator(object):
 
     def _update_SCNAPool(self, mutPops, dp, SCNAPool, isStripe):
 
+        blSegsL = None
+
         if isStripe:
             for stripe, sdp, idx in zip(
                 SCNAPool.stripes, dp, range(len(SCNAPool.stripes))):
@@ -78,12 +80,15 @@ class ResultGenerator(object):
                 pop = mutPops[sdp[1]]
 
                 for segIdx in stripe.segsIdxL:
-                    SCNAPool.segPool.segments[segIdx].copyNumber = int(sdp[2])
-                    SCNAPool.segPool.segments[segIdx].genotype = str(sdp[3])
-                    SCNAPool.segPool.segments[segIdx].phi = pop
+                    targetSeg = SCNAPool.segPool.segments[segIdx]
+                    targetSeg.copyNumber = int(sdp[2])
+                    targetSeg.genotype = str(sdp[3])
+                    targetSeg.phi = pop
                     pass
                 pass
 
+            blSegsL = filter(lambda item: item.tag == 'BASELINE',
+                             SCNAPool.segPool.segments)
         else:
             for segment, sdp, idx in zip(
                 SCNAPool.segments, dp, range(SCNAPool.segments)):
@@ -95,10 +100,24 @@ class ResultGenerator(object):
 
                 pop = mutPops[sdp[1]]
 
-                segments.copyNumber = int(sdp[2])
-                segments.genotype = str(sdp[2])
-                segments.phi = pop
+                segment.copyNumber = int(sdp[2])
+                segment.genotype = str(sdp[2])
+                segment.phi = pop
+                if segment.tag == 'BASELINE':
+                    segment.copyNumber = 2
+                    segment.genotype = 'PM'
+                    segment.phi = 1.0
+                    pass
                 pass
+
+            blSegsL = filter(lambda item: item.tag == 'BASELINE',
+                             SCNAPool.segments)
+
+        for blSeg in blSegsL:
+            blSeg.copyNumber = 2
+            blSeg.genotype = 'PM'
+            blSeg.phi = 1.0
+            pass
 
     def _summarize_all_pops(self, treeFile, isStripe):
         # 此处根据SCNAPool的类型进行生成DataParameter
