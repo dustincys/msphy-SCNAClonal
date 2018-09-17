@@ -1,9 +1,9 @@
 #ifndef MH_H
 #define MH_H 1
-#include<vector>
-#include<cstring>
+#include <vector>
+#include <cstring>
 #include <string>
-#include<math.h>
+#include <math.h>
 
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_rng.h>
@@ -56,8 +56,6 @@ public:
 	int copyNumber; //用于保存param时刻对应的copyNumber
 	string genotype; //用于保存param时刻对应的genotype
 
-
-
 	SCNA (){};
 
 	double log_ll(double phi, CNGenotype& cgn, int maxCopyNumber,
@@ -65,15 +63,17 @@ public:
 		//pi 为基因型
 		vector<int> cns;
 		if(tag == "BASELINE"){
-			for(int i=1; i<=3; i++){cns.push_back(i);}
+			cns.push_back(2);
 		}else if(get_loga(this->tReadNum, this->nReadNum) > baseline){
-			for(int i=2; i<=maxCopyNumber; i++){cns.push_back(i);}
+			for(int i=3; i<=maxCopyNumber; i++){cns.push_back(i);}
 		}else{
-			for(int i=0; i<=2; i++){cns.push_back(i);}
+			for(int i=0; i<2; i++){cns.push_back(i);}
 		}
 
 		double lls[cns.size()];
+		std::fill_n(lls, cns.size(), std::numeric_limits<double>::infinity());
 		int gtIdxMaxs[cns.size()];
+		std::fill_n(gtIdxMaxs, cns.size(), -1);
 
 		thread threads[cns.size()];                         // default-constructed threads
 		for(int i=0; i<cns.size(); i++){
