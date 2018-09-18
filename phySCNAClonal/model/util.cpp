@@ -85,7 +85,7 @@ ArrayXd get_b_T_j(ArrayXd a, ArrayXd b){
 	assert(a.size() == b.size());
 	ArrayXXd ab(a.size(), 2);
 	ab << a, b;
-	return ab.rowwise().maxCoeff();
+	return ab.rowwise().minCoeff();
 }
 
 ArrayXd get_d_T_j(ArrayXd a, ArrayXd b){
@@ -151,19 +151,15 @@ double getBAF(double phi, int copyNumber, CNGenotype cgn,
 	ArrayXd muE = get_mu_E_joint(cgn.getBAF(copyNumber),
 			CONSTANTS::MU_N, CONSTANTS::COPY_NUMBER_NORMAL,
 			copyNumber, phi);
-
 	MatrixXd v1 = (ArrayXXd::Zero(1, muE.size()) + 1).matrix();
 	MatrixXd v2 = (ArrayXXd::Zero(b.size(), 1) + 1).matrix();
 	////n x 1
 	ArrayXXd bArray = (b.matrix() * v1).array();
 	ArrayXXd dArray = (d.matrix() * v1).array();
-
 	////此处需要注意维度匹配
 	////muE Nx1
 	////v1 1xN
-
 	ArrayXXd muArray = (v2 * muE.transpose().matrix()).array();
-
 	ArrayXXd ll = (dArray + 1).lgamma() - (bArray + 1).lgamma() -
 		(dArray - bArray + 1).lgamma() + bArray * muArray.log()
 		+ (dArray - bArray) * (1 - muArray).log();
@@ -171,18 +167,17 @@ double getBAF(double phi, int copyNumber, CNGenotype cgn,
 	/*--  Here returns CN ll vector and the best genotype vector
 	 * --*/
 	ArrayXd llBAFs = ll.matrix().colwise().sum();
-
 	float llBAF = llBAFs.maxCoeff(&gtIdxMax);
 
 	return llBAF;
 }
 
-double getRD(double phi, int copyNumber, double baseline, int tReadNum, int
+double getRD(int copyNumber, double phi, double baseline, int tReadNum, int
 		nReadNum){
 	int cN = CONSTANTS::COPY_NUMBER_NORMAL;
 	double cMIN = CONSTANTS::MINIMUM_POSITIVE;
 	double barC = phi * copyNumber + (1.0 - phi) * cN;
-	double lambdaPossion = (barC / cN) * baseline * (nReadNum +
+	double lambdaPossion = (barC / cN) * exp(baseline) * (nReadNum +
 			1.0);
 	if(lambdaPossion <= 0){
 		lambdaPossion = cMIN;

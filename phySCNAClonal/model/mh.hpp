@@ -85,6 +85,25 @@ public:
 			threads[i].join();
 		}
 
+		/***********
+		*  debug  *
+		***********/
+		//for(int i=0; i<cns.size(); i++){
+			//int tempIdx = 0;
+			//double tempLlh = 0.0;
+			//double phiExamples[4] ={0.3,0.4,0.8,0.9};
+			//cout << "copy number = " << cns[i] <<endl;
+			//for(int tempi=0; tempi<4; tempi++){
+				//getLLStripe(cns[i], phiExamples[tempi],
+						//baseline, cgn, ref(tempIdx),
+						//this->a, this->b,
+						//this->tReadNum, this->nReadNum,
+						//ref(tempLlh));
+				//cout << "tempPhi = " << phiExamples[tempi]
+					//<< "\tllh = " << tempLlh << endl;
+			//}
+		//}
+
 		double ll = *max_element(lls, lls+cns.size());
 		int idxMax = distance(lls, max_element(lls, lls+cns.size()));
 		//double  ll = lls.maxCoeff(&idxMax);

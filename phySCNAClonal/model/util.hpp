@@ -36,6 +36,6 @@ void getLLStripe(int copyNumber, double phi, double baseline, CNGenotype
 		nReadNum, double& ll);
 double getBAF(double phi, int copyNumber, CNGenotype cgn, ArrayXd b, ArrayXd
 		d, int& gtIdxMax);
-double getRD(double phi, int copyNumber, double baseline, int tReadNum, int
+double getRD(int copyNumber, double phi, double baseline, int tReadNum, int
 		nReadNum);
 #endif

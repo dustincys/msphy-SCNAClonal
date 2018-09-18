@@ -31,7 +31,7 @@ void CNGenotype::init_map(int maxCopyNumber){
 	double EMPIRI_AAF = 1 - EMPIRI_BAF;
 
 	for(int cn=0; cn<maxCopyNumber+1; cn++){
-		int rowsN = ceil((maxCopyNumber+1.0)/2.0);
+		int rowsN = ceil((cn+1.0)/2.0);
 		this->cnGenotypeBAF[cn] = ArrayXd(rowsN);
 		for(int mNum=0; mNum<(cn + 2)/2; mNum++){
 			double muT = 0.0;
