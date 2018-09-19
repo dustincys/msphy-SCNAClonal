@@ -106,11 +106,11 @@ class Segment:
         copyNumbers = None
         # 此处需要确认是否是使用默认的baseline为tag
         if self.tag == "BASELINE":
-            copyNumbers = [1, 2, 3]
+            copyNumbers = [2]
         elif get_loga(self) > baseline:
-            copyNumbers = range(2, maxCopyNumber + 1)
+            copyNumbers = range(3, maxCopyNumber + 1)
         else:
-            copyNumbers = range(0, 2 + 1)
+            copyNumbers = range(0, 2)
 
         llPiS = [self._getLLStripe(copyNumber, phi, baseline, alleleConfig) for copyNumber in
                    copyNumbers]
@@ -159,7 +159,7 @@ class Segment:
 
         barC = phi * copyNumber + (1.0 - phi) * cN
 
-        lambdaPossion = (barC / cN) * baseline * (self.nReadNum + 1)
+        lambdaPossion = (barC / cN) * np.exp(baseline) * (self.nReadNum + 1)
         if lambdaPossion <= 0:
             lambdaPossion = cMIN
 

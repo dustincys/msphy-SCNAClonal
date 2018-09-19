@@ -43,7 +43,7 @@ COVERAGE = 30
 ####################
 #  BAF parameters  #
 ####################
-BAF_THRESHOLD = 0.35
+BAF_THRESHOLD = 0.1
 BAF_N_MIN = 0.35
 
 # BAF_COUNTS_MIN = 10
@@ -61,7 +61,7 @@ BINOM_TEST_THRED_APM = 0.18
 # Them
 APM_N_MIN = 0.40 # This parameter is very important for baseline selection
 
-EMPIRI_BAF = 0.485
+EMPIRI_BAF = 0.5
 EMPIRI_AAF = 1.0 - EMPIRI_BAF
 MU_N = EMPIRI_BAF/(EMPIRI_BAF + EMPIRI_AAF)
 

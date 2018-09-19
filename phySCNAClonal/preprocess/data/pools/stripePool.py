@@ -29,7 +29,8 @@ import phySCNAClonal.constants as constants
 class StripePool(object):
     """The stripe objects, including load, property operations"""
 
-    def __init__(self, segPool, baseline, yDown, yUp, stripeNum, noiseStripeNum=2):
+    def __init__(self, segPool, baseline, yDown, yUp, stripeNum,
+                 noiseStripeNum=2):
         """import segPool object
 
         :segPool: TODO
@@ -48,7 +49,8 @@ class StripePool(object):
         """
         if byTag, the output of Stripe should contains tag too.
         """
-        self._aggregate(self._yDown, self._yUp, self.stripeNum, self.noiseStripeNum, byTag)
+        self._aggregate(self._yDown, self._yUp, self.stripeNum,
+                        self.noiseStripeNum, byTag)
         if plot:
             gspp = GCStripePoolPlot(self)
             gspp.plot()
