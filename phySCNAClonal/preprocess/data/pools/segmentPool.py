@@ -295,9 +295,10 @@ class SegmentPool:
                 self.segments[j].pairedCounts)
 
     def _get_APM_frac(self):
+        cpbaf = constants.COVERAGE_PROPERATION_BAF
         for j in range(0, len(self.segments)):
             self.segments[j].APMFrac = get_APM_frac_MAXMIN(
-                self.segments[j].pairedCounts)
+                self.segments[j].pairedCounts, self.coverage * cpbaf)
 
     def _get_LOH_status(self, baseThred, isPreprocess=False):
         if isPreprocess:

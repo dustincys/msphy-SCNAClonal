@@ -43,6 +43,8 @@ COVERAGE = 30
 ####################
 #  BAF parameters  #
 ####################
+
+COVERAGE_PROPERATION_BAF = 0.8
 BAF_THRESHOLD = 0.1
 BAF_N_MIN = 0.35
 

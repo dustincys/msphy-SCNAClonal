@@ -324,7 +324,7 @@ def get_APM_frac_MAXMIN_SNP(counts):
     pass
 
 
-def get_APM_frac_MAXMIN(counts):
+def get_APM_frac_MAXMIN(counts, coverageLimits=20.0):
     """get the baf position that are average in the tumor bam
 
     :counts: TODO
@@ -335,21 +335,26 @@ def get_APM_frac_MAXMIN(counts):
     I = counts.shape[0]
 
     sitesNumMin = constants.SITES_NUM_MIN
-
     APMNMin = constants.APM_N_MIN
 
     if I < sitesNumMin:
         APMFrac = -1
-
         return APMFrac
+
+    # 此处应该加入对dT限制，防止出现拷贝为0时出现APM位点
 
     aT = counts[:, 2]
     bT = counts[:, 3]
     dT = aT + bT
-    lT = np.min(counts[:, 2:4], axis=1)
-    pT = lT * 1.0 / dT
+    countsGood = counts[np.where(dT >= coverageLimits)[0],:]
 
+    aT = countsGood[:, 2]
+    bT = countsGood[:, 3]
+    dT = aT + bT
+    lT = np.min(countsGood[:, 2:4], axis=1)
+    pT = lT * 1.0 / dT
     APMNum = np.where(np.logical_and(pT > APMNMin, pT <= 0.5))[0].shape[0]
+
     APMFrac = APMNum * 1.0 / I
 
     return APMFrac
