@@ -85,7 +85,8 @@ class Stripe:
                         alleleConfig,
                         baseline,
                         maxCopyNumber,
-                        update_tree=True):
+                        update_tree=True,
+                        fixedC=None):
         if update_tree:
             ##################################################
             # some useful info about the tree,
@@ -106,19 +107,23 @@ class Stripe:
         return self.__log_likelihood_RD_BAF(phi,
                                             alleleConfig,
                                             baseline,
-                                            maxCopyNumber)
+                                            maxCopyNumber,fixedC)
 
 
-    def __log_likelihood_RD_BAF(self, phi, alleleConfig, baseline, maxCopyNumber):
+    def __log_likelihood_RD_BAF(self, phi, alleleConfig, baseline,
+                                maxCopyNumber, fixedC=None):
         # 此处是否添加记录
         copyNumbers = None
         # 此处需要确认是否是使用默认的baseline为tag
-        if self.tag == "BASELINE":
-            copyNumbers = [2]
-        elif get_loga(self) > baseline:
-            copyNumbers = range(3, maxCopyNumber + 1)
+        if fixedC is not  None:
+            copyNumbers = [fixedC]
         else:
-            copyNumbers = range(0, 2)
+            if self.tag == "BASELINE":
+                copyNumbers = [2]
+            elif get_loga(self) > baseline:
+                copyNumbers = range(3, maxCopyNumber + 1)
+            else:
+                copyNumbers = range(0, 2)
 
         llPiS = [self._getLLStripe(copyNumber, phi, baseline, alleleConfig) for copyNumber in
                    copyNumbers]
