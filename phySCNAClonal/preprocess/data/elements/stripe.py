@@ -53,7 +53,8 @@ class Stripe:
         self.genotype = ""
 
         # phi应该放在node结点中
-        # self.phi = 0.0
+        self.phi = 0.0
+        self.fixedC = -1
 
         self.tssb = None
         self.node = None  # this is the node where the datum resides
@@ -85,8 +86,7 @@ class Stripe:
                         alleleConfig,
                         baseline,
                         maxCopyNumber,
-                        update_tree=True,
-                        fixedC=None):
+                        update_tree=True):
         if update_tree:
             ##################################################
             # some useful info about the tree,

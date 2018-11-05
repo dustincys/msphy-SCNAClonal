@@ -57,7 +57,8 @@ class BamConverter:
                  processNum=1,
                  bedCorrectedPath="",
                  pklPath="",
-                 answerFilePath=""):
+                 answerFilePath="",
+                 isFixedC=False):
         self._nBamName = nBamName
         self._tBamNameL = tBamNameL
         self._bedNameL = bedNameL
@@ -79,10 +80,12 @@ class BamConverter:
         self.__bedCorrectedPath=bedCorrectedPath
         self.__pklPath = pklPath
         self.__answerFilePath = answerFilePath
+        self.__isFixedC = isFixedC
 
         self._segPoolL = []
 
-    def convert(self, readFromBed=True, method="auto", mergeSeg=False, pklFlag=False):
+    def convert(self, readFromBed=True, method="auto", mergeSeg=False,
+                pklFlag=False):
         if not pklFlag:
             self._load_segs(readFromBed)
             # self._correct_bias(method)
@@ -100,6 +103,11 @@ class BamConverter:
         blSegsL = self._get_baseline(mergeSeg)
         self._mark_timestamp(blSegsL)
 
+        if self.__isFixedC:
+            # only update the segment pool it seems there is no need to update
+            # the fixed C value for stripe pool
+            self._updateFixedCValue()
+
         if mergeSeg:
             stripePool = self._generate_stripe()
             self._dump(stripePool, "stripePool.pkl")
@@ -113,15 +121,15 @@ class BamConverter:
         if self.__answerFilePath != "":
             self._dump_seg_to_txt()
 
+    def _updateFixedCValue(self):
+        updateFixedCValue(self._segPoolL[-1], self.__answerFilePath)
+
     def _dump_seg_to_txt(self):
         """
         output table for R, draw figures
         """
-        dump_seg_to_txt(self._segPoolL[-1],
-                        len(self._segPoolL) - 1,
-                        self.__answerFilePath,
-                        self.__pathPrefix)
-
+        dump_seg_to_txt(self._segPoolL[-1], len(self._segPoolL) - 1,
+                        self.__answerFilePath, self.__pathPrefix)
 
     def _dump_txt(self, pool, outFilePath):
         """

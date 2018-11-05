@@ -60,7 +60,8 @@ def process(args):
         processNum=int(args.processNum),
         bedCorrectedPath=args.bedCorrectedPath,
         pklPath=args.pklPath,
-        answerFilePath=args.answerFilePath)
+        answerFilePath=args.answerFilePath,
+        isFixedC=args.isFixedC)
 
     # print "pilflag"
     # print args.pkl_flag

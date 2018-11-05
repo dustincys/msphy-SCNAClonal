@@ -113,6 +113,9 @@ parserPreprocess.add_argument('--mergeSeg', default=False, type=str2bool,
 parserPreprocess.add_argument('--pklFlag', default=False, type=str2bool,
                                help='''The pkl flag''')
 
+parserPreprocess.add_argument('--isFixedC', default=False, type=str2bool,
+                               help='''Fix Copy number''')
+
 parserPreprocess.set_defaults(func=run_preprocess)
 
 ###################

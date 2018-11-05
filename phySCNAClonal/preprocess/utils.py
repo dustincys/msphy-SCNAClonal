@@ -130,6 +130,18 @@ def dump_seg_to_txt(segPool, idx, answerFilePath, pathPreFix):
             outFile.write(seg.toString() +"\t{0}\t{1}\t{2}\n".format(
                 listValue[-3], listValue[-2], listValue[-1]))
 
+
+def updateFixedCValue(segPool, answerFilePath):
+    ansIdx = AnswerIndex(answerFilePath)
+    for seg in segPool.segments:
+        value = ansIdx.getValue(seg.chromName,
+                                seg.start,
+                                seg.end)
+        value = value.strip()
+        listValue = value.split('\t')
+        seg.fixedC = int(listValue[-3])
+
+
 def BEDnParser(bedName):
     """TODO: Docstring for BEDnParser.
     :returns: TODO

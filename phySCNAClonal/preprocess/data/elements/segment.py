@@ -44,6 +44,7 @@ class Segment:
         self.genotype = "__"
         # phi应该放在node结点中
         self.phi = -1
+        self.fixedC = -1
 
         self.tssb=None
         self.node=None
@@ -60,7 +61,8 @@ class Segment:
             stripeID\t\
             copyNumber\t\
             genotype\t\
-            phi"
+            phi\t\
+            fixedC"
 
     def toString(self):
         return "{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\
@@ -70,15 +72,15 @@ class Segment:
                 str(self.nReadNum), str(self.tReadNum), str(self.baselineLabel),
                 str(self.tag), str(self.stripeID),
                 str(self.copyNumber), str(self.genotype),
-                str(self.phi))
+                str(self.phi),
+                str(self.fixedC))
 
     def _log_likelihood(self,
                         phi,
                         alleleConfig,
                         baseline,
                         maxCopyNumber,
-                        update_tree=True,
-                        fixedC=None):
+                        update_tree=True):
         if update_tree:
             ##################################################
             # some useful info about the tree,
@@ -96,11 +98,19 @@ class Segment:
         # 发生
         # 注意此处可以设置默认参数
 
-        return self.__log_likelihood_RD_BAF(phi,
-                                            alleleConfig,
-                                            baseline,
-                                            maxCopyNumber,
-                                            fixedC)
+        if self.fixedC < 0:
+            return self.__log_likelihood_RD_BAF(phi,
+                                                alleleConfig,
+                                                baseline,
+                                                maxCopyNumber)
+        elif self.fixedC > = 0:
+            return self.__log_likelihood_RD_BAF(phi,
+                                                alleleConfig,
+                                                baseline,
+                                                maxCopyNumber,
+                                                self.fixedC)
+        else:
+            raise Exception("fixedC is abnormal")
 
 
     def __log_likelihood_RD_BAF(self, phi, alleleConfig, baseline,

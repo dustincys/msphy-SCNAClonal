@@ -56,18 +56,24 @@ public:
 	int copyNumber; //用于保存param时刻对应的copyNumber
 	string genotype; //用于保存param时刻对应的genotype
 
+	int fixedC = -1;
+
 	SCNA (){};
 
 	double log_ll(double phi, CNGenotype& cgn, int maxCopyNumber,
 			double baseline){
 		//pi 为基因型
 		vector<int> cns;
-		if(tag == "BASELINE"){
-			cns.push_back(2);
-		}else if(get_loga(this->tReadNum, this->nReadNum) > baseline){
-			for(int i=3; i<=maxCopyNumber; i++){cns.push_back(i);}
+		if(fixedC > 0){
+			if(tag == "BASELINE"){
+				cns.push_back(2);
+			}else if(get_loga(this->tReadNum, this->nReadNum) > baseline){
+				for(int i=3; i<=maxCopyNumber; i++){cns.push_back(i);}
+			}else{
+				for(int i=0; i<2; i++){cns.push_back(i);}
+			}
 		}else{
-			for(int i=0; i<2; i++){cns.push_back(i);}
+			cns.push_back(this->fixedC);
 		}
 
 		double lls[cns.size()];

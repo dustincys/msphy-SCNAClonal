@@ -273,6 +273,9 @@ void load_SCNA_data(char fname[], SCNA *data, struct config conf){
 			else if(ctr==6){
 				data->tag=token.c_str();
 			}
+			else if(ctr==7){
+				data->fixedC=atoi(token.c_str());
+			}
 			ctr+=1;
 		}
 		data++;

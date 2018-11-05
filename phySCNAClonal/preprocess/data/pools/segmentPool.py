@@ -333,9 +333,9 @@ class SegmentPool:
         output txt file as input file of mh model
         """
         with open(outFileName, 'w') as outFile:
-            outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
+            outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\n".format(
                 "name", "sid", "segsIdxL", "pairedCounts", "tReadNum",
-                "nReadNum", "tag"))
+                "nReadNum", "tag", "fixedC"))
 
             for s in self.segments:
                 aT = s.pairedCounts[:,2]
@@ -344,12 +344,13 @@ class SegmentPool:
                 bTstrl = np.array_str(bT).strip("[]").split()
 
                 print s.name
-                outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
+                outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\n".format(
                     "{0}_{1}_{2}".format(s.chromName, str(s.start), str(s.end)),
                     "{0}_{1}_{2}".format(s.chromName, str(s.start), str(s.end)),
                     ",",
                     "{0}|{1}".format(",".join(aTstrl), ",".join(bTstrl)),
                     s.tReadNum,
                     s.nReadNum,
-                    s.tag))
+                    s.tag,
+                    s.fixedC))
 

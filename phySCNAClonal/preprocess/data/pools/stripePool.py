@@ -57,9 +57,9 @@ class StripePool(object):
 
     def output_txt(self, outFileName):
         with open(outFileName, 'w') as outFile:
-            outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
+            outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\n".format(
                 "name", "sid", "segsIdxL", "pairedCounts", "tReadNum",
-                "nReadNum", "tag"))
+                "nReadNum", "tag", "fixedC"))
 
             for s in self.stripes:
                 aT = s.pairedCounts[:,2]
@@ -68,14 +68,15 @@ class StripePool(object):
                 bTstrl = np.array_str(bT).strip("[]").split()
 
                 print s.segsIdxL
-                outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(
+                outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\n".format(
                     s.name,
                     s.sid,
                     ",".join(map(str, s.segsIdxL)),
                     "{0}|{1}".format(",".join(aTstrl), ",".join(bTstrl)),
                     s.tReadNum,
                     s.nReadNum,
-                    s.tag))
+                    s.tag,
+                    s.fixedC))
 
     def _aggregate(self, yDown, yUp, stripeNum, noiseStripeNum=2, byTag=False,
                    plot=False):

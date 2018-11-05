@@ -12,7 +12,6 @@
 # =============================================================================
 '''
 import scipy.stats as stat
-# from numpy import *
 from numpy.random import rand
 from scipy.misc import comb
 from scipy.stats import beta, binom
