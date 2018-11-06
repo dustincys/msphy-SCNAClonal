@@ -342,7 +342,7 @@ def do_mcmc(stateManager,
             state['tssb'].resample_assignments(timeTag)
 
             if timeTag < state['time_tags'][-1]:
-                state['tssb'].mark_time_tag(timeTag)
+                state['tssb'].mark_negative_space(timeTag)
 
 
                 argsNext = (isContinue, state, unwrittenTreeL, mcmcSampleTimesL,

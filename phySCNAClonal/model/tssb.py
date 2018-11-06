@@ -148,7 +148,7 @@ class TSSB(object):
         if currentTimeTagIdx == 0:
             self.reset_time_tag()
         else:
-            self.mark_time_tag(timeTagSeq[currentTimeTagIdx - 1])
+            self.mark_negative_space(timeTagSeq[currentTimeTagIdx - 1])
             uNegtive = self.get_u_segL()
             uSegL.remove(uNegtive)
 
@@ -453,6 +453,45 @@ class TSSB(object):
             node.add_datum(n)
             self.assignments[n] = node
             self.data[n] = node.sample(args)[0]
+
+    def mark_negative_space(self, tag):
+        return self.mark_time_tag2(tag)
+
+    def mark_time_tag2(self, tag):
+        """
+        mark each node's time tag status.
+        All the nodes in the tssb tree, that contains offspings data with tag <=
+        given tag.
+        """
+        def descend(root, tag):
+            if 0 == len(root['children']):
+                timeTags = [int(item.tag) for item in root['node'].get_data() if
+                            int(item.tag) <= tag]
+                if 0 < len(timeTags):
+                    root['tag'] = True
+                    return True
+                else:
+                    root['tag'] = False
+                    return False
+            else:
+                if 0 < sum([descend(child, tag) for child in root['children']]):
+                    root['tag'] = True
+                else:
+                    root['tag'] = False
+
+                if root['tag']:
+                    return True
+                else:
+                    timeTags = [int(item.tag) for item in root['node'].get_data() if
+                                int(item.tag) <= tag]
+                    if 0 < len(timeTags):
+                        root['tag'] = True
+                        return True
+                    else:
+                        root['tag'] = False
+                        return False
+
+        descend(self.root, tag)
 
     def mark_time_tag(self, tag):
         """
