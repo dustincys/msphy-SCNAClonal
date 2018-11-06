@@ -31,7 +31,8 @@ from phySCNAClonal.preprocess.mcmc import MCMCLM
 from phySCNAClonal.preprocess.plotGC import GCStripePlot, GCStripePoolPlot
 from phySCNAClonal.preprocess.utils import (get_BAF_counts,AnswerIndex,
                                             dump_seg_to_txt,
-                                            normal_heterozygous_filter)
+                                            normal_heterozygous_filter,
+                                            updateFixedCValue)
 
 np.set_printoptions(threshold=np.inf)
 

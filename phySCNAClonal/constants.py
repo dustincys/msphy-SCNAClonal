@@ -52,16 +52,17 @@ BAF_N_MIN = 0.35
 # BAF_COUNTS_MAX = 95
 
 BAF_BINS = np.array(range(0, 100 + 1))/100.0
-LOH_FRAC_MAX = 0.25
+LOH_FRAC_MAX = 0.35
 SITES_NUM_MIN = 5
 BINOM_TEST_P = 0.5
 # default BINOM_TEST_THRED = 0.025
 # for 30x read depth,
-BINOM_TEST_THRED = 0.025
+# BINOM_TEST_THRED = 0.025
+BINOM_TEST_THRED = 0.002
 BINOM_TEST_THRED_APM = 0.18
 
 # Them
-APM_N_MIN = 0.40 # This parameter is very important for baseline selection
+APM_N_MIN = 0.43 # This parameter is very important for baseline selection
 
 EMPIRI_BAF = 0.5
 EMPIRI_AAF = 1.0 - EMPIRI_BAF
@@ -110,10 +111,10 @@ VARPI = 0.8 ## gap parameters
 #  Stripe range parameters  #
 #############################
 
-YDOWNL = [-5, -5]
-YUPL = [5, 5]
-STRIPENUML = [6, 6]
-NOISESTRIPENUML = [1, 1]
+YDOWNL = [-5, -5, -5, -5]
+YUPL = [5, 5, 5, 5]
+STRIPENUML = [6, 6, 6, 6]
+NOISESTRIPENUML = [1, 1, 1, 1]
 
 #################################
 #  Stripe decompose parameters  #

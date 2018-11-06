@@ -241,6 +241,15 @@ class SegmentPool:
             the constants APM_N_MIN is too large; Or, the baseline_thred_LOH is\
             too small'
             sys.exit(1)
+        if rdRatioLog.shape[0] < 5:
+            for j in range(0, len(self.segments)):
+                if self.segments[j].APMStatus == 'TRUE' and\
+                        self.segments[j].LOHStatus == 'FALSE':
+                    self.segments[j].baselineLabel = 'TRUE'
+                else:
+                    self.segments[j].baselineLabel = 'FALSE'
+
+            return np.mean(rdRatioLog)
 
         rdRatioLog = rdRatioLog.reshape(rdRatioLog.shape[0], 1)
         y = np.ones(rdRatioLog.shape)
