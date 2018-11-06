@@ -103,7 +103,7 @@ class Segment:
                                                 alleleConfig,
                                                 baseline,
                                                 maxCopyNumber)
-        elif self.fixedC > = 0:
+        elif self.fixedC >= 0:
             return self.__log_likelihood_RD_BAF(phi,
                                                 alleleConfig,
                                                 baseline,

@@ -176,8 +176,8 @@ class BamConverter:
 
         # 如上一步中添加了baseline选项
         # 那么这里的排序需要先排除baseline选项
-        gspp = GCStripePoolPlot(tempSP)
-        gspp.plot()
+        # gspp = GCStripePoolPlot(tempSP)
+        # gspp.plot()
 
         tempSP.stripes.sort(key = lambda item: int(item.tag))
 
@@ -335,17 +335,17 @@ class BamConverter:
         return y - A + K
 
     def visualize(self, segPool):
-        gsp = GCStripePlot(segPool.segments, len(segPool.segments))
+        # gsp = GCStripePlot(segPool.segments, len(segPool.segments))
         print "total number: {}".format(len(segPool.segments))
-        gsp.plot()
+        # gsp.plot()
         x, y, m, c = gsp.output()
         print "x, y, m, c"
         print x, y, m, c
 
     def _V_GC_C(self, segPool, sampleNumber=10000):
-        gsp = GCStripePlot(segPool.segments, sampleNumber)
+        # gsp = GCStripePlot(segPool.segments, sampleNumber)
         print >> sys.stdout, "total number: {}".format(len(segPool.segments))
-        gsp.plot()
+        # gsp.plot()
         print >> sys.stdout, "x, y, m, c"
         print >> sys.stdout, gsp.output()
 
