@@ -64,7 +64,8 @@ def start_new_run(stateManager,
                   writeBackupsEvery,
                   randSeed,
                   tmpDir,
-                  maxCopyNumber):
+                  maxCopyNumber,
+                  isMerged):
     state = {}
 
 
@@ -98,7 +99,7 @@ def start_new_run(stateManager,
     state['write_backups_every'] = writeBackupsEvery
 
     # 此处载入数据，此处含有baseline
-    inputData, baseline = load_data(state['input_data_file'])
+    inputData, baseline = load_data(state['input_data_file'], isMerged)
 
     ########################
     #  test, set time tag  #
@@ -592,7 +593,8 @@ def run(args, safeToExit, runSucceeded, config):
             writeBackupsEvery=args.writeBackupsEvery,
             randSeed=args.randomSeed,
             tmpDir=args.tmpDir,
-            maxCopyNumber=args.maxCopyNumber)
+            maxCopyNumber=args.maxCopyNumber,
+            isMerged=args.isMerged)
 
 
 def remove_tmp_files(tmpDir):

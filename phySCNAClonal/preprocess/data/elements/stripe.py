@@ -33,6 +33,7 @@ from pydp.densities import log_poisson_pdf
 class Stripe:
     def __init__(self):
         # 记录对应原始seg的索引
+        self.id = -1
         self.name = ""
         self.sid = ""
         self.segsIdxL = None

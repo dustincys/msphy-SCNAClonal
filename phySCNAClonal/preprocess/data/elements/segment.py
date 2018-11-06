@@ -12,10 +12,22 @@
 #       History: YI lI
 # =============================================================================
 '''
+import numpy as np
+from scipy.stats.mstats import gmean
+
+import phySCNAClonal.constants as constants
+from phySCNAClonal.model.util2 import (map_datum_to_node, set_node_height,
+                                       set_path_from_root_to_node)
+from phySCNAClonal.preprocess.utils import (get_loga, get_mu_E_joint,
+                                            log_binomial_likelihood,
+                                            mad_based_outlier)
+from pydp.densities import log_poisson_pdf
+
 
 class Segment:
 
     def __init__(self):
+        self.id = -1
         self.name = ""
         self.chromIdx = -1
         self.chromName = ""

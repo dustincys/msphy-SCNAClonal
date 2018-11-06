@@ -59,13 +59,21 @@ def parse_physical_cnvs(pcnvs):
     return physicalCnvs
 
 
-def load_data(inputFilePath):
+def load_data(inputFilePath, isMerged=True):
     # load stripes data
 
     inputFile = open(inputFilePath, 'rb')
-    dataStripes = pkl.load(inputFile)
+    if isMerged:
+        dataStripes = pkl.load(inputFile)
+        for dsp, idx in zip(dataStripes.stripes, range(len(dataStripes.stripes))):
+            dsp.id = idx
+        return (dataStripes.stripes, dataStripes.baseline)
+    else:
+        dataSegments = pkl.load(inputFile)
+        for ds, idx in zip(dataSegments.segments, range(len(dataSegments.segments))):
+            ds.id = idx
+        return (dataSegments.segments, dataSegments.baseline)
 
-    return (dataStripes.stripes, dataStripes.baseline)
 
 #################################################
 # some useful functions to get some info about,
