@@ -174,6 +174,9 @@ parserModel.add_argument('--inputDataTextFile', dest='inputDataTextFile', help= 
                          file listing data(SCNA stripes). For proper format,\
                          see README.md.')
 
+parserModel.add_argument('--isMerged', default=False, type=str2bool,
+                               help='''is merged data file''')
+
 parserModel.add_argument('--maxCopyNumber', dest='maxCopyNumber', default=6,
                          type=int, help= 'Max copy number')
 

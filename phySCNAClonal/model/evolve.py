@@ -244,7 +244,7 @@ def start_new_run(stateManager,
 
 
 def resume_existing_run(stateManager, backupManager, safeToExit,
-                        runSucceeded, config):
+                        runSucceeded, config, isMerged=True):
     # If error occurs, restore the backups and try again. Never try more than two
     # times, however -- if the primary file and the backup file both fail, the
     # error is unrecoverable.
@@ -265,7 +265,7 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
         logmsg('Previous job is finished already!', sys.stderr)
     else:
         np.random.set_state(state['rand_state'])  # Restore NumPy's RNG state.
-        inputData, baseline = load_data(state['input_data_file'])
+        inputData, baseline = load_data(state['input_data_file'], isMerged)
         # print [sp.tag for sp in inputData]
         dataNum = len(inputData)
         do_mcmc(stateManager,
@@ -564,7 +564,7 @@ def run(args, safeToExit, runSucceeded, config):
     if stateManager.state_exists():
         logmsg('Resuming existing run. Ignoring command-line parameters.')
         resume_existing_run(stateManager, backupManager, safeToExit,
-                            runSucceeded, config)
+                            runSucceeded, config, isMerged=args.isMerged)
     else:
         # Ensure input files exist and can be read.
         try:
