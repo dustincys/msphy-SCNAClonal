@@ -49,9 +49,13 @@ class ResultGenerator(object):
         summaries = {}
         allMutAss = {}
         allMutDataParam = {}
+        partialDict = {}
 
         for idx, llh, dp, tree, pops, mutAss, structure, mutPops in\
                 self._summarize_all_pops(treeFile, isStripe):
+
+            self._generate_partialData(tree, partialDict)
+
             summaries[idx] = {
                 'llh': llh,
                 'structure': structure,
@@ -65,7 +69,38 @@ class ResultGenerator(object):
             self._update_SCNAPool(mutPops, dp, currentSCNAPool, isStripe)
             summaries[idx]['SCNAPool'] = currentSCNAPool
 
-        return summaries, allMutAss, params, isStripe
+        return summaries, allMutAss, params, partialDict, isStripe
+
+
+    def _generate_partialData(self, tree, pd):
+
+        def descend(root):
+            childrenIds = set()
+            for node in root['children']:
+                childrenIds = childrenIds.union(descend(node))
+            if len(root['node'].data) > 0:
+                for dataId in root['node'].data:
+                    for childId in childrenIds:
+                        self._update_partialDict(pd, dataId, childId)
+            else:
+                return childrenIds
+
+            if len(root['node'].data) > 0:
+                return root['node'].data
+
+        descend(tree.root)
+
+
+    def _update_partialDict(self, pd, fromNode, toNode):
+        if fromNode in pd.keys():
+            if toNode in pd[fromNode].keys():
+                pd[fromNode][toNode] += 1.0
+            else:
+                pd[fromNode][toNode] = 1.0
+        else:
+            pd[fromNode] = {}
+            pd[fromNode][toNode] = 1.0
+
 
     def _update_SCNAPool(self, mutPops, dp, SCNAPool, isStripe):
 
@@ -91,7 +126,7 @@ class ResultGenerator(object):
                              SCNAPool.segPool.segments)
         else:
             for segment, sdp, idx in zip(
-                SCNAPool.segments, dp, range(SCNAPool.segments)):
+                SCNAPool.segments, dp, range(len(SCNAPool.segments))):
 
                 segmentId = "{0}_{1}_{2}".format(
                     segment.chromName, str(segment.start), str(segment.end))
@@ -178,7 +213,7 @@ class ResultGenerator(object):
         pklFile = open(inputFilePath, 'rb')
         SCNAPool = pkl.load(pklFile)
         pklFile.close()
-        if type(SCNAPool).__name__ == "StripePool":
+        if not hasattr(SCNAPool, 'segments'):
             return SCNAPool, True
-        elif type(SCNAPool).__name__ == "SegmentPool":
+        else:
             return SCNAPool, False

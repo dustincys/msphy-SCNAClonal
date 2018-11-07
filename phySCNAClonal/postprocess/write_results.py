@@ -9,10 +9,21 @@ from phySCNAClonal.postprocess.pwgsresults.result_generator import \
     ResultGenerator
 
 
+def output_partial_data(outFilePath, pd):
+    with open(outFilePath, 'w') as outFile:
+        for fromNode in pd.keys():
+            totalLink = sum([pd[fromNode][toNode] for toNode in pd[fromNode]])
+            for toNode in pd[fromNode]:
+                outFile.write("{0}\t{1}\t{2}\n".format(
+                    fromNode, toNode, pd[fromNode][toNode]*1.0/totalLink))
+
 def process(args):
     # 此处应该生成关于目标的copyNumber, phi等信息
-    summaries, allMutAss, params, isStripe =\
+    summaries, allMutAss, params, partialDict, isStripe =\
         ResultGenerator().generate(args.treeFile, args.SCNAPoolFile)
+
+    outFilePath = args.outputFolder + "/partialData.txt"
+    output_partial_data(outFilePath, partialDict)
 
     # 此处生成图形
     fg = FigureGenerator()

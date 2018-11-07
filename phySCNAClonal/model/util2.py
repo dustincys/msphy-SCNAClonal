@@ -72,6 +72,7 @@ def load_data(inputFilePath, isMerged=True):
         dataSegments = pkl.load(inputFile)
         for ds, idx in zip(dataSegments.segments, range(len(dataSegments.segments))):
             ds.id = idx
+            ds.sid = "{0}_{1}_{2}".format(ds.chromName,ds.start,ds.end)
         return (dataSegments.segments, dataSegments.baseline)
 
 

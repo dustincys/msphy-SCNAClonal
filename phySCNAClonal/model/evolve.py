@@ -259,7 +259,7 @@ def resume_existing_run(stateManager, backupManager, safeToExit,
         state = stateManager.load_state()
         treeWriter = TreeWriter(resumeRun=True)
 
-    if state['total_iteration'] >= np.power(
+    if state['total_iteration'] > np.power(
         (state['burnin_sample_number']+ state['sample_number']),
         len(state['time_tags'])) - 1:
         logmsg('Previous job is finished already!', sys.stderr)

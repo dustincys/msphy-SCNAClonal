@@ -28,6 +28,7 @@ class Segment:
 
     def __init__(self):
         self.id = -1
+        self.sid = ""
         self.name = ""
         self.chromIdx = -1
         self.chromName = ""
@@ -78,12 +79,18 @@ class Segment:
 
     def toString(self):
         return "{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\
-            \t{8}\t{9}\t{10}\t{11}".format(
-                str(self.chromName), str(self.start),
-                str(self.end),str(self.gc),
-                str(self.nReadNum), str(self.tReadNum), str(self.baselineLabel),
-                str(self.tag), str(self.stripeID),
-                str(self.copyNumber), str(self.genotype),
+            \t{8}\t{9}\t{10}\t{11}\t{12}".format(
+                str(self.chromName),
+                str(self.start),
+                str(self.end),
+                str(self.gc),
+                str(self.nReadNum),
+                str(self.tReadNum),
+                str(self.baselineLabel),
+                str(self.tag),
+                str(self.stripeID),
+                str(self.copyNumber),
+                str(self.genotype),
                 str(self.phi),
                 str(self.fixedC))
 

@@ -88,6 +88,7 @@ def print_node2(node, parent,tree,fout):
     stripes = node['node'].get_data()
     stripeId = ''
     if len(stripes)>0:
+
         stripeId = stripes[0].sid #name
         for spIdx in arange(1,len(stripes)):
             stripeId = stripeId + '; ' + stripes[spIdx].sid #name

@@ -122,7 +122,7 @@ class FigureGenerator(object):
 
             SCNAStr=''
             for s in root['node'].get_data():
-                SCNAStr += "{0}\|{1}, ".format(s.tag, s.name)
+                SCNAStr += "{0}$\|${1}, ".format(s.tag, s.name)
 
             #  TODO:  <14-09-18, Chu Yanshuo> #
             SCNAStr = SCNAStr.replace("_","\\_")
@@ -160,7 +160,7 @@ class FigureGenerator(object):
         treeFile += '\\node (table){\n'
         treeFile += '\\begin{tabular}{|c|l|l|}\n'
         treeFile += '\\hline\n'
-        treeFile += 'Node & SCNAs (stage\|ID) & Clonal frequencies\\\\\n'
+        treeFile += 'Node & SCNAs (stage$\|$ID) & Clonal frequencies\\\\\n'
         treeFile += '\\hline\n'
         treeFile = print_index(tssb.root, treeFile, count)
         treeFile += '\\hline\n'
