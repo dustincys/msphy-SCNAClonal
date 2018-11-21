@@ -38,7 +38,7 @@ SLOPE_RANGE = 5
 #  COVERAGE  #
 ##############
 
-COVERAGE = 30
+COVERAGE = 300
 
 ####################
 #  BAF parameters  #

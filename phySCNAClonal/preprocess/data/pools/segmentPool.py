@@ -229,7 +229,7 @@ class SegmentPool:
         rdRatioLog = []
         for j in range(0, len(self.segments)):
             if self.segments[j].APMStatus == 'TRUE' and\
-                    self.segments[j].LOHStatus == 'FALSE':
+                    self.segments[j].LOHStatus != 'TRUE':
                 ratio = self.segments[j].tReadNum*1.0/\
                     self.segments[j].nReadNum
                 rdRatioLog.append(np.log(ratio))
@@ -244,7 +244,7 @@ class SegmentPool:
         if rdRatioLog.shape[0] < 5:
             for j in range(0, len(self.segments)):
                 if self.segments[j].APMStatus == 'TRUE' and\
-                        self.segments[j].LOHStatus == 'FALSE':
+                        self.segments[j].LOHStatus != 'TRUE':
                     self.segments[j].baselineLabel = 'TRUE'
                 else:
                     self.segments[j].baselineLabel = 'FALSE'
@@ -280,7 +280,7 @@ class SegmentPool:
         rdrIdx = 0
         for j in range(0, len(self.segments)):
             if self.segments[j].APMStatus == 'TRUE' and\
-                    self.segments[j].LOHStatus == 'FALSE':
+                    self.segments[j].LOHStatus != 'TRUE':
                 if clusterFlag[rdrIdx]:
                     self.segments[j].baselineLabel = 'TRUE'
                     baselineNum = baselineNum + 1
@@ -318,7 +318,7 @@ class SegmentPool:
                     self.segments[j].LOHFrac, baseThred)
                 if self.segments[j].LOHStatus == "TRUE":
                     LOHNum = LOHNum + 1
-                elif self.segments[j].LOHStatus == "FALSE":
+                elif self.segments[j].LOHStatus != "TRUE":
                     FLOHNum = FLOHNum + 1
 
             print >> sys.stdout, "LOHNum/segNum = {0}/{1}".format(LOHNum, len(self.segments))
