@@ -30,6 +30,7 @@ import numpy as np
 
 from gwpy.segments import Segment, SegmentList
 from phySCNAClonal.model.datanode import DataNode
+from phySCNAClonal.model.crossing import C2T
 from phySCNAClonal.model.params import get_c_fnames, metropolis
 from phySCNAClonal.model.printo import (print_top_trees, print_tree_latex,
                                         print_tree_latex2, show_tree_structure)
@@ -65,7 +66,9 @@ def start_new_run(stateManager,
                   randSeed,
                   tmpDir,
                   maxCopyNumber,
-                  isMerged):
+                  isMerged,
+                  isCrossing=False,
+                  crossingFile=""):
     state = {}
 
 
@@ -100,6 +103,13 @@ def start_new_run(stateManager,
 
     # 此处载入数据，此处含有baseline
     inputData, baseline = load_data(state['input_data_file'], isMerged)
+    state['crossing_file'] = crossingFile
+    state['is_crossing'] = isCrossing
+    timeOrder, negativeNodes = load_crossing_rule(inputData,
+                                                  state['crossingFile'],
+                                                  isCrossing)
+    state['negative_nodes'] = negativeNodes
+    state['timeOrder'] = timeOrder
 
     ########################
     #  test, set time tag  #
@@ -243,6 +253,18 @@ def start_new_run(stateManager,
             tmpDir)
 
 
+def load_crossing_rule(inputData, crossingFile, isCrossing):
+    if not isCrossing:
+        return None, None
+    c2t = C2T(crossingFile)
+    timeOrder, negativeNodes = c2t.toTimeOrder()
+
+    for idx, tag in timeOrder:
+        inputData[idx].tag = str(tag)
+
+    return timeOrder, negativeNodes
+
+
 def resume_existing_run(stateManager, backupManager, safeToExit,
                         runSucceeded, config, isMerged=True):
     # If error occurs, restore the backups and try again. Never try more than two
@@ -339,11 +361,14 @@ def do_mcmc(stateManager,
 
             state['last_iteration'][timeTagIdx] = iteration
 
-            state['tssb'].resample_assignments(timeTag)
+            if state['is_crossing']:
+                state['tssb'].resample_assignments_crossing(timeTag, state['negative_nodes'])
+            else:
+                state['tssb'].resample_assignments(timeTag)
 
             if timeTag < state['time_tags'][-1]:
-                state['tssb'].mark_negative_space(timeTag)
-
+                if state['is_crossing']:
+                    state['tssb'].mark_negative_space(timeTag)
 
                 argsNext = (isContinue, state, unwrittenTreeL, mcmcSampleTimesL,
                             lastMcmcSampleTime, config, stateManager,

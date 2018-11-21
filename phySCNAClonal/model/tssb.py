@@ -237,6 +237,122 @@ class TSSB(object):
             lengths.append(len(newPath))
         lengths = array(lengths)
 
+    def resample_assignments_crossing(self, tag, negativeNodes):
+        def path_lt(path1, path2):
+            if len(path1) == 0 and len(path2) == 0:
+                return 0
+            elif len(path1) == 0:
+                return 1
+            elif len(path2) == 0:
+                return -1
+            s1 = "".join(map(lambda i: "%03d" % (i), path1))
+            s2 = "".join(map(lambda i: "%03d" % (i), path2))
+
+            return cmp(s2, s1)
+
+        epsilon = finfo(float64).eps
+        # this is not useful
+        lengths = []
+
+        # change data range
+        # 需要保存索引号码
+
+        tagL = array([int(item.tag) for item in self.data])
+        timeTagSeq = sort(unique(tagL))
+        currentTimeTagIdx = where(timeTagSeq == tag)[0][0]
+        uSegL = MultiRangeSampler(0,1)
+        if currentTimeTagIdx == 0:
+            self.reset_time_tag()
+
+
+        for n in where(tagL == tag)[0]:
+            # change to segment operation
+
+            self.mark_specific_time_tag(negativeNodes[n])
+            uNegtive = self.get_u_segL()
+            uSegL.remove(uNegtive)
+            tempUSegL = deepcopy(uSegL)
+
+            minU = tempUSegL.lowerBoundary
+            maxU = tempUSegL.upperBoundary
+
+            llhMapD = {}
+            # Get an initial uniform variate.
+            ancestors = self.assignments[n].get_ancestors()
+            current = self.root
+            indices = []
+            for anc in ancestors[1:]:
+                index = map(lambda c: c['node'],
+                            current['children']).index(anc)
+                current = current['children'][index]
+                indices.append(index)
+
+            # Here indices could be used as path to locate v stick
+
+            currentVStick = self._locate_v_stick(indices)
+            isInNegativeSpace = currentVStick['tag']
+
+            llhS = -float('Inf')
+            if isInNegativeSpace:
+                oldLlh = -float('Inf')
+                llhS = -float('Inf')
+            else:
+                oldLlh = self.assignments[n].logprob(self.data[n:n + 1],
+                                                     self.alleleConfig,
+                                                     self.baseline,
+                                                     self.maxCopyNumber)
+                llhMapD[self.assignments[n]] = oldLlh
+                llhS = log(rand()) + oldLlh
+
+            while True:
+                newU = tempUSegL.sample()
+                (newNode, newPath) = self.find_node(newU)
+                if newNode.parent() is None:
+                    # shankar: to make root node empty
+                    newNode = newNode.children()[0]
+                    newPath = [0]
+                oldNode = self.assignments[n]
+                oldNode.remove_datum(n)
+                newNode.add_datum(n)
+                self.assignments[n] = newNode
+                if newNode in llhMapD:
+                    newLlh = llhMapD[newNode]
+                else:
+                    ####################################
+                    #  Record most likely copy number  #
+                    ####################################
+                    newLlh = newNode.logprob(self.data[n:n + 1],
+                                             self.alleleConfig, self.baseline,
+                                             self.maxCopyNumber)
+                    if -float('Inf') == newLlh:
+                        print >> sys.stderr, "Slice sampler weirdness"
+                    llhMapD[newNode] = newLlh
+                if newLlh > llhS:
+                    break
+                elif abs(maxU - minU) < epsilon:
+                    if -float('Inf') == newLlh:
+                        raise Exception("Slice sampler weirdness.")
+
+                    newNode.remove_datum(n)
+                    oldNode.add_datum(n)
+                    self.assignments[n] = oldNode
+                    print >> sys.stderr, "Slice sampler shrank down.  Keep current state."
+                    break
+                else:
+                    newNode.remove_datum(n)
+                    oldNode.add_datum(n)
+                    self.assignments[n] = oldNode
+                    pathComp = path_lt(indices, newPath)
+                    if pathComp < 0:
+                        tempUSegL.removeLeft(newU)
+                    elif pathComp >= 0:  # temporary fix only!!!!!!
+                        tempUSegL.removeRight(newU)
+                    else:
+                        raise Exception("Slice sampler weirdness.")
+                    minU = tempUSegL.lowerBoundary
+                    maxU = tempUSegL.upperBoundary
+            lengths.append(len(newPath))
+        lengths = array(lengths)
     def _locate_v_stick(self, indices):
         """locate and return v stick by indices
 
@@ -457,6 +573,35 @@ class TSSB(object):
     def mark_negative_space(self, tag):
         return self.mark_time_tag2(tag)
 
+    def mark_specific_time_tag(self, Q):
+        """mark negative node
+
+        :Q: TODO
+        :returns: TODO
+
+        """
+        def descend(root):
+            if 0 == len(root['children']):
+                for item in root['node'].get_data():
+                    if item in Q:
+                        root['tag'] = True
+                        return True
+                root['tag'] = False
+                return False
+            else:
+                if 0 < sum([descend(child) for child in root['children']]):
+                    root['tag'] = True
+                    return True
+                else:
+                    for item in root['node'].get_data():
+                        if item in Q:
+                            root['tag'] = True
+                            return True
+                    root['tag'] = False
+                    return False
+
+        descend(self.root)
+
     def mark_time_tag2(self, tag):
         """
         mark each node's time tag status.
@@ -476,10 +621,6 @@ class TSSB(object):
             else:
                 if 0 < sum([descend(child, tag) for child in root['children']]):
                     root['tag'] = True
-                else:
-                    root['tag'] = False
-
-                if root['tag']:
                     return True
                 else:
                     timeTags = [int(item.tag) for item in root['node'].get_data() if
@@ -512,12 +653,9 @@ class TSSB(object):
             else:
                 if 0 < sum([descend(child, tag) for child in root['children']]):
                     root['tag'] = True
-                else:
-                    root['tag'] = False
-
-                if root['tag']:
                     return True
                 else:
+                    root['tag'] = False
                     timeTags = [int(item.tag) for item in root['node'].get_data() if
                                 int(item.tag) <= tag]
                     if 0 < len(timeTags):

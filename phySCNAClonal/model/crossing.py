@@ -117,7 +117,7 @@ class C2T(object):
 
 
 def main():
-    c2t = C2T("./crossing.text")
+    c2t = C2T("./crossing.text.example")
     print c2t.toTimeOrder()
 
 if __name__ == "__main__":
