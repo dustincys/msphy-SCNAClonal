@@ -2,21 +2,22 @@
 # -*- coding: utf-8 -*-
 '''
 # =============================================================================
-#      FileName: crossing.py
-#          Desc: use crossing rule to find topological restriction
+#      FileName: ordertransform.py
+#          Desc: transform crossing rule and summing rule into time ordered rule
 #        Author: Chu Yanshuo
 #         Email: chu@yanshuo.name
 #      HomePage: http://yanshuo.name
 #       Version: 0.0.1
-#    LastChange: 2018-11-15 16:37:09
+#    LastChange: 2018-11-26 20:54:40
 #       History:
 # =============================================================================
 '''
-import numpy as np
-import os.path.commonprefix as commonprefix
-
 from collections import deque
 from copy import deepcopy
+from os.path import commonprefix
+
+import numpy as np
+
 
 class C2T(object):
 
@@ -142,13 +143,20 @@ class CS2T(C2T):
 
         self.varkappaMatrixArray, self.currentVarkappa, self.phiDL,\
             self.currentPhiD = self.read_config_file()
+
+        # print self.varkappaMatrixArray
+        # print self.currentVarkappa
+        # print self.phiDL
+        # print self.currentPhiD
+
         self.timeOrder, self.negativeSetDict = self.toTimeOrder(
             self.varkappaMatrixArray, self.currentVarkappa)
 
         self.epsilonDL = []
-        for phiDIndex in range(len(phiDL)):
+        # print self.phiDL
+        for phiDIndex in range(len(self.phiDL)):
             epsilonD = {}
-            for key in phiDL[phiDIndex].keys():
+            for key in self.phiDL[phiDIndex].keys():
                 epsilonD[key] = ""
             self.epsilonDL.append(epsilonD)
 
@@ -157,6 +165,7 @@ class CS2T(C2T):
         :returns: TODO
 
         """
+        negativeSetDict = {}
         for varkappaMatrix in varkappaMatrixArray:
             for ki in range(len(varkappaMatrix)):
                 currentTempVarkappa = np.array([currentVarkappa[item] for item in
@@ -193,7 +202,7 @@ class CS2T(C2T):
         tQueue = deque()
         tStack = deque()
 
-        nsL = [(idx, deepCopy(negativeSetDict(idx))) if idx in
+        nsL = [(idx, deepcopy(negativeSetDict[idx])) if idx in
                 negativeSetDict.keys() else (idx, set()) for idx in
                 currentVarkappa]
 
@@ -215,22 +224,23 @@ class CS2T(C2T):
 
         while len(tQueue) != 0:
             tStack = tQueue.popleft()
+            tStack = deque(sorted(tStack, key=lambda item: len(item[1]),
+                                  reverse=True))
+            lastTimeIdxS = set()
             while len(tStack) != 0:
+                if len(tStack[-1][1]) != 0:
+                    stackArray = [(item[0], item[1] - lastTimeIdxS) for item in
+                                  tStack]
+                    tStack = deque(sorted(stackArray, key=lambda item:
+                                          len(item[1]), reverse=True))
+                    lastTimeIdxS.clear()
+                    currentTime = currentTime + 1
+
                 idx, nsl = tStack.pop()
                 timeOrder.append((idx, currentTime))
+                lastTimeIdxS.add(idx)
 
-                isNextTime = False
-                for item in tStack:
-                    if idx in item[1]:
-                        item[1].remove(idx)
-                        isNextTime = True
-                if isNextTime:
-                    currentTime = currentTime + 1
-                    tStack = deque(
-                        sorted(tStack, key=lambda item: len(item[1]),
-                               reverse=True))
-
-    return timeOrder
+        return timeOrder
 
     def update_epsilon(self, dataIndex, epsilon):
         """Update epsilon dictionary
@@ -288,11 +298,11 @@ class CS2T(C2T):
             currentPhiD = {}
 
             for line in configFile:
-                line = line.strip()
+                line = line.strip().lower()
                 if line == "":
                     continue
                 if line.startswith("#"):
-                    if line.find("Current"):
+                    if line.find("current") >= 0:
                         nextCurrent = True
                     else:
                         nextNewVarkappa = True
@@ -300,12 +310,14 @@ class CS2T(C2T):
                             varkappaMatrixArray.append(varkappaMatrix)
                             varkappaMatrix = []
                         if not phiD == {}:
-                            phiDL.append(np.array(phiD))
+                            phiDL.append(phiD)
                             phiD = {}
                 else:
                     if nextCurrent:
                         currentVarkappa = [int(item.split("|")[0]) for item in
                                            line.split("\t")]
+                        # print "currentVarkappa"
+                        # print currentVarkappa
                         for item in line.split("\t"):
                             spItem = item.split("|")
                             if len(spItem) > 1:
@@ -334,7 +346,7 @@ class CS2T(C2T):
             if varkappaMatrix != []:
                 varkappaMatrixArray.append(varkappaMatrix)
             if not phiD == {}:
-                phiDL.append(np.array(phiD))
+                phiDL.append(phiD)
 
             if nextCurrent:
                 currentVarkappa = [int(item.split("|")[0]) for item in
@@ -349,11 +361,23 @@ class CS2T(C2T):
                             currentPhiD[int(spItem[0])].append(
                                 float(spItem[1]))
 
+        # print "____>>> read_config: varkappaMatrixArray____"
+        # print varkappaMatrixArray
+        # print "_________end read_config:varkappaMatrixArray______________"
+        # print "____>>> read_config: currentVarkappa____"
+        # print currentVarkappa
+        # print "_________end read_config:currentVarkappa______________"
+        # print "____>>> read_config: phiDL____"
+        # print phiDL
+        # print "_________end read_config:phiDL______________"
+
         return varkappaMatrixArray, currentVarkappa, phiDL, currentPhiD
 
 def main():
-    c2t = C2T("./crossing.text.example")
-    print c2t.toTimeOrder()
+    # c2t = C2T("./crossing.text.example")
+    # print c2t.toTimeOrder()
+    cs2t = CS2T("./summingandcrossing.example.txt")
+    print cs2t.timeOrder
 
 if __name__ == "__main__":
     main()
