@@ -46,7 +46,7 @@ class C2T(object):
         """
         self._configFilePath = configFilePath
         # self.varkappaMatrixArray = {}
-        # self.negativeSetDict = {}
+        # self.negativeSD = {}
 
     def toTimeOrder(self, varkappaMatrixArray):
         """
@@ -64,21 +64,21 @@ class C2T(object):
 
                 for ti in range(len(varkappaMatrix[-1])):
                     if varkappaMatrix[-1][ti] not in\
-                            negativeSetDict.keys():
-                        negativeSetDict[varkappaMatrix[-1][ti]] = set()
+                            negativeSD.keys():
+                        negativeSD[varkappaMatrix[-1][ti]] = set()
                     for tj in range(ti+1, len(varkappaMatrix[-1])):
                         if tArray[tj] < tArray[ti]:
                             if varkappaMatrix[-1][ti] not in\
-                                    negativeSetDict.keys():
-                                negativeSetDict[varkappaMatrix[-1][ti]] =\
+                                    negativeSD.keys():
+                                negativeSD[varkappaMatrix[-1][ti]] =\
                                     set([varkappaMatrix[-1][tj]])
                             else:
-                                negativeSetDict[varkappaMatrix[-1][ti]].add(
+                                negativeSD[varkappaMatrix[-1][ti]].add(
                                     varkappaMatrix[-1][tj])
-        idxOrder = sorted(negativeSetDict.keys())
-        timeOrder = [(idx, len(negativeSetDict[idx])) for idx in idxOrder]
+        idxOrder = sorted(negativeSD.keys())
+        timeOrder = [(idx, len(negativeSD[idx])) for idx in idxOrder]
 
-        return timeOrder, negativeSetDict
+        return timeOrder, negativeSD
 
     def read_config_file(self):
         """TODO: Docstring for __read_config_file.
@@ -149,7 +149,7 @@ class CS2T(C2T):
         # print self.phiDL
         # print self.currentPhiD
 
-        self.timeOrder, self.negativeSetDict = self.toTimeOrder(
+        self.timeOrder, self.negativeSD = self.toTimeOrder(
             self.varkappaMatrixArray, self.currentVarkappa)
 
         self.epsilonDL = []
@@ -161,58 +161,65 @@ class CS2T(C2T):
             self.epsilonDL.append(epsilonD)
 
     def toTimeOrder(self, varkappaMatrixArray, currentVarkappa):
-        """
-        :returns: TODO
+        """ tranform to time order
+        :returns: time order
 
         """
-        negativeSetDict = {}
+        negativeSD = {}
+        totalTimeOrderD = {}
+
         for varkappaMatrix in varkappaMatrixArray:
             for ki in range(len(varkappaMatrix)):
-                currentTempVarkappa = np.array([currentVarkappa[item] for item in
-                              range(len(currentVarkappa)) if
-                              currentVarkappa[item] in varkappaMatrix[ki]])
-                tArray = [len(
-                    set(currentTempVarkappa[kj:]) - set(
-                        varkappaMatrix[ki][np.where(
-                            np.array(varkappaMatrix[ki]) ==\
-                            currentTempVarkappa[kj])[0][0]:]))
-                    for kj in range(len(currentTempVarkappa[:]))]
+                currentTempVarkappa = np.array([currentVarkappa[item] for item
+                                                in range(len(currentVarkappa))
+                                                if currentVarkappa[item] in
+                                                varkappaMatrix[ki]])
+                negativeSetList = [set(currentTempVarkappa[kj:]) -
+                                   set(varkappaMatrix[ki][ np.where(
+                                       np.array(varkappaMatrix[ki]) ==
+                                       currentTempVarkappa[kj])[0][0]:]) for kj
+                                   in range(len(currentTempVarkappa[:]))]
 
-                for ti in range(len(currentTempVarkappa)):
-                    if currentTempVarkappa[ti] not in\
-                            negativeSetDict.keys():
-                        negativeSetDict[currentTempVarkappa[ti]] = set()
-                    for tj in range(ti+1, len(currentTempVarkappa)):
-                        if tArray[tj] < tArray[ti]:
-                            if currentTempVarkappa[ti] not in\
-                                    negativeSetDict.keys():
-                                negativeSetDict[currentTempVarkappa[ti]] =\
-                                    set([currentTempVarkappa[tj]])
-                            else:
-                                negativeSetDict[currentTempVarkappa[ti]].add(
-                                    currentTempVarkappa[tj])
+                for kj in range(len(currentTempVarkappa[:])):
+                    if currentTempVarkappa[kj] not in negativeSD.keys():
+                        negativeSD[currentTempVarkappa[kj]] =\
+                            negativeSetList[kj]
+                    else:
+                        negativeSD[currentTempVarkappa[kj]] = set.union(
+                            negativeSetList[kj],
+                            negativeSD[currentTempVarkappa[kj]])
 
-        timeOrder = self.__idxOrder_to_timeOrder(negativeSetDict,
-                                                 currentVarkappa)
+            tempTimeOrder = self.__idxOrder_to_timeOrder(negativeSD,
+                                                          varkappaMatrix[0],
+                                                          currentVarkappa)
+            for tto in tempTimeOrder:
+                totalTimeOrderD[tto[0]] = tto[1]
 
-        return timeOrder, negativeSetDict
+        timeOrder = [(idx, totalTimeOrderD[idx]) if idx in
+                     totalTimeOrderD.keys() else (idx, 0) for idx in
+                     currentVarkappa]
+
+        return timeOrder, negativeSD
 
 
-    def __idxOrder_to_timeOrder(self, negativeSetDict, currentVarkappa):
+    def __idxOrder_to_timeOrder(self, negativeSD, targetData,
+                                currentVarkappa):
         tQueue = deque()
         tStack = deque()
-
-        nsL = [(idx, deepcopy(negativeSetDict[idx])) if idx in
-                negativeSetDict.keys() else (idx, set()) for idx in
-                currentVarkappa]
-
+        currentTempVarkappa = np.array([currentVarkappa[item] for item in
+                                        range(len(currentVarkappa)) if
+                                        currentVarkappa[item] in targetData])
+        nsL = [(idx, deepcopy(negativeSD[idx])) if idx in
+                negativeSD.keys() else (idx, set()) for idx in
+                currentTempVarkappa]
         stackNegativeSet = set()
+
         for idx, ns in nsL:
             if len(stackNegativeSet) == 0:
                 if len(tStack) > 0:
                     tQueue.append(tStack)
                 tStack = deque()
-            tStack.append((idx, ns))
+            tStack.append([idx, ns])
             stackNegativeSet = set.union(ns, stackNegativeSet)
             if idx in stackNegativeSet:
                 stackNegativeSet.remove(idx)
@@ -229,10 +236,10 @@ class CS2T(C2T):
             lastTimeIdxS = set()
             while len(tStack) != 0:
                 if len(tStack[-1][1]) != 0:
-                    stackArray = [(item[0], item[1] - lastTimeIdxS) for item in
-                                  tStack]
-                    tStack = deque(sorted(stackArray, key=lambda item:
-                                          len(item[1]), reverse=True))
+                    for item in tStack:
+                        item[1] = item[1] - lastTimeIdxS
+                    tStack = deque(sorted(tStack, key=lambda item: len(item[1]),
+                                          reverse=True))
                     lastTimeIdxS.clear()
                     currentTime = currentTime + 1
 
