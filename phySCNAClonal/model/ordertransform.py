@@ -79,6 +79,10 @@ class CS2T:
                         negativeSD[currentVarkappa[kj]] = set.union(negativeS, negativeSD[currentVarkappa[kj]])
 
             tempTimeOrder = self.__idxOrder_to_timeOrder(negativeSD, currentData)
+            for idx, time in tempTimeOrder:
+                preTimeS = set([ i for i, t in filter(lambda item: item[1] < time, tempTimeOrder)])
+                negativeSD[idx] = set.union(negativeSD[idx], preTimeS)
+
             totalTimeOrderL.append(tempTimeOrder)
 
         return totalTimeOrderL, negativeSD
@@ -108,7 +112,7 @@ class CS2T:
             tQueue.append(tStack)
 
         timeOrder = []
-        currentTime = 0
+        currentTime = -1
 
         while len(tQueue) != 0:
             tStack = tQueue.popleft()
