@@ -353,6 +353,7 @@ class TSSB(object):
                     maxU = tempUSegL.upperBoundary
             lengths.append(len(newPath))
         lengths = array(lengths)
+
     def _locate_v_stick(self, indices):
         """locate and return v stick by indices
 
@@ -727,6 +728,63 @@ class TSSB(object):
                 return (node, path)
 
         return descend(self.root, u)
+
+    def find_node_varphi_range(self, u):
+        def descend(root, u, varphiR, depth=0):
+            if depth >= self.maxDepth:
+                # print >>sys.stderr, "WARNING: Reached maximum depth."
+                return (root['node'], [], varphiR)
+            elif u < root['main']:
+                if root['tag']:
+                     print >>sys.stderr, "Negative space located!!."
+                return (root['node'], [], varphiR)
+            else:
+                # Rescale the uniform variate to the remaining interval.
+                u = (u - root['main']) / (1.0 - root['main'])
+
+                # Perhaps break sticks out appropriately.
+                if depth > 0:
+                    while not root['children'] or (
+                            1.0 - prod(1.0 - root['sticks'])) < u:
+                        root['sticks'] = vstack([
+                            root['sticks'],
+                            # 注意此处为右边界
+                            boundbeta(1, self.dpGamma) if depth != 0 else .999
+                        ])  # shankar
+                        root['children'].append({
+                            'node':
+                            root['node'].spawn(),
+                            'main':
+                            boundbeta(1.0, (self.alphaDecay**
+                                            (depth + 1)) * self.dpAlpha)
+                            if self.minDepth <= (depth + 1) else 0.0,
+                            'sticks':
+                            empty((0, 1)),
+                            'children': [],
+                            'tag': False
+                        })
+
+                    edges = 1.0 - cumprod(1.0 - root['sticks'])
+                    index = sum(u > edges)
+                    edges = hstack([0.0, edges])
+                    u = (u - edges[index]) / (edges[index + 1] - edges[index])
+
+                    varphiR = [
+                        (varphiR[1]-variate[0])*edges[index]+varphiR[0],
+                        (varphiR[1]-variate[0])*edges[index+1]+varphiR[0]]
+
+                    (node, path, varphiR) = descend(root['children'][index], u,
+                                                    varphiR, depth + 1)
+                else:
+                    index = 0
+                    (node, path, varphiR) = descend(root['children'][index], u,
+                                                    varphiR, depth + 1)
+
+                path.insert(0, index)
+
+                return (node, path, varphiR)
+
+        return descend(self.root, u, [root['main'] * 1 + 0, 1])
 
     def get_u_segL(self):
         """

@@ -385,6 +385,7 @@ def main():
     # print c2t.toTimeOrder()
     cs2t = CS2T("./summingandcrossing.example.txt")
     print cs2t.timeOrder
+    print cs2t.negativeSD
 
 if __name__ == "__main__":
     main()
