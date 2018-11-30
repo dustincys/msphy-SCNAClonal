@@ -237,7 +237,7 @@ class TSSB(object):
             lengths.append(len(newPath))
         lengths = array(lengths)
 
-    def resample_assignments_crossing(self, tag, timeOrderL, negativeSD, phiDL):
+    def resample_assignments_crossing(self, timeOrderL, negativeSD, phiDL, srtree):
         def path_lt(path1, path2):
             if len(path1) == 0 and len(path2) == 0:
                 return 0
@@ -272,104 +272,138 @@ class TSSB(object):
         # 如果不在，但不满足历史限制条件，同样返回负无穷，但对其varphi所在R进行限制。
 
 
-        tagL = array([int(item.tag) for item in self.data])
-        timeTagSeq = sort(unique(tagL))
-        currentTimeTagIdx = where(timeTagSeq == tag)[0][0]
-        uSegL = MultiRangeSampler(0,1)
+        #################################
+        #  Sort data list in time order  #
+        #################################
 
+        nonOrderedDataIdLL = self._get_non_ordered_data(phiDL)
+        totalTagedDataIdLL = timeOrderL + nonOrderedDataLL
 
+        for timeOrderIndex, dataL in enumerate(totalTagedDataIdLL):
+            if len(dataL) == 0:
+                continue
 
-        if currentTimeTagIdx == 0:
-            self.reset_time_tag()
+            isNonOrderedData = False
+            if dataL[0][0] == -1:
+                isNonOrderedData = True
 
-        for n in where(tagL == tag)[0]:
-            # change to segment operation
+            uSegL = MultiRangeSampler(0,1)
+            lastUL = MultiRangeSampler(0,0)
+            lastt = -1
 
-            self.mark_specific_time_tag(negativeNodes[n])
-            uNegtive = self.get_u_segL()
-            uSegL.remove(uNegtive)
-            tempUSegL = deepcopy(uSegL)
+            for n, t in dataL:
+                # change to segment operation
 
-            minU = tempUSegL.lowerBoundary
-            maxU = tempUSegL.upperBoundary
+                tempUSegL = deepcopy(uSegL)
+                if not isNonOrderedData:
+                    self.mark_specific_time_tag(negativeSD[n])
+                    uNegtive = self.get_u_segL()
+                    tempUSegL.remove(uNegtive)
 
-            llhMapD = {}
-            # Get an initial uniform variate.
-            ancestors = self.assignments[n].get_ancestors()
-            current = self.root
-            indices = []
-            for anc in ancestors[1:]:
-                index = map(lambda c: c['node'],
-                            current['children']).index(anc)
-                current = current['children'][index]
-                indices.append(index)
+                minU = tempUSegL.lowerBoundary
+                maxU = tempUSegL.upperBoundary
 
-            # Here indices could be used as path to locate v stick
+                llhMapD = {}
+                # Get an initial uniform variate.
+                ancestors = self.assignments[n].get_ancestors()
+                current = self.root
+                indices = []
+                for anc in ancestors[1:]:
+                    index = map(lambda c: c['node'],
+                                current['children']).index(anc)
+                    current = current['children'][index]
+                    indices.append(index)
 
-            currentVStick = self._locate_v_stick(indices)
-            isInNegativeSpace = currentVStick['tag']
+                # Here indices could be used as path to locate v stick
+                currentVStick = self._locate_v_stick(indices)
+                isInNegativeSpace = currentVStick['tag']
 
-            llhS = -float('Inf')
-            if isInNegativeSpace:
-                oldLlh = -float('Inf')
+                isSummingOK = True
+                if not isNonOrderedData:
+                    currentPath = "".join(map(lambda i: "%03d" % (i), indices))
+                    isSummingOK = srtree.is_good_path(timeOrderIndex, n, currentPath)
+
                 llhS = -float('Inf')
-            else:
-                oldLlh = self.assignments[n].logprob(self.data[n:n + 1],
-                                                     self.alleleConfig,
-                                                     self.baseline,
-                                                     self.maxCopyNumber)
-                llhMapD[self.assignments[n]] = oldLlh
-                llhS = log(rand()) + oldLlh
-
-            while True:
-                newU = tempUSegL.sample()
-                (newNode, newPath) = self.find_node(newU)
-                if newNode.parent() is None:
-                    # shankar: to make root node empty
-                    newNode = newNode.children()[0]
-                    newPath = [0]
-                oldNode = self.assignments[n]
-                oldNode.remove_datum(n)
-                newNode.add_datum(n)
-                self.assignments[n] = newNode
-                if newNode in llhMapD:
-                    newLlh = llhMapD[newNode]
+                if isInNegativeSpace or not isSummingOK:
+                    oldLlh = -float('Inf')
+                    llhS = -float('Inf')
                 else:
-                    ####################################
-                    #  Record most likely copy number  #
-                    ####################################
-                    newLlh = newNode.logprob(self.data[n:n + 1],
-                                             self.alleleConfig, self.baseline,
-                                             self.maxCopyNumber)
-                    if -float('Inf') == newLlh:
-                        print >> sys.stderr, "Slice sampler weirdness"
-                    llhMapD[newNode] = newLlh
-                if newLlh > llhS:
-                    break
-                elif abs(maxU - minU) < epsilon:
-                    if -float('Inf') == newLlh:
-                        raise Exception("Slice sampler weirdness.")
+                    oldLlh = self.assignments[n].logprob(self.data[n:n + 1],
+                                                        self.alleleConfig,
+                                                        self.baseline,
+                                                        self.maxCopyNumber)
+                    llhMapD[self.assignments[n]] = oldLlh
+                    llhS = log(rand()) + oldLlh
 
-                    newNode.remove_datum(n)
-                    oldNode.add_datum(n)
-                    self.assignments[n] = oldNode
-                    print >> sys.stderr, "Slice sampler shrank down.  Keep current state."
-                    break
-                else:
-                    newNode.remove_datum(n)
-                    oldNode.add_datum(n)
-                    self.assignments[n] = oldNode
-                    pathComp = path_lt(indices, newPath)
-                    if pathComp < 0:
-                        tempUSegL.removeLeft(newU)
-                    elif pathComp >= 0:  # temporary fix only!!!!!!
-                        tempUSegL.removeRight(newU)
+                timesRMVarphiR = 0
+                while True:
+                    newU = tempUSegL.sample()
+
+                    (newNode, newPath, varphiR)  = self.find_node_varphi_range(newU)
+
+                    if not srtree.is_good_path(timeOrderIndex, n,newPath):
+                        tempUSegL.remove(varphiR)
+                        timesRMVarphiR = timesRMVarphiR + 1
+                        if timesRMVarphiR > 100:
+                            break
+                        continue
+
+                    if newNode.parent() is None:
+                        # shankar: to make root node empty
+                        newNode = newNode.children()[0]
+                        newPath = [0]
+                    oldNode = self.assignments[n]
+                    oldNode.remove_datum(n)
+                    newNode.add_datum(n)
+                    self.assignments[n] = newNode
+                    if newNode in llhMapD:
+                        newLlh = llhMapD[newNode]
                     else:
-                        raise Exception("Slice sampler weirdness.")
-                    minU = tempUSegL.lowerBoundary
-                    maxU = tempUSegL.upperBoundary
-            lengths.append(len(newPath))
-        lengths = array(lengths)
+                        ####################################
+                        #  Record most likely copy number  #
+                        ####################################
+                        newLlh = newNode.logprob(self.data[n:n + 1],
+                                                self.alleleConfig, self.baseline,
+                                                self.maxCopyNumber)
+                        if -float('Inf') == newLlh:
+                            print >> sys.stderr, "Slice sampler weirdness"
+                        llhMapD[newNode] = newLlh
+                    if newLlh > llhS:
+                        break
+                    elif abs(maxU - minU) < epsilon:
+                        if -float('Inf') == newLlh:
+                            raise Exception("Slice sampler weirdness.")
+
+                        newNode.remove_datum(n)
+                        oldNode.add_datum(n)
+                        self.assignments[n] = oldNode
+                        print >> sys.stderr, "Slice sampler shrank down.  Keep current state."
+                        break
+                    else:
+                        newNode.remove_datum(n)
+                        oldNode.add_datum(n)
+                        self.assignments[n] = oldNode
+                        pathComp = path_lt(indices, newPath)
+                        if pathComp < 0:
+                            tempUSegL.removeLeft(newU)
+                        elif pathComp >= 0:  # temporary fix only!!!!!!
+                            tempUSegL.removeRight(newU)
+                        else:
+                            raise Exception("Slice sampler weirdness.")
+                        minU = tempUSegL.lowerBoundary
+                        maxU = tempUSegL.upperBoundary
+
+                srtree.update_path(timeOrderIndex, n,newPath):
+                lengths.append(len(newPath))
+            lengths = array(lengths)
+
+
+    def _get_non_ordered_data(self, phiDL):
+        orderedData = set([j for j in phiD,keys() for phiD in phiDL])
+        nonOrderedData = set(range(len(self.data))) - orderedData
+        nonOrderedDataIdL = [(item, -1) for item in nonOrderedData]
+        return [nonOrderedDataIdL]
+
 
     def _locate_v_stick(self, indices):
         """locate and return v stick by indices

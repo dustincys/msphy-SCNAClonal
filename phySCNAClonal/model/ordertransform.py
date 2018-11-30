@@ -210,30 +210,61 @@ class SRTree(object):
         for phiD, timeOrder in zip(phiDL, timeOrderL):
             tempTree = []
             for idx, t in timeOrder:
-                # data index \t phi list \t time order \t epsilon
+                # data index \t phi list \t time order \t path
                 tempTree.append([idx, np.array(phiD[idx]), t, ""])
             self._srtree.append(sorted(tempTree, lambda item: item[2]))
 
-    def update_epsilon(self, timeOrderIdx, dataIndex, epsilon):
-        """Update epsilon dictionary
+    def is_good_path(self, timeOrderIdx, dataIndex, path):
+        """
+
+        :timeOrderIdx: TODO
+        :dataIndex: TODO
+        :path: TODO
+        :returns: TODO
+
+        """
+        index = [j for j,phiL,t,path in
+                   enumerate(self._srtree[timeOrderIdx]) if j == dataIndex][0]
+
+        if index == 0:
+            return True
+        else:
+            cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, path)
+            if cpl == len(path) and pL == self._srtree[timeOrderIdx][index][1]:
+                return True
+            elif cpl == len(path):
+                # if False, 在抽样空间中去除varphi区间
+                return False
+            elif cpl > 0:
+                if np.prod(self._srtree[timeOrderIdx][ancestorIndex][1] -
+                           self._srtree[timeOrderIdx][index][1]) > 0:
+                    return True
+                else:
+                    return False
+            else:
+                return True
+
+
+    def update_path(self, timeOrderIdx, dataIndex, path):
+        """Update path dictionary
         """
         # 获取所有比当前时序小的数据集合，在其中寻找最近祖先
         # 此处需要判断当前节点内是否有已经进行搜索过的节点
 
-        index = [j for j,phiL,t,epsilon in
+        index = [j for j,phiL,t,path in
                    enumerate(self._srtree[timeOrderIdx]) if j == dataIndex][0]
-        self._srtree[timeOrderIdx][0:index]
+        # self._srtree[timeOrderIdx][0:index]
 
         if index == 0:
-            # 此处更新首节点的epsilon
-            self._srtree[timeOrderIdx][index][3] = epsilon
+            # 此处更新首节点的path
+            self._srtree[timeOrderIdx][index][3] = path
             return True
         else:
 
-            cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, epsilon)
-            if cpl == len(epsilon) and pL == self._srtree[timeOrderIdx][index][1]:
+            cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, path)
+            if cpl == len(path) and pL == self._srtree[timeOrderIdx][index][1]:
                 return True
-            elif cpl == len(epsilon):
+            elif cpl == len(path):
                 # if False, 在抽样空间中去除varphi区间
                 return False
             elif cpl > 0:
@@ -248,7 +279,7 @@ class SRTree(object):
             else:
                 return True
 
-    def __load_most_recent_ancestor(self, timeOrderIdx, index, epsilon):
+    def __load_most_recent_ancestor(self, timeOrderIdx, index, path):
         '''
         load most recent ancestor
         '''
@@ -257,7 +288,9 @@ class SRTree(object):
         # EpsilonD should in the time order primarily and phi reverse order
         # secondly
 
-        cplL = [(len(commonprefix([e, epsilon])), pL, index) for index, (j, pL, t, e) in
+        cplL = [(len(commonprefix([e, path])), pL, index) if
+                len(commonprefix([e, path])) == len(e) else (0, pL, index)
+                for index, (j, pL, t, e) in
                 enumerate(self._srtree[timeOrderIdx][0:index])]
 
         cpl, pL, index = max(cplL, key=lambda item: item[0])
