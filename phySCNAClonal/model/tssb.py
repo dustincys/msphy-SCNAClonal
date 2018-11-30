@@ -237,7 +237,7 @@ class TSSB(object):
             lengths.append(len(newPath))
         lengths = array(lengths)
 
-    def resample_assignments_crossing(self, tag, negativeNodes):
+    def resample_assignments_crossing(self, tag, timeOrderL, negativeSD, phiDL):
         def path_lt(path1, path2):
             if len(path1) == 0 and len(path2) == 0:
                 return 0
@@ -255,15 +255,32 @@ class TSSB(object):
         lengths = []
 
         # change data range
-        # 需要保存索引号码
+
+        # 经过crossing 变换的时序数据的抽样方法如下：
+        # 根据时序标记进行排序，先对未标时序的数据进行抽样。
+        # 然后根据每一个规则内的时序进行分批次抽样。
+        # 不同批次之间没有负空间依赖。
+        # 在同一个批次内，当前时序的负空间包括所有已经抽样过得数据中小于当前时序
+        # 的数据。
+        # 每次进行节点搜索时，需要返回目标节点和所有祖先节点对应的R空间，以及当前节点所在的\varphi
+        # 说对应的R。
+        # 如果当前节点满足抽样条件，则要更新历史树对应的phi，如果有节点依赖当前节点的负空间，则要
+        # 生成目标负空间。
+        # 如果出现两个相同的phi值，需要进行当前节点内判断，如果已经有节点抽样过且其在所有的样本中
+        # 的phi值都相同，那么不进行更新负空间。
+        # 对上次抽样获得的节点需要对其是否在负空间中进行判断，如果在返回负无穷
+        # 如果不在，但不满足历史限制条件，同样返回负无穷，但对其varphi所在R进行限制。
+
 
         tagL = array([int(item.tag) for item in self.data])
         timeTagSeq = sort(unique(tagL))
         currentTimeTagIdx = where(timeTagSeq == tag)[0][0]
         uSegL = MultiRangeSampler(0,1)
+
+
+
         if currentTimeTagIdx == 0:
             self.reset_time_tag()
-
 
         for n in where(tagL == tag)[0]:
             # change to segment operation
@@ -667,7 +684,6 @@ class TSSB(object):
         descend(self.root, tag)
 
     def reset_time_tag(self):
-
         def descend(root):
             root['tag'] = False
             for child in root['children']:

@@ -41,16 +41,10 @@ class CS2T:
     def __init__(self, configFilePath):
         self._configFilePath = configFilePath
 
-
     def transform(self):
-
         varkappaMatrixArray, phiDL = self.__read_config_file()
         timeOrder, negativeSD = self.__toTimeOrder(varkappaMatrixArray, phiDL)
-        # timeOrder = sorted(timeOrder, key=lambda item: (item[1],
-                                                        # currentPhiD[item[0]]))
-
         return timeOrder, negativeSD, phiDL
-
 
     def __toTimeOrder(self, varkappaMatrixArray, phiDL):
         """ tranform to time order
@@ -81,7 +75,10 @@ class CS2T:
             tempTimeOrder = self.__idxOrder_to_timeOrder(negativeSD, currentData)
             for idx, time in tempTimeOrder:
                 preTimeS = set([ i for i, t in filter(lambda item: item[1] < time, tempTimeOrder)])
-                negativeSD[idx] = set.union(negativeSD[idx], preTimeS)
+                if idx not in negativeSD.keys():
+                    negativeSD[idx] = preTimeS
+                else:
+                    negativeSD[idx] = set.union(negativeSD[idx], preTimeS)
 
             totalTimeOrderL.append(tempTimeOrder)
 
@@ -207,42 +204,51 @@ class SRTree(object):
 
     """Summing rule while sampling tree structure"""
 
-    def __init__(self, phiDL):
-        """initialize the phi dictionary """
-        self._phiDL = phiDL
+    def __init__(self, phiDL, timeOrderL):
+        """initialize the self._srtree data structure"""
+        self._srtree = []
+        for phiD, timeOrder in zip(phiDL, timeOrderL):
+            tempTree = []
+            for idx, t in timeOrder:
+                # data index \t phi list \t time order \t epsilon
+                tempTree.append([idx, np.array(phiD[idx]), t, ""])
+            self._srtree.append(sorted(tempTree, lambda item: item[2]))
 
-        self._epsilonDL = []
-        for phiDIndex in range(len(self._phiDL)):
-            epsilonD = {}
-            for key in self._phiDL[phiDIndex].keys():
-                epsilonD[key] = ""
-            self._epsilonDL.append(epsilonD)
-
-
-    def update_epsilon(self, dataIndex, epsilon):
+    def update_epsilon(self, timeOrderIdx, dataIndex, epsilon):
         """Update epsilon dictionary
         """
-        indexes = [i for i, epsilonD in enumerate(self.epsilonDL) if dataIndex
-                   in epsilonD.keys()]
-        if len(indexes) == 0:
+        # 获取所有比当前时序小的数据集合，在其中寻找最近祖先
+        # 此处需要判断当前节点内是否有已经进行搜索过的节点
+
+        index = [j for j,phiL,t,epsilon in
+                   enumerate(self._srtree[timeOrderIdx]) if j == dataIndex][0]
+        self._srtree[timeOrderIdx][0:index]
+
+        if index == 0:
+            # 此处更新首节点的epsilon
+            self._srtree[timeOrderIdx][index][3] = epsilon
             return True
         else:
-            index = indexes[0]
-            ancestorIndex = self.__load_most_recent_ancestor(
-                self.epsilonDL[index], dataIndex, epsilon)
-            if ancestorIndex != -1:
-                if np.prod(self.phiDL[index][ancestorIndex] -
-                           self.phiDL[index][dataIndex]) > 0:
-                    self.phiDL[index][ancestorIndex] =\
-                        self.phiDL[index][ancestorIndex] -\
-                        self.phiDL[index][dataIndex]
+
+            cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, epsilon)
+            if cpl == len(epsilon) and pL == self._srtree[timeOrderIdx][index][1]:
+                return True
+            elif cpl == len(epsilon):
+                # if False, 在抽样空间中去除varphi区间
+                return False
+            elif cpl > 0:
+                if np.prod(self._srtree[timeOrderIdx][ancestorIndex][1] -
+                           self._srtree[timeOrderIdx][index][1]) > 0:
+                    self._srtree[timeOrderIdx][ancestorIndex][1] =\
+                        self._srtree[timeOrderIdx][ancestorIndex][1] -\
+                        self._srtree[timeOrderIdx][index][1]
                     return True
                 else:
                     return False
             else:
                 return True
 
-    def __load_most_recent_ancestor(self, epsilonD, dataIndex, epsilon):
+    def __load_most_recent_ancestor(self, timeOrderIdx, index, epsilon):
         '''
         load most recent ancestor
         '''
@@ -251,13 +257,15 @@ class SRTree(object):
         # EpsilonD should in the time order primarily and phi reverse order
         # secondly
 
-        cplL = [(key, len(commonprefix([epsilonD[key], epsilon]))) if key !=
-                dataIndex else (dataIndex, 0) for key in epsilonD]
-        _, (ancestorIndex, cpl) = max(enumerate(cplL), key=lambda v: v[1][1])
+        cplL = [(len(commonprefix([e, epsilon])), pL, index) for index, (j, pL, t, e) in
+                enumerate(self._srtree[timeOrderIdx][0:index])]
+
+        cpl, pL, index = max(cplL, key=lambda item: item[0])
+
         if cpl > 0:
-            return ancestorIndex
+            return cpl, pL, index
         else:
-            return -1
+            return cpl, pL, -1
 
 def main():
     # c2t = C2T("./crossing.text.example")
