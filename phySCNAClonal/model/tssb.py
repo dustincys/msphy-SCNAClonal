@@ -341,10 +341,10 @@ class TSSB(object):
 
                     (newNode, newPath, varphiR)  = self.find_node_varphi_range(newU)
 
-                    if not srtree.is_good_path(timeOrderIndex, n,newPath):
+                    if not srtree.is_good_path(timeOrderIndex, n, newPath):
                         tempUSegL.remove(varphiR)
                         timesRMVarphiR = timesRMVarphiR + 1
-                        if timesRMVarphiR > 100:
+                        if timesRMVarphiR > 500:
                             break
                         continue
 
@@ -352,6 +352,7 @@ class TSSB(object):
                         # shankar: to make root node empty
                         newNode = newNode.children()[0]
                         newPath = [0]
+
                     oldNode = self.assignments[n]
                     oldNode.remove_datum(n)
                     newNode.add_datum(n)
