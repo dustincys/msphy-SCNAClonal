@@ -63,7 +63,7 @@ class CS2T:
                 targetData = [(idx, phiDL[ruleIdx][idx][si]) for idx in targetVarkappa]
 
                 for kj in range(len(currentVarkappa[:])):
-                    currentSmallS = set([i for i, n in filter(lambda item: item[1] < phiDL[ruleIdx][currentVarkappa[kj]][-1], currentData)])
+                    currentSmallS = set([i for i, n in filter(lambda item: item[1] <= phiDL[ruleIdx][currentVarkappa[kj]][-1], currentData)])
                     targetSmallS = set([i for i, n in filter(lambda item: item[1] < phiDL[ruleIdx][currentVarkappa[kj]][si], targetData)])
                     negativeS = currentSmallS - targetSmallS
 
@@ -251,9 +251,16 @@ class SRTree(object):
         # 获取所有比当前时序小的数据集合，在其中寻找最近祖先
         # 此处需要判断当前节点内是否有已经进行搜索过的节点
 
-        index = [j for j,phiL,t,path in
-                   enumerate(self._srtree[timeOrderIdx]) if j == dataIndex][0]
-        # self._srtree[timeOrderIdx][0:index]
+        index = -1
+        idxL = [idx for idx, (j,phiL,t,path) in
+                            enumerate(self._srtree[timeOrderIdx]) if j ==
+                            dataIndex]
+        if len(idxL) == 0:
+            # 目标数据不在当前时序中
+            return True
+        else:
+            # 目标数据在当前时序中，索引为index
+            index == idxL[0]
 
         if index == 0:
             # 此处更新首节点的path
@@ -263,6 +270,7 @@ class SRTree(object):
 
             cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, path)
             if cpl == len(path) and pL == self._srtree[timeOrderIdx][index][1]:
+                self._srtree[timeOrderIdx][index][3] = path
                 return True
             elif cpl == len(path):
                 # if False, 在抽样空间中去除varphi区间
@@ -273,10 +281,12 @@ class SRTree(object):
                     self._srtree[timeOrderIdx][ancestorIndex][1] =\
                         self._srtree[timeOrderIdx][ancestorIndex][1] -\
                         self._srtree[timeOrderIdx][index][1]
+                    self._srtree[timeOrderIdx][index][3] = path
                     return True
                 else:
                     return False
             else:
+                self._srtree[timeOrderIdx][index][3] = path
                 return True
 
     def __load_most_recent_ancestor(self, timeOrderIdx, index, path):
@@ -288,15 +298,15 @@ class SRTree(object):
         # EpsilonD should in the time order primarily and phi reverse order
         # secondly
 
-        cplL = [(len(commonprefix([e, path])), pL, index) if
-                len(commonprefix([e, path])) == len(e) else (0, pL, index)
-                for index, (j, pL, t, e) in
+        cplL = [(len(commonprefix([e, path])), pL, idx) if
+                len(commonprefix([e, path])) == len(e) else (0, pL, idx)
+                for idx, (j, pL, t, e) in
                 enumerate(self._srtree[timeOrderIdx][0:index])]
 
-        cpl, pL, index = max(cplL, key=lambda item: item[0])
+        cpl, pL, idx = max(cplL, key=lambda item: item[0])
 
         if cpl > 0:
-            return cpl, pL, index
+            return cpl, pL, idx
         else:
             return cpl, pL, -1
 
