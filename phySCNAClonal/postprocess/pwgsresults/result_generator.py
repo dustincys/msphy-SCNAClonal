@@ -82,11 +82,9 @@ class ResultGenerator(object):
                 for dataId in root['node'].data:
                     for childId in childrenIds:
                         self._update_partialDict(pd, dataId, childId)
+                return root['node'].data
             else:
                 return childrenIds
-
-            if len(root['node'].data) > 0:
-                return root['node'].data
 
         descend(tree.root)
 
