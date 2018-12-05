@@ -277,14 +277,14 @@ class TSSB(object):
         #################################
 
         nonOrderedDataIdLL = self._get_non_ordered_data(phiDL)
-        totalTagedDataIdLL = timeOrderL + nonOrderedDataLL
+        totalTagedDataIdLL = timeOrderL + nonOrderedDataIdLL
 
         for timeOrderIndex, dataL in enumerate(totalTagedDataIdLL):
             if len(dataL) == 0:
                 continue
 
             isNonOrderedData = False
-            if dataL[0][0] == -1:
+            if dataL[0][1] == -1:
                 isNonOrderedData = True
 
             uSegL = MultiRangeSampler(0,1)
@@ -396,13 +396,13 @@ class TSSB(object):
                         maxU = tempUSegL.upperBoundary
 
                 if not isNonOrderedData:
-                    srtree.update_path(timeOrderIndex, n,newPath):
+                    srtree.update_path(timeOrderIndex, n, newPath)
                 lengths.append(len(newPath))
-            lengths = array(lengths)
+        lengths = array(lengths)
 
 
     def _get_non_ordered_data(self, phiDL):
-        orderedData = set([j for j in phiD,keys() for phiD in phiDL])
+        orderedData = set([j for phiD in phiDL for j in phiD.keys()])
         nonOrderedData = set(range(len(self.data))) - orderedData
         nonOrderedDataIdL = [(item, -1) for item in nonOrderedData]
         return [nonOrderedDataIdL]
@@ -823,8 +823,8 @@ class TSSB(object):
                     u = (u - edges[index]) / (edges[index + 1] - edges[index])
 
                     varphiR = [
-                        (varphiR[1]-variate[0])*edges[index]+varphiR[0],
-                        (varphiR[1]-variate[0])*edges[index+1]+varphiR[0]]
+                        (varphiR[1]-varphiR[0])*edges[index]+varphiR[0],
+                        (varphiR[1]-varphiR[0])*edges[index+1]+varphiR[0]]
 
                     (node, path, varphiR) = descend(root['children'][index], u,
                                                     varphiR, depth + 1)
@@ -837,7 +837,8 @@ class TSSB(object):
 
                 return (node, path, varphiR)
 
-        return descend(self.root, u, [root['main'] * 1 + 0, 1])
+        n, p, vR = descend(self.root, u, [self.root['main'] * 1 + 0, 1])
+        return n, p, SegmentList([Segment(vR[0], vR[1])])
 
     def get_u_segL(self):
         """
@@ -877,12 +878,15 @@ class TSSB(object):
                 return starts, ends
 
         starts, ends = descend(self.root)
-        assert(len(starts) == len(ends))
-
         sl = SegmentList([])
-        for i in range(len(starts)):
-            sl.append(Segment(starts[i], ends[i]))
-        sl.coalesce()
+
+        if starts is not None:
+            assert(len(starts) == len(ends))
+            for i in range(len(starts)):
+                sl.append(Segment(starts[i], ends[i]))
+            sl.coalesce()
+        else:
+            assert(ends == None)
 
         return sl
 

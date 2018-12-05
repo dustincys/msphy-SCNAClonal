@@ -212,7 +212,7 @@ class SRTree(object):
             for idx, t in timeOrder:
                 # data index \t phi list \t time order \t path
                 tempTree.append([idx, np.array(phiD[idx]), t, ""])
-            self._srtree.append(sorted(tempTree, lambda item: item[2]))
+            self._srtree.append(sorted(tempTree, key=lambda item: item[2]))
 
     def is_good_path(self, timeOrderIdx, dataIndex, path):
         """
@@ -223,7 +223,8 @@ class SRTree(object):
         :returns: TODO
 
         """
-        index = [j for j,phiL,t,path in
+
+        index = [j for idx,(j,phiL,t,path) in
                    enumerate(self._srtree[timeOrderIdx]) if j == dataIndex][0]
 
         if index == 0:

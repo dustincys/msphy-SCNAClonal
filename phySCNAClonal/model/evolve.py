@@ -109,7 +109,7 @@ def start_new_run(stateManager,
     state['is_crossing'] = isCrossing
 
     timeOrderL, negativeSD, phiDL, srtree = load_crossing_rule(
-        inputData, state['crossingFile'], isCrossing)
+        inputData, state['crossing_file'], isCrossing)
     state['negative_set_dict'] = negativeSD
     state['time_order_list'] = timeOrderL
     state['phi_dict_list'] = phiDL
@@ -266,8 +266,8 @@ def load_crossing_rule(inputData, crossingFile, isCrossing):
         srtree = SRTree(phiDL, timeOrderL)
 
         # 此处设置所有的inputData的tag为0
-        for idx, tag in timeOrder:
-            inputData[idx].tag = "0"
+        for idx, data in enumerate(inputData):
+            data.tag = "0"
 
         return timeOrderL, negativeSD, phiDL, srtree
 
@@ -585,136 +585,6 @@ def do_mcmc(stateManager,
     runSucceeded.set()
 
 
-def do_mcmc_noiter(stateManager, backupManager, safeToExit, runSucceeded,
-                   config, state, treeWriter, inputData, dataNum, tmpDir):
-
-    config['tmp_dir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmpDir)
-    config['tmp_tex_dir'] = tempfile.mkdtemp(prefix='textemp.', dir=tmpDir)
-    config['tmp_pdf_dir'] = tempfile.mkdtemp(prefix='pdftemp.', dir=config['tmp_tex_dir'])
-
-	start_iter = state['last_iteration'] + 1
-	unwritten_trees = []
-	mcmc_sample_times = []
-	last_mcmc_sample_time = time.time()
-
-	# If --tmp-dir is not specified on the command line, it will by default be
-	# None, which will cause mkdtemp() to place this directory under the system's
-	# temporary directory. This is the desired behaviour.
-	config['tmp_dir'] = tempfile.mkdtemp(prefix='pwgsdataexchange.', dir=tmp_dir_parent)
-
-	for iteration in range(start_iter, state['num_samples']):
-		safe_to_exit.set()
-		if iteration < 0:
-			logmsg(iteration)
-
-		# Referring to tssb as local variable instead of dictionary element is much
-		# faster.
-		tssb = state['tssb']
-		tssb.resample_assignments()
-		tssb.cull_tree()
-
-		# assign node ids
-		wts, nodes = tssb.get_mixture()
-		for i, node in enumerate(nodes):
-			node.id = i
-
-		##################################################
-		## some useful info about the tree,
-		## used by CNV related computations,
-		## to be called only after resampling assignments
-		set_node_height(tssb)
-		set_path_from_root_to_node(tssb)
-		map_datum_to_node(tssb)
-		##################################################
-
-		state['mh_acc'] = metropolis(
-			tssb,
-			state['mh_itr'],
-			state['mh_std'],
-			state['mh_burnin'],
-			n_ssms,
-			n_cnvs,
-			state['ssm_file'],
-			state['cnv_file'],
-			state['rand_seed'],
-			NTPS,
-			config['tmp_dir']
-		)
-		if float(state['mh_acc']) < 0.08 and state['mh_std'] < 10000:
-			state['mh_std'] = state['mh_std']*2.0
-			logmsg("Shrinking MH proposals. Now %f" % state['mh_std'])
-		if float(state['mh_acc']) > 0.5 and float(state['mh_acc']) < 0.99:
-			state['mh_std'] = state['mh_std']/2.0
-			logmsg("Growing MH proposals. Now %f" % state['mh_std'])
-
-		tssb.resample_sticks()
-		tssb.resample_stick_orders()
-		tssb.resample_hypers(dp_alpha=True, alpha_decay=True, dp_gamma=True)
-
-		last_llh = tssb.complete_data_log_likelihood()
-		if iteration >= 0:
-			state['cd_llh_traces'][iteration] = last_llh
-			if True or mod(iteration, 10) == 0:
-				weights, nodes = tssb.get_mixture()
-				logmsg(' '.join([str(v) for v in (iteration, len(nodes), state['cd_llh_traces'][iteration], state['mh_acc'], tssb.dp_alpha, tssb.dp_gamma, tssb.alpha_decay)]))
-			if argmax(state['cd_llh_traces'][:iteration+1]) == iteration:
-				logmsg("%f is best per-data complete data likelihood so far." % (state['cd_llh_traces'][iteration]))
-		else:
-			state['burnin_cd_llh_traces'][iteration + state['burnin']] = last_llh
-
-		# Can't just put tssb in unwritten_trees, as this object will be modified
-		# on subsequent iterations, meaning any stored references in
-		# unwritten_trees will all point to the same sample.
-		serialized = pickle.dumps(tssb, protocol=pickle.HIGHEST_PROTOCOL)
-		unwritten_trees.append((serialized, iteration, last_llh))
-		state['tssb'] = tssb
-		state['rand_state'] = get_state()
-		state['last_iteration'] = iteration
-
-
-		if len([C for C in state['tssb'].root['children'] if C['node'].has_data()]) > 1:
-			logmsg('Polyclonal tree detected with %s clones.' % len(state['tssb'].root['children']))
-
-		new_mcmc_sample_time = time.time()
-		mcmc_sample_times.append(new_mcmc_sample_time - last_mcmc_sample_time)
-		last_mcmc_sample_time = new_mcmc_sample_time
-
-		# It's not safe to exit while performing file IO, as we don't want
-		# trees.zip or the computation state file to become corrupted from an
-		# interrupted write.
-		safe_to_exit.clear()
-		should_write_backup = iteration % state['write_backups_every'] == 0 and iteration != start_iter
-		should_write_state = iteration % state['write_state_every'] == 0
-		is_last_iteration = (iteration == state['num_samples'] - 1)
-
-		# If backup is scheduled to be written, write both it and full program
-		# state regardless of whether we're scheduled to write state this
-		# iteration.
-		if should_write_backup or should_write_state or is_last_iteration:
-			with open('mcmc_samples.txt', 'a') as mcmcf:
-				llhs_and_times = [(itr, llh, itr_time) for (tssb, itr, llh), itr_time in zip(unwritten_trees, mcmc_sample_times)]
-				llhs_and_times = '\n'.join(['%s\t%s\t%s' % (itr, llh, itr_time) for itr, llh, itr_time in llhs_and_times])
-				mcmcf.write(llhs_and_times + '\n')
-			tree_writer.write_trees(unwritten_trees)
-			state_manager.write_state(state)
-			unwritten_trees = []
-			mcmc_sample_times = []
-			if should_write_backup:
-				backup_manager.save_backup()
-
-	backup_manager.remove_backup()
-	safe_to_exit.clear()
-	#save the best tree
-	print_top_trees(TreeWriter.default_archive_fn, state['top_k_trees_file'], state['top_k'])
-
-	#save clonal frequencies
-	freq = dict([(g,[] )for g in state['glist']])
-	glist = array(freq.keys(),str)
-	glist.shape=(1,len(glist))
-	savetxt(state['clonal_freqs_file'] ,vstack((glist, array([freq[g] for g in freq.keys()]).T)), fmt='%s', delimiter=', ')
-
-	safe_to_exit.set()
-	run_succeeded.set()
 def test():
     tssb = pickle.load(open('ptree'))
     wts, nodes = tssb.get_mixture()
@@ -760,7 +630,9 @@ def run(args, safeToExit, runSucceeded, config):
             randSeed=args.randomSeed,
             tmpDir=args.tmpDir,
             maxCopyNumber=args.maxCopyNumber,
-            isMerged=args.isMerged)
+            isMerged=args.isMerged,
+            isCrossing=args.isCrossing,
+            crossingFile=args.crossingFile)
 
 
 def remove_tmp_files(tmpDir):

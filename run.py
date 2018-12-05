@@ -177,6 +177,11 @@ parserModel.add_argument('--inputDataTextFile', dest='inputDataTextFile', help= 
 parserModel.add_argument('--isMerged', default=False, type=str2bool,
                                help='''is merged data file''')
 
+parserModel.add_argument('--isCrossing', default=False, type=str2bool,
+                               help='''using crossing file''')
+
+parserModel.add_argument('--crossingFile', dest='crossingFile', help= 'The crossing file.')
+
 parserModel.add_argument('--maxCopyNumber', dest='maxCopyNumber', default=6,
                          type=int, help= 'Max copy number')
 
