@@ -43,8 +43,8 @@ class CS2T:
 
     def transform(self):
         varkappaMatrixArray, phiDL = self.__read_config_file()
-        timeOrder, negativeSD = self.__toTimeOrder(varkappaMatrixArray, phiDL)
-        return timeOrder, negativeSD, phiDL
+        timeOrderL, negativeSD = self.__toTimeOrder(varkappaMatrixArray, phiDL)
+        return timeOrderL, negativeSD, phiDL
 
     def __toTimeOrder(self, varkappaMatrixArray, phiDL):
         """ tranform to time order

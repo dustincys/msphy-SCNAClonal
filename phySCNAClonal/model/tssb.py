@@ -341,7 +341,8 @@ class TSSB(object):
 
                     (newNode, newPath, varphiR)  = self.find_node_varphi_range(newU)
 
-                    if not srtree.is_good_path(timeOrderIndex, n, newPath):
+                    if not isNonOrderedData and not srtree.is_good_path(
+                        timeOrderIndex, n, newPath):
                         tempUSegL.remove(varphiR)
                         timesRMVarphiR = timesRMVarphiR + 1
                         if timesRMVarphiR > 500:
@@ -394,7 +395,8 @@ class TSSB(object):
                         minU = tempUSegL.lowerBoundary
                         maxU = tempUSegL.upperBoundary
 
-                srtree.update_path(timeOrderIndex, n,newPath):
+                if not isNonOrderedData:
+                    srtree.update_path(timeOrderIndex, n,newPath):
                 lengths.append(len(newPath))
             lengths = array(lengths)
 
