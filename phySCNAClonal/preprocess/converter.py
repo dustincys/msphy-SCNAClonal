@@ -101,13 +101,14 @@ class BamConverter:
             self._segPoolL = pkl.load(pklFile )
             pklFile .close()
 
+        self._output_BAF_info("bafinfo.txt")
         blSegsL = self._get_baseline(mergeSeg)
         self._mark_timestamp(blSegsL)
 
         if self.__isFixedC:
             # only update the segment pool it seems there is no need to update
             # the fixed C value for stripe pool
-            self._updateFixedCValue()
+            self._update_fixed_C_value()
 
         if mergeSeg:
             stripePool = self._generate_stripe()
@@ -122,7 +123,29 @@ class BamConverter:
         if self.__answerFilePath != "":
             self._dump_seg_to_txt()
 
-    def _updateFixedCValue(self):
+    def _output_BAF_info(self, bafInfoFilePath):
+        """
+        :returns: TODO
+
+        """
+        with open(self.__pathPrefix + "/" + bafInfoFilePath, "w") as outFile:
+            outFile.write("Stage\tMutName\tBalleleNum\tDalleleNum\tBaf\tnReadNum\ttReadNum\tRatio\n")
+            for idx, segPool in enumerate(self._segPoolL):
+                for seg in segPool.segments:
+                    mutName = seg.name
+                    mutNReadNum = seg.nReadNum
+                    mutTReadNum = seg.tReadNum
+                    ratio = mutTReadNum * 1.0/ mutNReadNum
+                    if seg.pairedCounts.shape[0] > 1:
+                        bTjL = np.min(seg.pairedCounts[:, 2:4], axis=1)
+                        dTjL = np.sum(seg.pairedCounts[:, 2:4], axis=1)
+                        bafL = bTjL * 1.0 / dTjL
+                        for b, d, baf in zip(bTjL, dTjL, bafL):
+                            outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\n".format(
+                                str(idx), str(mutName), str(b), str(d), str(baf),
+                            str(mutNReadNum), str(mutTReadNum), str(ratio)))
+
+    def _update_fixed_C_value(self):
         updateFixedCValue(self._segPoolL[-1], self.__answerFilePath)
 
     def _dump_seg_to_txt(self):
