@@ -207,12 +207,15 @@ class SRTree(object):
     def __init__(self, phiDL, timeOrderL):
         """initialize the self._srtree data structure"""
         self._srtree = []
+        self._srtree_root = []
         for phiD, timeOrder in zip(phiDL, timeOrderL):
             tempTree = []
             for idx, t in timeOrder:
                 # data index \t phi list \t time order \t path
                 tempTree.append([idx, np.array(phiD[idx]), t, ""])
             self._srtree.append(sorted(tempTree, key=lambda item: item[2]))
+            self._srtree_root.append(np.array([1] * len(phiD[idx])))
+
 
     def is_good_path(self, timeOrderIdx, dataIndex, path):
         """
@@ -265,16 +268,24 @@ class SRTree(object):
 
         if index == 0:
             # 此处更新首节点的path
-            self._srtree[timeOrderIdx][index][3] = path
-            return True
+            # 此处添加一个根节点
+            if np.prod(self._srtree_root[timeOrderIdx] -
+                       self._srtree[timeOrderIdx][index][1]) > 0:
+                self._srtree_root[timeOrderIdx] =\
+                    self._srtree_root[timeOrderIdx] -\
+                    self._srtree[timeOrderIdx][index][1]
+                self._srtree[timeOrderIdx][index][3] = path
+                return True
+            else:
+                return False
         else:
-
             cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, path)
             if cpl == len(path) and pL == self._srtree[timeOrderIdx][index][1]:
+                # 且有相同的phi，实际上这种情况不可能出现，在无限位点假设条件下
                 self._srtree[timeOrderIdx][index][3] = path
                 return True
             elif cpl == len(path):
-                # if False, 在抽样空间中去除varphi区间
+                # 且有相同的phi，实际上这种情况不可能出现，在无限位点假设条件下
                 return False
             elif cpl > 0:
                 if np.prod(self._srtree[timeOrderIdx][ancestorIndex][1] -
@@ -287,8 +298,15 @@ class SRTree(object):
                 else:
                     return False
             else:
-                self._srtree[timeOrderIdx][index][3] = path
-                return True
+                if np.prod(self._srtree_root[timeOrderIdx] -
+                        self._srtree[timeOrderIdx][index][1]) > 0:
+                    self._srtree_root[timeOrderIdx] =\
+                        self._srtree_root[timeOrderIdx] -\
+                        self._srtree[timeOrderIdx][index][1]
+                    self._srtree[timeOrderIdx][index][3] = path
+                    return True
+                else:
+                    return False
 
     def __load_most_recent_ancestor(self, timeOrderIdx, index, path):
         '''
