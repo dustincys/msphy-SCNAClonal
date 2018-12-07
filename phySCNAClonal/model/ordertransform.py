@@ -217,7 +217,7 @@ class SRTree(object):
             self._srtree_root.append(np.array([1] * len(phiD[idx])))
 
 
-    def is_good_path(self, timeOrderIdx, dataIndex, path):
+    def is_good_path(self, timeOrderIdx, dataIndex, newPath):
         """
 
         :timeOrderIdx: TODO
@@ -227,29 +227,43 @@ class SRTree(object):
 
         """
 
-        index = [j for idx,(j,phiL,t,path) in
-                   enumerate(self._srtree[timeOrderIdx]) if j == dataIndex][0]
-
-        if index == 0:
+        index = -1
+        idxL = [idx for idx, (j,phiL,t,path) in
+                            enumerate(self._srtree[timeOrderIdx]) if j ==
+                            dataIndex]
+        if len(idxL) == 0:
+            # 目标数据不在当前时序中
             return True
         else:
-            cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, path)
-            if cpl == len(path) and pL == self._srtree[timeOrderIdx][index][1]:
+            # 目标数据在当前时序中，索引为index
+            index = idxL[0]
+
+        if index == 0:
+            # 此处更新首节点的path
+            # 此处添加一个根节点
+            if np.prod(self._srtree_root[timeOrderIdx] -
+                       self._srtree[timeOrderIdx][index][1]) > 0:
                 return True
-            elif cpl == len(path):
-                # if False, 在抽样空间中去除varphi区间
+            else:
                 return False
-            elif cpl > 0:
+        else:
+            cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, newPath)
+            if cpl > 0:
                 if np.prod(self._srtree[timeOrderIdx][ancestorIndex][1] -
                            self._srtree[timeOrderIdx][index][1]) > 0:
                     return True
                 else:
                     return False
             else:
-                return True
+                if np.prod(self._srtree_root[timeOrderIdx] -
+                        self._srtree[timeOrderIdx][index][1]) > 0:
+                    return True
+                else:
+                    return False
 
 
-    def update_path(self, timeOrderIdx, dataIndex, path):
+
+    def update_path(self, timeOrderIdx, dataIndex, newPath):
         """Update path dictionary
         """
         # 获取所有比当前时序小的数据集合，在其中寻找最近祖先
@@ -264,7 +278,7 @@ class SRTree(object):
             return True
         else:
             # 目标数据在当前时序中，索引为index
-            index == idxL[0]
+            index = idxL[0]
 
         if index == 0:
             # 此处更新首节点的path
@@ -274,17 +288,17 @@ class SRTree(object):
                 self._srtree_root[timeOrderIdx] =\
                     self._srtree_root[timeOrderIdx] -\
                     self._srtree[timeOrderIdx][index][1]
-                self._srtree[timeOrderIdx][index][3] = path
+                self._srtree[timeOrderIdx][index][3] = newPath
                 return True
             else:
                 return False
         else:
-            cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, path)
-            if cpl == len(path) and pL == self._srtree[timeOrderIdx][index][1]:
+            cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, newPath)
+            if cpl == len(newPath) and pL == self._srtree[timeOrderIdx][index][1]:
                 # 且有相同的phi，实际上这种情况不可能出现，在无限位点假设条件下
-                self._srtree[timeOrderIdx][index][3] = path
+                self._srtree[timeOrderIdx][index][3] = newPath
                 return True
-            elif cpl == len(path):
+            elif cpl == len(newPath):
                 # 且有相同的phi，实际上这种情况不可能出现，在无限位点假设条件下
                 return False
             elif cpl > 0:
@@ -293,7 +307,7 @@ class SRTree(object):
                     self._srtree[timeOrderIdx][ancestorIndex][1] =\
                         self._srtree[timeOrderIdx][ancestorIndex][1] -\
                         self._srtree[timeOrderIdx][index][1]
-                    self._srtree[timeOrderIdx][index][3] = path
+                    self._srtree[timeOrderIdx][index][3] = newPath
                     return True
                 else:
                     return False
@@ -303,7 +317,7 @@ class SRTree(object):
                     self._srtree_root[timeOrderIdx] =\
                         self._srtree_root[timeOrderIdx] -\
                         self._srtree[timeOrderIdx][index][1]
-                    self._srtree[timeOrderIdx][index][3] = path
+                    self._srtree[timeOrderIdx][index][3] = newPath
                     return True
                 else:
                     return False

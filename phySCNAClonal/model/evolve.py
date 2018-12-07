@@ -34,8 +34,7 @@ from phySCNAClonal.model.datanode import DataNode
 from phySCNAClonal.model.ordertransform import CS2T, SRTree
 
 from phySCNAClonal.model.params import get_c_fnames, metropolis
-from phySCNAClonal.model.printo import (print_top_trees, print_tree_latex,
-                                        print_tree_latex2, show_tree_structure)
+from phySCNAClonal.model.printo import (print_top_trees, show_tree_structure2)
 from phySCNAClonal.model.tssb import TSSB
 from phySCNAClonal.model.util import boundbeta
 from phySCNAClonal.model.util2 import (BackupManager, StateManager, TreeWriter,
@@ -373,7 +372,8 @@ def do_mcmc(stateManager,
                     state['time_order_list'],
                     state['negative_set_dict'],
                     state['phi_dict_list'],
-                    state['sum_rule_tree'])
+                    deepcopy(state['sum_rule_tree']),
+                    config)
             else:
                 state['tssb'].resample_assignments(timeTag)
 
@@ -469,11 +469,11 @@ def do_mcmc(stateManager,
                 #######################################################
                            #  debug, show tree structure  #
                 #######################################################
-                show_tree_structure(
-                    state['tssb'], config['tmp_tex_dir'], config['tmp_pdf_dir'],
-                    "iter{0}_time{1}_serialized".format(
-                        state['total_iteration'], timeTag),
-                    timeTag, state['time_tags'], True)
+                # show_tree_structure2(
+                    # state['tssb'], config['tmp_tex_dir'], config['tmp_pdf_dir'],
+                    # "iter{0}_time{1}_serialized".format(
+                        # state['total_iteration'], timeTag),
+                    # timeTag, state['time_tags'], True)
                 #######################################################
 
                 tSerialized = pickle.dumps(

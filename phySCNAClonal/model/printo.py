@@ -5,15 +5,15 @@ from ete2 import *
 from numpy import *
 from numpy.random import *
 
-from tssb import *
-from util import *
-from util2 import remove_empty_nodes, TreeReader
+from phySCNAClonal.model.tssb import *
+from phySCNAClonal.model.util import *
+# from phySCNAClonal.model.util2 import remove_empty_nodes, TreeReader
 from collections import Counter
 
 import os
 
 
-def show_tree_structure(tssb,
+def show_tree_structure2(tssb,
                         texFolder,
                         pdfFolder,
                         filePrefix,
@@ -23,7 +23,7 @@ def show_tree_structure(tssb,
                         toShow=False):
 
     texFileFullPath = os.path.join(texFolder, filePrefix + ".tex")
-    print_tree_latex2(tssb, texFileFullPath, 0, currentTimeTag, allTimeTags)
+    print_tree_latex2(tssb, texFileFullPath, currentTimeTag, allTimeTags)
 
 
     if toCompile:
@@ -45,6 +45,35 @@ def show_tree_structure(tssb,
             except OSError:  # pdflatex not available, do not die
                 print >> sys.stderr, 'okular not available'
 
+def show_tree_structure3(tssb,
+                        texFolder,
+                        pdfFolder,
+                        filePrefix,
+                        toCompile=False,
+                        toShow=False):
+
+    texFileFullPath = os.path.join(texFolder, filePrefix + ".tex")
+    print_tree_latex3(tssb, texFileFullPath)
+
+
+    if toCompile:
+        try:
+            callList = ["/usr/local/texlive/2017/bin/x86_64-linux/pdflatex",
+                        "-interaction=nonstopmode",
+                        "-output-directory={}".format(pdfFolder),
+                        texFileFullPath]
+            call(" ".join(callList), shell=True)
+            call("rm {0}/{1}.aux {0}/{1}.log".format(pdfFolder, filePrefix),
+                 shell=True)
+        except OSError as oser:  # pdflatex not available, do not die
+            print >> sys.stderr, 'pdflatex not available'
+        if toShow:
+            try:
+                callList = ["/usr/bin/okular",
+                            os.path.basename(texFileFullPath)]
+                call(" ".join(callList), shell=True)
+            except OSError:  # pdflatex not available, do not die
+                print >> sys.stderr, 'okular not available'
 
 ctr=0
 def print_top_trees(treeArchive, fout, k=5):
@@ -164,6 +193,24 @@ def write_tree2(root, timeTag, timeTags):
 
     return "[{}]".format(reStr)
 
+
+def write_tree3(root):
+    # for debugging crossing & summing rule
+    global count
+    count+=1
+
+    reStr = "[{"
+    for d in  root['node'].data:
+        reStr += "{0},".format(d)
+    reStr = reStr.strip(",")
+    reStr += "}"
+
+    for child in root['children']:
+        reStr += write_tree3(child)
+
+    return reStr + "]"
+
+
 # writes code for index
 # root: root of the tree
 # tree_file: string with latex code
@@ -235,7 +282,7 @@ def print_tree_latex(tssb,fout,score):
     fout.write(tree_file)
     fout.close()
 
-def print_tree_latex2(tssb,fout,score,timeTag,timeTags):
+def print_tree_latex2(tssb,fout,timeTag,timeTags):
     global count
     fout = open(fout,'w')
     count=-1
@@ -250,6 +297,27 @@ def print_tree_latex2(tssb,fout,score,timeTag,timeTags):
     tree_file+='\\begin{forest}\n'
     tree_file+='before typesetting nodes={for descendants={edge=->}}\n'
     tree_file+=write_tree2(tssb.root, timeTag, timeTags)
+    tree_file+='\\end{forest}\n'
+    tree_file+='\end{document}\n'
+    fout.write(tree_file)
+    fout.close()
+
+
+def print_tree_latex3(tssb,fout):
+    global count
+    fout = open(fout,'w')
+    count=-1
+    #tree_file='\documentclass{article}\n'
+    tree_file='\\documentclass{standalone}\n'
+    tree_file+='\\usepackage{forest}\n'
+    tree_file+='\\usepackage{xcolor}\n'
+    tree_file+='\\usepackage{tikz}\n'
+    tree_file+='\\usepackage{multicol}\n'
+    tree_file+='\\usetikzlibrary{fit,positioning}\n'
+    tree_file+='\\begin{document}\n'
+    tree_file+='\\begin{forest}\n'
+    tree_file+='before typesetting nodes={for descendants={edge=->}}\n'
+    tree_file+=write_tree3(tssb.root)
     tree_file+='\\end{forest}\n'
     tree_file+='\end{document}\n'
     fout.write(tree_file)

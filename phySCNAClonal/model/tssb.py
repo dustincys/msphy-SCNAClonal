@@ -23,6 +23,8 @@ from phySCNAClonal.preprocess.utils import get_cn_allele_config
 from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
 from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
 
+from phySCNAClonal.model.printo import show_tree_structure3
+
 from copy import deepcopy
 
 
@@ -237,7 +239,7 @@ class TSSB(object):
             lengths.append(len(newPath))
         lengths = array(lengths)
 
-    def resample_assignments_crossing(self, timeOrderL, negativeSD, phiDL, srtree):
+    def resample_assignments_crossing(self, timeOrderL, negativeSD, phiDL, srtree, config):
         def path_lt(path1, path2):
             if len(path1) == 0 and len(path2) == 0:
                 return 0
@@ -293,12 +295,19 @@ class TSSB(object):
 
             for n, t in dataL:
                 # change to segment operation
+                show_tree_structure3(self,
+                                     config['tmp_tex_dir'],
+                                     config['tmp_pdf_dir'],
+                                     "iter_n_{0}_t_{1}".format(n, t),
+                                     True)
 
                 tempUSegL = deepcopy(uSegL)
                 if not isNonOrderedData:
                     self.mark_specific_time_tag(negativeSD[n])
                     uNegtive = self.get_u_segL()
                     tempUSegL.remove(uNegtive)
+                else:
+                    self.mark_specific_time_tag(set([]))
 
                 minU = tempUSegL.lowerBoundary
                 maxU = tempUSegL.upperBoundary
@@ -319,7 +328,9 @@ class TSSB(object):
                 isInNegativeSpace = currentVStick['tag']
 
                 isSummingOK = True
-                if not isNonOrderedData:
+                if isInNegativeSpace:
+                    isSummingOK = False
+                elif not isNonOrderedData:
                     currentPath = "".join(map(lambda i: "%03d" % (i), indices))
                     isSummingOK = srtree.is_good_path(timeOrderIndex, n, currentPath)
 
@@ -340,9 +351,10 @@ class TSSB(object):
                     newU = tempUSegL.sample()
 
                     (newNode, newPath, varphiR)  = self.find_node_varphi_range(newU)
+                    newPathS = "".join(map(lambda i: "%03d" % (i), newPath))
 
                     if not isNonOrderedData and not srtree.is_good_path(
-                        timeOrderIndex, n, newPath):
+                        timeOrderIndex, n, newPathS):
                         tempUSegL.remove(varphiR)
                         timesRMVarphiR = timesRMVarphiR + 1
                         if timesRMVarphiR > 500:
@@ -396,7 +408,7 @@ class TSSB(object):
                         maxU = tempUSegL.upperBoundary
 
                 if not isNonOrderedData:
-                    srtree.update_path(timeOrderIndex, n, newPath)
+                    srtree.update_path(timeOrderIndex, n, newPathS)
                 lengths.append(len(newPath))
         lengths = array(lengths)
 
@@ -637,7 +649,7 @@ class TSSB(object):
         """
         def descend(root):
             if 0 == len(root['children']):
-                for item in root['node'].get_data():
+                for item in root['node'].data:
                     if item in Q:
                         root['tag'] = True
                         return True
@@ -648,7 +660,7 @@ class TSSB(object):
                     root['tag'] = True
                     return True
                 else:
-                    for item in root['node'].get_data():
+                    for item in root['node'].data:
                         if item in Q:
                             root['tag'] = True
                             return True
