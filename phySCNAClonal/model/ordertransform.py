@@ -63,7 +63,7 @@ class CS2T:
                 targetData = [(idx, phiDL[ruleIdx][idx][si]) for idx in targetVarkappa]
 
                 for kj in range(len(currentVarkappa[:])):
-                    currentSmallS = set([i for i, n in filter(lambda item: item[1] <= phiDL[ruleIdx][currentVarkappa[kj]][-1], currentData)])
+                    currentSmallS = set([i for i, n in filter(lambda item: item[1] < phiDL[ruleIdx][currentVarkappa[kj]][-1], currentData)])
                     targetSmallS = set([i for i, n in filter(lambda item: item[1] < phiDL[ruleIdx][currentVarkappa[kj]][si], targetData)])
                     negativeS = currentSmallS - targetSmallS
 
@@ -212,7 +212,7 @@ class SRTree(object):
             tempTree = []
             for idx, t in timeOrder:
                 # data index \t phi list \t time order \t path
-                tempTree.append([idx, np.array(phiD[idx]), t, ""])
+                tempTree.append([idx, np.array(phiD[idx]), t, "", None])
             self._srtree.append(sorted(tempTree, key=lambda item: item[2]))
             self._srtree_root.append(np.array([1] * len(phiD[idx])))
 
@@ -228,7 +228,7 @@ class SRTree(object):
         """
 
         index = -1
-        idxL = [idx for idx, (j,phiL,t,path) in
+        idxL = [idx for idx, (j,phiL,t,path,v) in
                             enumerate(self._srtree[timeOrderIdx]) if j ==
                             dataIndex]
         if len(idxL) == 0:
@@ -261,16 +261,32 @@ class SRTree(object):
                 else:
                     return False
 
+    def get_lastVarphiRL(self, timeOrderIdx, dataIndex):
+        index = -1
+        idxL = [idx for idx, (j,phiL,t,path,v) in
+                            enumerate(self._srtree[timeOrderIdx]) if j ==
+                            dataIndex]
+        if len(idxL) == 0:
+            raise Exception()
+        else:
+            # 目标数据在当前时序中，索引为index
+            index = idxL[0]
+
+        preTOTree = filter(
+            lambda item: item[2] < self._srtree[timeOrderIdx][index][2],
+            self._srtree[timeOrderIdx])
+
+        return list(reversed([item[4] for item in preTOTree]))
 
 
-    def update_path(self, timeOrderIdx, dataIndex, newPath):
+    def update_path_varphiR(self, timeOrderIdx, dataIndex, newPath, varphiR):
         """Update path dictionary
         """
         # 获取所有比当前时序小的数据集合，在其中寻找最近祖先
         # 此处需要判断当前节点内是否有已经进行搜索过的节点
 
         index = -1
-        idxL = [idx for idx, (j,phiL,t,path) in
+        idxL = [idx for idx, (j,phiL,t,path,v) in
                             enumerate(self._srtree[timeOrderIdx]) if j ==
                             dataIndex]
         if len(idxL) == 0:
@@ -289,6 +305,7 @@ class SRTree(object):
                     self._srtree_root[timeOrderIdx] -\
                     self._srtree[timeOrderIdx][index][1]
                 self._srtree[timeOrderIdx][index][3] = newPath
+                self._srtree[timeOrderIdx][index][4] = varphiR
                 return True
             else:
                 return False
@@ -297,6 +314,7 @@ class SRTree(object):
             if cpl == len(newPath) and pL == self._srtree[timeOrderIdx][index][1]:
                 # 且有相同的phi，实际上这种情况不可能出现，在无限位点假设条件下
                 self._srtree[timeOrderIdx][index][3] = newPath
+                self._srtree[timeOrderIdx][index][4] = varphiR
                 return True
             elif cpl == len(newPath):
                 # 且有相同的phi，实际上这种情况不可能出现，在无限位点假设条件下
@@ -308,6 +326,7 @@ class SRTree(object):
                         self._srtree[timeOrderIdx][ancestorIndex][1] -\
                         self._srtree[timeOrderIdx][index][1]
                     self._srtree[timeOrderIdx][index][3] = newPath
+                    self._srtree[timeOrderIdx][index][4] = varphiR
                     return True
                 else:
                     return False
@@ -318,6 +337,7 @@ class SRTree(object):
                         self._srtree_root[timeOrderIdx] -\
                         self._srtree[timeOrderIdx][index][1]
                     self._srtree[timeOrderIdx][index][3] = newPath
+                    self._srtree[timeOrderIdx][index][4] = varphiR
                     return True
                 else:
                     return False
@@ -331,10 +351,13 @@ class SRTree(object):
         # EpsilonD should in the time order primarily and phi reverse order
         # secondly
 
+        preTOTree = filter(
+            lambda item: item[2] < self._srtree[timeOrderIdx][index][2],
+            self._srtree[timeOrderIdx])
         cplL = [(len(commonprefix([e, path])), pL, idx) if
                 len(commonprefix([e, path])) == len(e) else (0, pL, idx)
-                for idx, (j, pL, t, e) in
-                enumerate(self._srtree[timeOrderIdx][0:index])]
+                for idx, (j, pL, t, e, v) in
+                enumerate(preTOTree)]
 
         cpl, pL, idx = max(cplL, key=lambda item: item[0])
 

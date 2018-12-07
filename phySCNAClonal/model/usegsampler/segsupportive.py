@@ -46,8 +46,15 @@ class MultiRangeSampler(object):
     def upperBoundary(self):
         return self._maxU
 
-    def remove(self, ranges):
-        self._supportiveRanges = self._supportiveRanges - ranges
+
+    def assign_supportive(self, ranges):
+        """
+
+        :ranges: TODO
+        :returns: TODO
+
+        """
+        self._supportiveRanges = ranges
         self._supportiveRanges.coalesce()
 
         if 0 < len(self._supportiveRanges):
@@ -60,6 +67,23 @@ class MultiRangeSampler(object):
             self._maxU = 0
             self._cumLens = np.array([])
             raise Exception("remove range error!")
+
+
+    def remove(self, ranges):
+        self._supportiveRanges = self._supportiveRanges - ranges
+        self._supportiveRanges.coalesce()
+
+        if 0 < len(self._supportiveRanges):
+            self._minU = self._supportiveRanges[0][0]
+            self._maxU = self._supportiveRanges[-1][1]
+            self._cumLens = self._get_cumulative_lens()
+            return True
+        else:
+            # this is not possible
+            self._minU = 0
+            self._maxU = 0
+            self._cumLens = np.array([])
+            return False
 
 
     def removeLeft(self, boundary):

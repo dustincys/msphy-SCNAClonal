@@ -302,6 +302,7 @@ class TSSB(object):
                                      True)
 
                 tempUSegL = deepcopy(uSegL)
+                uNegtive = None
                 if not isNonOrderedData:
                     self.mark_specific_time_tag(negativeSD[n])
                     uNegtive = self.get_u_segL()
@@ -347,6 +348,8 @@ class TSSB(object):
                     llhS = log(rand()) + oldLlh
 
                 timesRMVarphiR = 0
+                lastVarphiRIndex = 0
+                lastVarphiRL = srtree.get_lastVarphiRL(timeOrderIndex, n)
                 while True:
                     newU = tempUSegL.sample()
 
@@ -355,10 +358,13 @@ class TSSB(object):
 
                     if not isNonOrderedData and not srtree.is_good_path(
                         timeOrderIndex, n, newPathS):
-                        tempUSegL.remove(varphiR)
+                        if tempUSegL.remove(varphiR) is False or timesRMVarphiR > 500:
+                            if lastVarphiRIndex >= len(lastVarphiRL):
+                                raise Exception("Varphi range error!")
+                            tempUSegL.assign_supportive(lastVarphiRL[lastVarphiRIndex])
+                            tempUSegL.remove(uNegtive)
+                            lastVarphiRIndex = lastVarphiRIndex + 1
                         timesRMVarphiR = timesRMVarphiR + 1
-                        if timesRMVarphiR > 500:
-                            break
                         continue
 
                     if newNode.parent() is None:
@@ -408,7 +414,7 @@ class TSSB(object):
                         maxU = tempUSegL.upperBoundary
 
                 if not isNonOrderedData:
-                    srtree.update_path(timeOrderIndex, n, newPathS)
+                    srtree.update_path_varphiR(timeOrderIndex, n, newPathS, varphiR)
                 lengths.append(len(newPath))
         lengths = array(lengths)
 
