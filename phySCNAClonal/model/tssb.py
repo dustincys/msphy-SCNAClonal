@@ -812,6 +812,7 @@ class TSSB(object):
             else:
                 # Rescale the uniform variate to the remaining interval.
                 u = (u - root['main']) / (1.0 - root['main'])
+                varphiR[0] = (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]
 
                 # Perhaps break sticks out appropriately.
                 if depth > 0:
@@ -855,7 +856,7 @@ class TSSB(object):
 
                 return (node, path, varphiR)
 
-        n, p, vR = descend(self.root, u, [self.root['main'] * 1 + 0, 1])
+        n, p, vR = descend(self.root, u, [0, 1])
         return n, p, SegmentList([Segment(vR[0], vR[1])])
 
     def get_u_segL(self):

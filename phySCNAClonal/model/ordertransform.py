@@ -311,7 +311,7 @@ class SRTree(object):
                 return False
         else:
             cpl, pL, ancestorIndex = self.__load_most_recent_ancestor(timeOrderIdx, index, newPath)
-            if cpl == len(newPath) and pL == self._srtree[timeOrderIdx][index][1]:
+            if cpl == len(newPath) and all(pL == self._srtree[timeOrderIdx][index][1]):
                 # 且有相同的phi，实际上这种情况不可能出现，在无限位点假设条件下
                 self._srtree[timeOrderIdx][index][3] = newPath
                 self._srtree[timeOrderIdx][index][4] = varphiR
