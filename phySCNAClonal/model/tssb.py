@@ -23,7 +23,7 @@ from phySCNAClonal.preprocess.utils import get_cn_allele_config
 from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
 from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
 
-from phySCNAClonal.model.printo import show_tree_structure3
+# from phySCNAClonal.model.printo import show_tree_structure3
 
 from copy import deepcopy
 
@@ -239,7 +239,7 @@ class TSSB(object):
             lengths.append(len(newPath))
         lengths = array(lengths)
 
-    def resample_assignments_crossing(self, timeOrderL, negativeSD, phiDL, srtree, config):
+    def resample_assignments_crossing(self, timeOrderL, negativeSD, phiDL, srtree):
         def path_lt(path1, path2):
             if len(path1) == 0 and len(path2) == 0:
                 return 0
@@ -295,11 +295,6 @@ class TSSB(object):
 
             for n, t in dataL:
                 # change to segment operation
-                show_tree_structure3(self,
-                                     config['tmp_tex_dir'],
-                                     config['tmp_pdf_dir'],
-                                     "iter_n_{0}_t_{1}".format(n, t),
-                                     True)
 
                 tempUSegL = deepcopy(uSegL)
                 uNegtive = None

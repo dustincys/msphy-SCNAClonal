@@ -34,14 +34,15 @@ from phySCNAClonal.model.datanode import DataNode
 from phySCNAClonal.model.ordertransform import CS2T, SRTree
 
 from phySCNAClonal.model.params import get_c_fnames, metropolis
-from phySCNAClonal.model.printo import (print_top_trees, show_tree_structure2)
+from phySCNAClonal.model.printo import (print_top_trees,
+                                        show_tree_structure2,
+                                        show_tree_structure3)
 from phySCNAClonal.model.tssb import TSSB
 from phySCNAClonal.model.util import boundbeta
 from phySCNAClonal.model.util2 import (BackupManager, StateManager, TreeWriter,
                                        load_data, map_datum_to_node,
                                        set_node_height,
                                        set_path_from_root_to_node)
-
 
 # sampleNum: number of MCMC samples
 # mhItr: number of metropolis-hasting iterations
@@ -69,7 +70,8 @@ def start_new_run(stateManager,
                   maxCopyNumber,
                   isMerged,
                   isCrossing=False,
-                  crossingFile=""):
+                  crossingFile="",
+                  noTag=False):
     state = {}
 
 
@@ -113,6 +115,10 @@ def start_new_run(stateManager,
     state['time_order_list'] = timeOrderL
     state['phi_dict_list'] = phiDL
     state['sum_rule_tree'] = srtree
+
+    if noTag:
+        for data in inputData:
+            data.tag = "0"
 
     ########################
     #  test, set time tag  #
@@ -372,8 +378,13 @@ def do_mcmc(stateManager,
                     state['time_order_list'],
                     state['negative_set_dict'],
                     state['phi_dict_list'],
-                    deepcopy(state['sum_rule_tree']),
-                    config)
+                    deepcopy(state['sum_rule_tree']))
+
+                show_tree_structure3(state['tssb'],
+                                     config['tmp_tex_dir'],
+                                     config['tmp_pdf_dir'],
+                                     "iter_{0}".format(iteration),
+                                     True)
             else:
                 state['tssb'].resample_assignments(timeTag)
 
@@ -632,7 +643,8 @@ def run(args, safeToExit, runSucceeded, config):
             maxCopyNumber=args.maxCopyNumber,
             isMerged=args.isMerged,
             isCrossing=args.isCrossing,
-            crossingFile=args.crossingFile)
+            crossingFile=args.crossingFile,
+            noTag=args.noTag)
 
 
 def remove_tmp_files(tmpDir):
