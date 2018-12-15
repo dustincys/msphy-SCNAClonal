@@ -177,6 +177,9 @@ parserModel.add_argument('--inputDataTextFile', dest='inputDataTextFile', help= 
 parserModel.add_argument('--isMerged', default=False, type=str2bool,
                                help='''is merged data file''')
 
+parserModel.add_argument('--noTag', default=False, type=str2bool,
+                               help='''to remove all tag or not''')
+
 parserModel.add_argument('--isCrossing', default=False, type=str2bool,
                                help='''using crossing file''')
 
