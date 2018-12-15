@@ -413,6 +413,29 @@ class TSSB(object):
                 lengths.append(len(newPath))
         lengths = array(lengths)
 
+    def resample_assignments_singlecell(self, orderMatrix, srtree):
+        def path_lt(path1, path2):
+            if len(path1) == 0 and len(path2) == 0:
+                return 0
+            elif len(path1) == 0:
+                return 1
+            elif len(path2) == 0:
+                return -1
+            s1 = "".join(map(lambda i: "%03d" % (i), path1))
+            s2 = "".join(map(lambda i: "%03d" % (i), path2))
+
+            return cmp(s2, s1)
+
+        epsilon = finfo(float64).eps
+        # this is not useful
+        lengths = []
+
+        # filter out data not in orderMatrix
+        scData = set(orderMatrix[0,])
+        nonOrderedData = set(range(len(self.data))) - orderedData
+
+        for vector in orderMatrix[1:,]:
+
 
     def _get_non_ordered_data(self, phiDL):
         orderedData = set([j for phiD in phiDL for j in phiD.keys()])

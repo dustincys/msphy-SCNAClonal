@@ -30,10 +30,28 @@ class SINGLECELL2T():
     def transform(self):
         # 按照列求和之后按位乘，然后每一行排序，生成时序
         # 输出每一个时序对应的负空间
+        self.scmatrix = self.__read_config_file()
         dataMatrix = self.scmatrix[1:,]
         overlapPathMatrix = dataMatrix * dataMatrix.sum(axis=0)
 
+        for i_row in range(len(overlapPathMatrix)):
+            overlapPathMatrix[i_row,] = self.__order_transfrom(overlapPathMatrix[i_row,])
 
+        return np.concatenate((np.array([self.scmatrix[0,]]), overlapPathMatrix), axis=0)
+
+    def __order_transfrom(self, vec):
+        revec = [-1] * len(vec)
+
+        orderDict = {}
+        for idx, item in enumerate(sorted(vec, reverse=True)):
+            if item != 0:
+                orderDict[item] = idx
+
+        for i in range(len(vec)):
+            if vec[i] in orderDict.keys():
+                revec[i] = orderDict[vec[i]]
+
+        return revec
 
     def __read_config_file(self):
         """Read config file
@@ -42,9 +60,10 @@ class SINGLECELL2T():
         1	1	1	0
         1	1	0	1
         """
+        scmatrix = None
         try:
-            self.scmatrix = np.loadtxt(self._configFilePath, dtype=int,
-                                    delimiter="\t")
+            scmatrix = np.loadtxt(self._configFilePath,
+                                  dtype=int,comments=["#"], delimiter="\t")
         except IOError as e:
             print "I/O error({0}): {1}".format(e.errno, e.strerror)
         except ValueError:
@@ -52,6 +71,8 @@ class SINGLECELL2T():
         except:
             print "Unexpected error:", sys.exc_info()[0]
             raise
+
+        return scmatrix
 
 
 
@@ -407,10 +428,13 @@ class SRTree(object):
 def main():
     # c2t = C2T("./crossing.text.example")
     # print c2t.toTimeOrder()
-    cs2t = CS2T("./summingandcrossing.example.txt")
-    timeOrder, negativeSD, phiDL = cs2t.transform()
+    # cs2t = CS2T("./summingandcrossing.example.txt")
+    # timeOrder, negativeSD, phiDL = cs2t.transform()
 
-    print timeOrder, negativeSD, phiDL
+    # print timeOrder, negativeSD, phiDL
+
+    sc2t = SINGLECELL2T("./singlecell.example.txt")
+    print sc2t.transform()
 
 if __name__ == "__main__":
     main()
