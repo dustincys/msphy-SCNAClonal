@@ -17,6 +17,44 @@ from copy import deepcopy
 from os.path import commonprefix
 
 import numpy as np
+import sys
+
+class SINGLECELL2T():
+
+    """transfrom single cell data to time order"""
+
+    def __init__(self, configFilePath):
+        self._configFilePath = configFilePath
+        self.scmatrix = None
+
+    def transform(self):
+        # 按照列求和之后按位乘，然后每一行排序，生成时序
+        # 输出每一个时序对应的负空间
+        dataMatrix = self.scmatrix[1:,]
+        overlapPathMatrix = dataMatrix * dataMatrix.sum(axis=0)
+
+
+
+    def __read_config_file(self):
+        """Read config file
+        #Fist line is data index
+        0	1	2	3
+        1	1	1	0
+        1	1	0	1
+        """
+        try:
+            self.scmatrix = np.loadtxt(self._configFilePath, dtype=int,
+                                    delimiter="\t")
+        except IOError as e:
+            print "I/O error({0}): {1}".format(e.errno, e.strerror)
+        except ValueError:
+            print "Could not convert data to an integer."
+        except:
+            print "Unexpected error:", sys.exc_info()[0]
+            raise
+
+
+
 
 
 class CS2T:

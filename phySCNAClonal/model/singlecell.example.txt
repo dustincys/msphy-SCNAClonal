@@ -1,0 +1,15 @@
+## #Fist line is data index
+## 0	1	2	3
+## 1	1	1	0
+## 1	1	0	1
+#Fist line is mutation index
+#Each row is mutation data from one cell
+0	1	2	3	4	5	6	7	8	9
+1	1	0	0	0	0	0	1	0	1
+1	1	0	1	0	0	1	0	0	0
+1	1	0	1	0	0	0	0	0	0
+1	1	0	0	0	0	0	0	0	1
+1	0	1	0	0	0	0	0	0	0
+1	0	1	0	1	0	0	0	0	0
+1	0	1	0	1	1	0	0	0	0
+1	0	0	0	0	0	0	0	1	0
