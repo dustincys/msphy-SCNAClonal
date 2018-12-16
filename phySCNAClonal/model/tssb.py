@@ -434,7 +434,31 @@ class TSSB(object):
         scData = set(orderMatrix[0,])
         nonOrderedData = set(range(len(self.data))) - orderedData
 
-        for vector in orderMatrix[1:,]:
+        # 对单细胞测序数据中每一个样本，即矩阵中每一行路径搜索
+
+        # 每一个单细胞测序样本路径搜索完毕后需要记录在已经搜索的内容中
+        # 用字典类型表示　{dataIdx: [varphiR, piR]}
+        scDataFoundD = {}
+
+        for orderVector in orderMatrix[1:,]:
+
+            # 根据当前单细胞测序样本中的变异Stage进行其中包含-1
+            currentSampleStageSet = sorted(set(orderVector))
+
+            # 需要记录前Stage的信息
+
+            for stage in currentSampleStageSet:
+                if stage == -1
+                    # 当前单细胞测序中不含有该变异
+                    continue
+                # 获取当前stage的数据id
+                idxL = orderMatrix[0, where(orderVector==stage)[0]]
+                for idx in idxL:
+                    if idx in scDataFoundD.keys():
+                        continue
+                    else:
+                        # 需要搜索当前stage 的搜索空间
+
 
 
     def _get_non_ordered_data(self, phiDL):
