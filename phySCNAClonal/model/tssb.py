@@ -437,27 +437,50 @@ class TSSB(object):
         # 对单细胞测序数据中每一个样本，即矩阵中每一行路径搜索
 
         # 每一个单细胞测序样本路径搜索完毕后需要记录在已经搜索的内容中
-        # 用字典类型表示　{dataIdx: [varphiR, piR]}
+        # 用字典类型表示
+        # {dataIdx: ｛"varphiR":R, "piR":R, "remainR":R,"epsilon"}:epsilon}
+
         scDataFoundD = {}
 
         for orderVector in orderMatrix[1:,]:
 
             # 根据当前单细胞测序样本中的变异Stage进行其中包含-1
-            currentSampleStageSet = sorted(set(orderVector))
+            currentSampleStageS = sorted(set(orderVector))
 
             # 需要记录前Stage的信息
+            currentSampleStageSD = {}
+            # 记录最下方节点的 varphiR - piR
+            currentSampleStageSD['lowest_offspring_R'] = MultiRangeSampler(0,1)
+            # 记录最下方节点，用来判断
+            currentSampleStageSD['lowest_node_epsilon'] = ""
+            # 用来保存当前状态的路径
+            currentSampleStageSD['path_R'] = MultiRangeSampler(0,1)
 
-            for stage in currentSampleStageSet:
+            lastStageRemainR = MultiRangeSampler(0,1)
+            for stage in currentSampleStageS:
                 if stage == -1
                     # 当前单细胞测序中不含有该变异
                     continue
                 # 获取当前stage的数据id
                 idxL = orderMatrix[0, where(orderVector==stage)[0]]
+
+                lastStageLowestEpsilon = ""
                 for idx in idxL:
                     if idx in scDataFoundD.keys():
+                        # 当前stage 是否已经被搜索过，如果已经搜索过，那么进入下
+                        # 一个stage
+                        if len(lastStageLowestEpsilon) < len(scDataFoundD[idx]["epsilon"]):
+                            lastStageLowestEpsilon = scDataFoundD[idx]["epsilon"]
+                            lastStageRemainR = scDataFoundD[idx]["remainR"]
                         continue
                     else:
                         # 需要搜索当前stage 的搜索空间
+                        #
+                        # 第一步，确定当前的搜索空间，LastStage中　所有 piR的交集
+                        # 即，位于最下方的节点的后代
+                        # 第二步，获取当前stage中所有的祖先节点的R
+                        # 第三步，获取所有的piR的交集与所有祖先节点的交集
+                        # 获取当前状态位于最下方节点的piR，与上面的交集取并集
 
 
 
