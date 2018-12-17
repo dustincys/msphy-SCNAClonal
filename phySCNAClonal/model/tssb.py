@@ -532,7 +532,6 @@ class TSSB(object):
                         llhS = -float('Inf')
                         if not isInPath:
                             oldLlh = -float('Inf')
-                            llhS = -float('Inf')
                         else:
                             oldLlh = self.assignments[n].logprob(self.data[n:n + 1],
                                                                 self.alleleConfig,
@@ -543,21 +542,8 @@ class TSSB(object):
 
                         while True:
                             newU = tempUSegL.sample()
-
-                            (newNode, newPath, varphiR)  = self.find_node_varphi_pi_range(newU)
-
-                            newPathS = "".join(map(lambda i: "%03d" % (i), newPath))
-
-                            if not isNonOrderedData and not srtree.is_good_path(
-                                timeOrderIndex, n, newPathS):
-                                if tempUSegL.remove(varphiR) is False or timesRMVarphiR > 500:
-                                    if lastVarphiRIndex >= len(lastVarphiRL):
-                                        raise Exception("Varphi range error!")
-                                    tempUSegL.assign_supportive(lastVarphiRL[lastVarphiRIndex])
-                                    tempUSegL.remove(uNegtive)
-                                    lastVarphiRIndex = lastVarphiRIndex + 1
-                                timesRMVarphiR = timesRMVarphiR + 1
-                                continue
+                            (newNode, newPath, varphiR, piR)  = self.find_node_varphi_pi_range(newU)
+                            newPathEpsilon = "".join(map(lambda i: "%03d" % (i), newPath))
 
                             if newNode.parent() is None:
                                 # shankar: to make root node empty
@@ -604,6 +590,13 @@ class TSSB(object):
                                     raise Exception("Slice sampler weirdness.")
                                 minU = tempUSegL.lowerBoundary
                                 maxU = tempUSegL.upperBoundary
+
+                        # 此处需要更新当前状态信息，和所有已经抽样的数据的状态信
+                        # 息
+                        if len(currentStageStatus["lowest_epsilon"]) < len(newPathEpsilon):
+                            currentStageStatus["lowest_idx"] = n
+                            currentStageStatus["lowest_epsilon"] = newPathEpsilon
+                            currentStageStatus["lowest_remain_r"] = varphiR.remove(piR)
 
                         if not isNonOrderedData:
                             srtree.update_path_varphiR(timeOrderIndex, n, newPathS, varphiR)
@@ -1006,6 +999,66 @@ class TSSB(object):
                 return (node, path)
 
         return descend(self.root, u)
+
+    def find_node_varphi_pi_range(self, u):
+        def descend(root, u, varphiR, depth=0):
+            if depth >= self.maxDepth:
+                # print >>sys.stderr, "WARNING: Reached maximum depth."
+                return (root['node'], [], varphiR, [varphiR[0], piEnd])
+            elif u < root['main']:
+                if root['tag']:
+                     print >>sys.stderr, "Negative space located!!."
+                return (root['node'], [], varphiR, [varphiR[0], piEnd])
+            else:
+                # Rescale the uniform variate to the remaining interval.
+                u = (u - root['main']) / (1.0 - root['main'])
+                varphiR[0] = (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]
+
+                # Perhaps break sticks out appropriately.
+                if depth > 0:
+                    while not root['children'] or (
+                            1.0 - prod(1.0 - root['sticks'])) < u:
+                        root['sticks'] = vstack([
+                            root['sticks'],
+                            # 注意此处为右边界
+                            boundbeta(1, self.dpGamma) if depth != 0 else .999
+                        ])  # shankar
+                        root['children'].append({
+                            'node':
+                            root['node'].spawn(),
+                            'main':
+                            boundbeta(1.0, (self.alphaDecay**
+                                            (depth + 1)) * self.dpAlpha)
+                            if self.minDepth <= (depth + 1) else 0.0,
+                            'sticks':
+                            empty((0, 1)),
+                            'children': [],
+                            'tag': False
+                        })
+
+                    edges = 1.0 - cumprod(1.0 - root['sticks'])
+                    index = sum(u > edges)
+                    edges = hstack([0.0, edges])
+                    u = (u - edges[index]) / (edges[index + 1] - edges[index])
+
+                    varphiR = [
+                        (varphiR[1]-varphiR[0])*edges[index]+varphiR[0],
+                        (varphiR[1]-varphiR[0])*edges[index+1]+varphiR[0]]
+
+                    (node, path, varphiR, piR) = descend(root['children'][index], u,
+                                                    varphiR, depth + 1)
+                else:
+                    index = 0
+                    (node, path, varphiR, piR) = descend(root['children'][index], u,
+                                                    varphiR, depth + 1)
+
+                path.insert(0, index)
+
+                return (node, path, varphiR, piR)
+
+        n, p, vR, piR = descend(self.root, u, [0, 1])
+        return n, p, SegmentList([Segment(vR[0], vR[1])]), SegmentList([Segment(piR[0], piR[1])])
+
 
     def find_node_varphi_range(self, u):
         def descend(root, u, varphiR, depth=0):
