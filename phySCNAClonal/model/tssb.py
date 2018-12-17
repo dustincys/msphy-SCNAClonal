@@ -456,6 +456,9 @@ class TSSB(object):
             # 用来保存当前状态的路径
             currentSampleStageSD['path_R'] = MultiRangeSampler(0,1)
 
+            # 此处应该设置为树根节点的varphiR - piR
+            # 该变量的初始化应该放在路径搜索的起点
+            # 每一个路径中有多个Stage
             lastStageRemainR = MultiRangeSampler(0,1)
             for stage in currentSampleStageS:
                 if stage == -1
@@ -465,13 +468,16 @@ class TSSB(object):
                 idxL = orderMatrix[0, where(orderVector==stage)[0]]
 
                 lastStageLowestEpsilon = ""
+                currentStageLowestEpsilon = ""
+                currentStageLowestRemainR = MultiRangeSampler(0,1)
                 for idx in idxL:
                     if idx in scDataFoundD.keys():
-                        # 当前stage 是否已经被搜索过，如果已经搜索过，那么进入下
+                        # 此处需要搜索最下方的节点
                         # 一个stage
                         if len(lastStageLowestEpsilon) < len(scDataFoundD[idx]["epsilon"]):
                             lastStageLowestEpsilon = scDataFoundD[idx]["epsilon"]
                             lastStageRemainR = scDataFoundD[idx]["remainR"]
+                            currentStageLowestRemainR = scDataFoundD[idx]["remainR"]
                         continue
                     else:
                         # 需要搜索当前stage 的搜索空间
