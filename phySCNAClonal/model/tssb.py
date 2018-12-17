@@ -12,20 +12,22 @@
 # =============================================================================
 '''
 import sys
+from copy import deepcopy
+from os.path import commonprefix
 from time import *
 
-import scipy.stats
-from gwpy.segments import Segment, SegmentList
 from numpy import *
 from numpy.random import *
 
-from phySCNAClonal.preprocess.utils import get_cn_allele_config
+import scipy.stats
+from gwpy.segments import Segment, SegmentList
 from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
+from phySCNAClonal.preprocess.utils import get_cn_allele_config
 from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
+
 
 # from phySCNAClonal.model.printo import show_tree_structure3
 
-from copy import deepcopy
 
 
 class TSSB(object):
@@ -460,6 +462,14 @@ class TSSB(object):
             # 该变量的初始化应该放在路径搜索的起点
             # 每一个路径中有多个Stage
             lastStageRemainR = MultiRangeSampler(0,1)
+
+
+            # 记录当前路径信息
+            currentStageStatus = {}
+            currentStageStatus["lowest_epsilon"] = ""
+            currentStageStatus["lowest_remain_r"] = MultiRangeSampler(0,1)
+            currentStageStatus["lowest_idx"] = -1
+
             for stage in currentSampleStageS:
                 if stage == -1
                     # 当前单细胞测序中不含有该变异
@@ -468,16 +478,16 @@ class TSSB(object):
                 idxL = orderMatrix[0, where(orderVector==stage)[0]]
 
                 lastStageLowestEpsilon = ""
-                currentStageLowestEpsilon = ""
-                currentStageLowestRemainR = MultiRangeSampler(0,1)
-                for idx in idxL:
-                    if idx in scDataFoundD.keys():
+
+
+                for n in idxL:
+                    if n in scDataFoundD.keys():
                         # 此处需要搜索最下方的节点
                         # 一个stage
-                        if len(lastStageLowestEpsilon) < len(scDataFoundD[idx]["epsilon"]):
-                            lastStageLowestEpsilon = scDataFoundD[idx]["epsilon"]
-                            lastStageRemainR = scDataFoundD[idx]["remainR"]
-                            currentStageLowestRemainR = scDataFoundD[idx]["remainR"]
+                        if len(lastStageLowestEpsilon) < len(scDataFoundD[n]["epsilon"]):
+                            lastStageLowestEpsilon = scDataFoundD[n]["epsilon"]
+                            lastStageRemainR = deepcopy(scDataFoundD[n]["remainR"])
+                            currentStageStatus["lowest_remain_r"] = deepcopy(scDataFoundD[n]["remainR"])
                         continue
                     else:
                         # 需要搜索当前stage 的搜索空间
@@ -487,7 +497,133 @@ class TSSB(object):
                         # 第二步，获取当前stage中所有的祖先节点的R
                         # 第三步，获取所有的piR的交集与所有祖先节点的交集
                         # 获取当前状态位于最下方节点的piR，与上面的交集取并集
+                        tempUSegL = deepcopy(lastStageRemainR)
 
+                        if currentStageStatus["lowest_idx"] != -1:
+                            tempcss = deepcopy(lastStageRemainR)
+                            self.mark_specific_time_tag([currentStageStatus["lowest_idx"]])
+                            ancestorsR = self.get_u_segL()
+                            tempcss.remove(ancestorsR)
+                            tempcss.remove(currentStageStatus["lowest_remain_r"])
+                            tempUSegL.remove(tempcss)
+
+                        minU = tempUSegL.lowerBoundary
+                        maxU = tempUSegL.upperBoundary
+
+                        llhMapD = {}
+                        # Get an initial uniform variate.
+                        ancestors = self.assignments[n].get_ancestors()
+                        current = self.root
+                        indices = []
+                        for anc in ancestors[1:]:
+                            index = map(lambda c: c['node'],
+                                        current['children']).index(anc)
+                            current = current['children'][index]
+                            indices.append(index)
+
+                        targetEpsilon = "".join(map(lambda i: "%03d" % (i), indices))
+                        # Here indices could be used as path to locate v stick
+                        # 此处需要判断上次抽样的节点是否落入当前path中
+                        # 如果没有落入当前path中，赋予最小概率
+                        # 判断方法应该使用epsilon 判断
+                        isInPath = self.__is_in_path(lastStageLowestEpsilon,
+                                                     currentStageStatus["lowest_epsilon"],
+                                                     targetEpsilon)
+                        llhS = -float('Inf')
+                        if not isInPath:
+                            oldLlh = -float('Inf')
+                            llhS = -float('Inf')
+                        else:
+                            oldLlh = self.assignments[n].logprob(self.data[n:n + 1],
+                                                                self.alleleConfig,
+                                                                self.baseline,
+                                                                self.maxCopyNumber)
+                            llhMapD[self.assignments[n]] = oldLlh
+                            llhS = log(rand()) + oldLlh
+
+                        while True:
+                            newU = tempUSegL.sample()
+
+                            (newNode, newPath, varphiR)  = self.find_node_varphi_pi_range(newU)
+
+                            newPathS = "".join(map(lambda i: "%03d" % (i), newPath))
+
+                            if not isNonOrderedData and not srtree.is_good_path(
+                                timeOrderIndex, n, newPathS):
+                                if tempUSegL.remove(varphiR) is False or timesRMVarphiR > 500:
+                                    if lastVarphiRIndex >= len(lastVarphiRL):
+                                        raise Exception("Varphi range error!")
+                                    tempUSegL.assign_supportive(lastVarphiRL[lastVarphiRIndex])
+                                    tempUSegL.remove(uNegtive)
+                                    lastVarphiRIndex = lastVarphiRIndex + 1
+                                timesRMVarphiR = timesRMVarphiR + 1
+                                continue
+
+                            if newNode.parent() is None:
+                                # shankar: to make root node empty
+                                newNode = newNode.children()[0]
+                                newPath = [0]
+
+                            oldNode = self.assignments[n]
+                            oldNode.remove_datum(n)
+                            newNode.add_datum(n)
+                            self.assignments[n] = newNode
+                            if newNode in llhMapD:
+                                newLlh = llhMapD[newNode]
+                            else:
+                                ####################################
+                                #  Record most likely copy number  #
+                                ####################################
+                                newLlh = newNode.logprob(self.data[n:n + 1],
+                                                        self.alleleConfig, self.baseline,
+                                                        self.maxCopyNumber)
+                                if -float('Inf') == newLlh:
+                                    print >> sys.stderr, "Slice sampler weirdness"
+                                llhMapD[newNode] = newLlh
+                            if newLlh > llhS:
+                                break
+                            elif abs(maxU - minU) < epsilon:
+                                if -float('Inf') == newLlh:
+                                    raise Exception("Slice sampler weirdness.")
+
+                                newNode.remove_datum(n)
+                                oldNode.add_datum(n)
+                                self.assignments[n] = oldNode
+                                print >> sys.stderr, "Slice sampler shrank down.  Keep current state."
+                                break
+                            else:
+                                newNode.remove_datum(n)
+                                oldNode.add_datum(n)
+                                self.assignments[n] = oldNode
+                                pathComp = path_lt(indices, newPath)
+                                if pathComp < 0:
+                                    tempUSegL.removeLeft(newU)
+                                elif pathComp >= 0:  # temporary fix only!!!!!!
+                                    tempUSegL.removeRight(newU)
+                                else:
+                                    raise Exception("Slice sampler weirdness.")
+                                minU = tempUSegL.lowerBoundary
+                                maxU = tempUSegL.upperBoundary
+
+                        if not isNonOrderedData:
+                            srtree.update_path_varphiR(timeOrderIndex, n, newPathS, varphiR)
+                        lengths.append(len(newPath))
+                lengths = array(lengths)
+
+
+    def __is_in_path(self, lastStageLowestEpsilon, currentStageLoestEpsilon,
+                     targetEpsilon):
+        ltcp = commonprefix([lastStageLowestEpsilon, targetEpsilon])
+        ctcp = commonprefix([currentStageLoestEpsilon, targetEpsilon])
+        if ltcp == lastStageLowestEpsilon:
+            if ctcp == currentStageLoestEpsilon:
+                return True
+            elif ctcp == targetEpsilon:
+                return True
+            else:
+                return False
+        else:
+            retrun False
 
 
     def _get_non_ordered_data(self, phiDL):
