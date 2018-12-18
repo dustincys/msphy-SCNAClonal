@@ -18,6 +18,8 @@ from scipy.stats import beta, binom
 
 import phySCNAClonal.constants as constants
 from phySCNAClonal.model.node import Node
+# 在节点中保存varphiR\piR\remainR
+from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
 
 
 class DataNode(Node):
@@ -47,6 +49,10 @@ class DataNode(Node):
             self.pi = rand(1)*parent.pi
             parent.pi = parent.pi - self.pi
             self.param = self.pi
+
+        self.varphiR = MultiRangeSampler(0,1)
+        self.piR = MultiRangeSampler(0,1)
+        self.remainR = MultiRangeSampler(0,1)
 
     def conc(self):
         if self.parent() is None:

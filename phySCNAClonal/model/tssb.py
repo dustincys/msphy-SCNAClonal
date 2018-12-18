@@ -440,6 +440,8 @@ class TSSB(object):
 
         # 每一个单细胞测序样本路径搜索完毕后需要记录在已经搜索的内容中
         # 用字典类型表示
+        # 此处每一个搜索到的节点可以放到节点类中保存，用来方便的更新其祖先节点的
+        # remainR等信息，此处只用来记录是否在本次抽样中已经搜索过
         # {dataIdx: ｛"varphiR":R, "piR":R, "remainR":R,"epsilon"}:epsilon}
 
         scDataFoundD = {}
@@ -590,6 +592,18 @@ class TSSB(object):
                             currentStageStatus["lowest_remain_r"] = varphiR.remove(piR)
 
                         # 此处需要更新当前节点的remain r
+                        # 由于有空节点的存在，需要对树结构进行迭代
+                        # 此处对全树搜索开销太大
+                        # 只对当前路径最新抽样且最为低节点进行更新。
+                        # 更新方法是通过对当前路径进行逆向迭代搜索更新remain r
+                        # 输入数据：当前路径已经搜索到的所有节点
+
+                        self.assignments[n].varphiR = varphiR
+                        self.assignments[n].piR = piR
+                        self.assignments[n].remainR = self.assignments[n].varphiR - self.assignments[n].piR
+                        # 此处需要判断是否是最低节点，
+                        # 如果不是最低节点，需要更新该节点的
+                        if currentStageStatus["lowest_idx"] != n:
 
                         lastDataIdx = n
 
@@ -994,6 +1008,7 @@ class TSSB(object):
         return descend(self.root, u)
 
     def find_node_varphi_pi_range(self, u):
+        # 此处需要返回当前抽样节点的祖先节点的对应的
         def descend(root, u, varphiR, depth=0):
             if depth >= self.maxDepth:
                 # print >>sys.stderr, "WARNING: Reached maximum depth."
