@@ -444,25 +444,16 @@ class TSSB(object):
 
         scDataFoundD = {}
 
+        lastDataIdx = -1
         for orderVector in orderMatrix[1:,]:
 
             # 根据当前单细胞测序样本中的变异Stage进行其中包含-1
             currentSampleStageS = sorted(set(orderVector))
 
-            # 需要记录前Stage的信息
-            currentSampleStageSD = {}
-            # 记录最下方节点的 varphiR - piR
-            currentSampleStageSD['lowest_offspring_R'] = MultiRangeSampler(0,1)
-            # 记录最下方节点，用来判断
-            currentSampleStageSD['lowest_node_epsilon'] = ""
-            # 用来保存当前状态的路径
-            currentSampleStageSD['path_R'] = MultiRangeSampler(0,1)
-
             # 此处应该设置为树根节点的varphiR - piR
             # 该变量的初始化应该放在路径搜索的起点
             # 每一个路径中有多个Stage
             lastStageRemainR = MultiRangeSampler(0,1)
-
 
             # 记录当前路径信息
             currentStageStatus = {}
@@ -479,7 +470,6 @@ class TSSB(object):
 
                 lastStageLowestEpsilon = ""
 
-
                 for n in idxL:
                     if n in scDataFoundD.keys():
                         # 此处需要搜索最下方的节点
@@ -488,6 +478,7 @@ class TSSB(object):
                             lastStageLowestEpsilon = scDataFoundD[n]["epsilon"]
                             lastStageRemainR = deepcopy(scDataFoundD[n]["remainR"])
                             currentStageStatus["lowest_remain_r"] = deepcopy(scDataFoundD[n]["remainR"])
+                            lastDataIdx = n
                         continue
                     else:
                         # 需要搜索当前stage 的搜索空间
@@ -598,8 +589,10 @@ class TSSB(object):
                             currentStageStatus["lowest_epsilon"] = newPathEpsilon
                             currentStageStatus["lowest_remain_r"] = varphiR.remove(piR)
 
-                        if not isNonOrderedData:
-                            srtree.update_path_varphiR(timeOrderIndex, n, newPathS, varphiR)
+                        # 此处需要更新当前节点的remain r
+
+                        lastDataIdx = n
+
                         lengths.append(len(newPath))
                 lengths = array(lengths)
 
