@@ -445,7 +445,6 @@ class TSSB(object):
 
         scDataFoundD = {}
 
-        lastDataIdx = -1
         for orderVector in orderMatrix[1:,]:
             # 对当前路径进行抽样
             #
@@ -479,7 +478,6 @@ class TSSB(object):
                         # 一个stage
                         if len(lastStageLowestEpsilon) < len(scDataFoundD[n].epsilon):
                             lastStageLowestEpsilon = scDataFoundD[n].epsilon
-                            lastDataIdx = n
                         # 当前状态的数据已经被抽样，需要初始化待抽样状态的起始值
                         # currentStageStatus["lowest_idx"] = -1
                         # currentStageStatus["lowest_epsilon"] = ""
@@ -612,21 +610,39 @@ class TSSB(object):
 
                         scDataFoundD[n] = self.assignments[n]
 
-
-                        # 此处需要更新当前节点的remain r
-                        # 由于有空节点的存在，需要对树结构进行迭代
-                        # 此处对全树搜索开销太大
-                        # 只对当前路径最新抽样且最为低节点进行更新。
-                        # 更新方法是通过对当前路径进行逆向迭代搜索更新remain r
-                        # 输入数据：当前路径已经搜索到的所有节点
-                        # 此处需要判断是否是最低节点，
-                        # 如果不是最低节点，需要更新该节点的
-                        lastDataIdx = n
-
                         lengths.append(len(newPath))
                 lengths = array(lengths)
 
-    def _get_varphiR_piR_from_idx(, n):
+    def _get_varphiR_piR_from_idx(self, n):
+        def descend(root, varphiR, depth=0):
+            if n in root['node'].data:
+                return (root, [], varphiR, [varphiR[0], piEnd])
+            else:
+                varphiR[0] = (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]
+
+                if depth > 0:
+                    edges = 1.0 - cumprod(1.0 - root['sticks'])
+                    index = sum(u > edges)
+                    edges = hstack([0.0, edges])
+                    u = (u - edges[index]) / (edges[index + 1] - edges[index])
+
+                    varphiR = [
+                        (varphiR[1]-varphiR[0])*edges[index]+varphiR[0],
+                        (varphiR[1]-varphiR[0])*edges[index+1]+varphiR[0]]
+
+                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
+                                                    varphiR, depth + 1)
+                else:
+                    index = 0
+                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
+                                                    varphiR, depth + 1)
+
+                path.insert(0, index)
+
+                return (tnode, path, varphiR, piR)
+
+        tn, p, vR, piR = descend(self.root, u, [0, 1])
+        return SegmentList([Segment(vR[0], vR[1])]), SegmentList([Segment(piR[0], piR[1])])
 
     def _find_path_init_R(self, targetNode, varphiR, piR, negativeDataS):
         # 此处判断当前节点中是否含有目标数据的id，如果含有该数据
