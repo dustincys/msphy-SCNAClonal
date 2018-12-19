@@ -481,8 +481,8 @@ class TSSB(object):
                             lastStageLowestEpsilon = scDataFoundD[n].epsilon
                             lastDataIdx = n
                         # 当前状态的数据已经被抽样，需要初始化待抽样状态的起始值
-                        currentStageStatus["lowest_idx"] = -1
-                        currentStageStatus["lowest_epsilon"] = ""
+                        # currentStageStatus["lowest_idx"] = -1
+                        # currentStageStatus["lowest_epsilon"] = ""
                         continue
                     else:
                         # 需要搜索当前stage 的搜索空间
@@ -525,14 +525,14 @@ class TSSB(object):
                             current = current['children'][index]
                             indices.append(index)
 
-                        targetEpsilon = "".join(map(lambda i: "%03d" % (i), indices))
+                        oldEpsilon = "".join(map(lambda i: "%03d" % (i), indices))
                         # Here indices could be used as path to locate v stick
                         # 此处需要判断上次抽样的节点是否落入当前path中
                         # 如果没有落入当前path中，赋予最小概率
                         # 判断方法应该使用epsilon 判断
                         isInPath = self.__is_in_path(lastStageLowestEpsilon,
                                                      currentStageStatus["lowest_epsilon"],
-                                                     targetEpsilon)
+                                                     oldEpsilon)
                         llhS = -float('Inf')
                         if not isInPath:
                             oldLlh = -float('Inf')
@@ -547,7 +547,7 @@ class TSSB(object):
                         while True:
                             newU = tempUSegL.sample()
                             (tnode, newNode, newPath, varphiR, piR)  = self.find_node_varphi_pi_range(newU)
-                            newPathEpsilon = "".join(map(lambda i: "%03d" % (i), newPath))
+                            newEpsilon = "".join(map(lambda i: "%03d" % (i), newPath))
 
                             if newNode.parent() is None:
                                 # shankar: to make root node empty
@@ -571,6 +571,9 @@ class TSSB(object):
                                     print >> sys.stderr, "Slice sampler weirdness"
                                 llhMapD[newNode] = newLlh
                             if newLlh > llhS:
+                                self.assignments[n].varphiR = varphiR
+                                self.assignments[n].piR = piR
+                                self.assignments[n].epsilon = newEpsilon
                                 break
                             elif abs(maxU - minU) < epsilon:
                                 if -float('Inf') == newLlh:
@@ -579,6 +582,11 @@ class TSSB(object):
                                 newNode.remove_datum(n)
                                 oldNode.add_datum(n)
                                 self.assignments[n] = oldNode
+                                self.assignments[n].epsilon = oldEpsilon
+                                self.assignments[n].varphiR,\
+                                    self.assignments[n].piR= self._get_varphiR_piR_from_idx(n)
+
+                                # 此处需要更新oldNode的varphi piR
                                 print >> sys.stderr, "Slice sampler shrank down.  Keep current state."
                                 break
                             else:
@@ -597,10 +605,13 @@ class TSSB(object):
 
                         # 此处需要更新当前状态信息，和所有已经抽样的数据的状态信
                         # 息
-                        if len(currentStageStatus["lowest_epsilon"]) < len(newPathEpsilon):
+                        if len(currentStageStatus["lowest_epsilon"]) < len(newEpsilon):
                             currentStageStatus["lowest_idx"] = n
-                            currentStageStatus["lowest_epsilon"] = newPathEpsilon
+                            currentStageStatus["lowest_epsilon"] = newEpsilon
                             currentStageStatus["lowest_remain_r"] = deepcopy(varphiR).remove(piR)
+
+                        scDataFoundD[n] = self.assignments[n]
+
 
                         # 此处需要更新当前节点的remain r
                         # 由于有空节点的存在，需要对树结构进行迭代
@@ -608,15 +619,14 @@ class TSSB(object):
                         # 只对当前路径最新抽样且最为低节点进行更新。
                         # 更新方法是通过对当前路径进行逆向迭代搜索更新remain r
                         # 输入数据：当前路径已经搜索到的所有节点
-
-                        self.assignments[n].varphiR = varphiR
-                        self.assignments[n].piR = piR
                         # 此处需要判断是否是最低节点，
                         # 如果不是最低节点，需要更新该节点的
                         lastDataIdx = n
 
                         lengths.append(len(newPath))
                 lengths = array(lengths)
+
+    def _get_varphiR_piR_from_idx(, n):
 
     def _find_path_init_R(self, targetNode, varphiR, piR, negativeDataS):
         # 此处判断当前节点中是否含有目标数据的id，如果含有该数据
