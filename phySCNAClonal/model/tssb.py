@@ -441,8 +441,7 @@ class TSSB(object):
         # 每一个单细胞测序样本路径搜索完毕后需要记录在已经搜索的内容中
         # 用字典类型表示
         # 此处每一个搜索到的节点可以放到节点类中保存，用来方便的更新其祖先节点的
-        # remainR等信息，此处只用来记录是否在本次抽样中已经搜索过
-        # {dataIdx: ｛"varphiR":R, "piR":R, "remainR":R,"epsilon"}:epsilon}
+        # {dataIdx: Node}
 
         scDataFoundD = {}
 
@@ -476,10 +475,10 @@ class TSSB(object):
                     if n in scDataFoundD.keys():
                         # 此处需要搜索最下方的节点
                         # 一个stage
-                        if len(lastStageLowestEpsilon) < len(scDataFoundD[n]["epsilon"]):
-                            lastStageLowestEpsilon = scDataFoundD[n]["epsilon"]
-                            lastStageRemainR = deepcopy(scDataFoundD[n]["remainR"])
-                            currentStageStatus["lowest_remain_r"] = deepcopy(scDataFoundD[n]["remainR"])
+                        if len(lastStageLowestEpsilon) < len(scDataFoundD[n].epsilon):
+                            lastStageLowestEpsilon = scDataFoundD[n].epsilon
+                            lastStageRemainR = deepcopy(scDataFoundD[n].remainR)
+                            currentStageStatus["lowest_remain_r"] = deepcopy(scDataFoundD[n].remainR)
                             # 跟据最下方节点的索引，搜索树，获得目标空间
                             lastDataIdx = n
                         continue
@@ -601,11 +600,8 @@ class TSSB(object):
 
                         self.assignments[n].varphiR = varphiR
                         self.assignments[n].piR = piR
-                        self.assignments[n].remainR = self.assignments[n].varphiR - self.assignments[n].piR
                         # 此处需要判断是否是最低节点，
                         # 如果不是最低节点，需要更新该节点的
-                        if currentStageStatus["lowest_idx"] != n:
-
                         lastDataIdx = n
 
                         lengths.append(len(newPath))
@@ -614,62 +610,24 @@ class TSSB(object):
     def _find_path_init_R(self, targetNode, varphiR, piR, negativeDataS):
         # 此处判断当前节点中是否含有目标数据的id，如果含有该数据
         # 则对当前数据进行抽样
-        def descend(root, varphiR, depth=0):
-            if depth >= self.maxDepth:
-                # print >>sys.stderr, "WARNING: Reached maximum depth."
-                return (root, [], varphiR, [varphiR[0], piEnd])
-            elif u < root['main']:
-                if root['tag']:
-                     print >>sys.stderr, "Negative space located!!."
-                return (root, [], varphiR, [varphiR[0], piEnd])
+
+        def descend(rootNode, negativeDataS):
+            if len(set.intersection(rootNode.data(), negativeDataS)) > 0:
+                return True
             else:
-                # Rescale the uniform variate to the remaining interval.
-                u = (u - root['main']) / (1.0 - root['main'])
-                varphiR[0] = (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]
+                reFlag = False
+                for childNode in rootNode.children():
+                    reFlag = reFlag or descend(childNode, negativeDataS)
+                    return reFlag
+                return False
 
-                # Perhaps break sticks out appropriately.
-                if depth > 0:
-                    while not root['children'] or (
-                            1.0 - prod(1.0 - root['sticks'])) < u:
-                        root['sticks'] = vstack([
-                            root['sticks'],
-                            # 注意此处为右边界
-                            boundbeta(1, self.dpGamma) if depth != 0 else .999
-                        ])  # shankar
-                        root['children'].append({
-                            'node':
-                            root['node'].spawn(),
-                            'main':
-                            boundbeta(1.0, (self.alphaDecay**
-                                            (depth + 1)) * self.dpAlpha)
-                            if self.minDepth <= (depth + 1) else 0.0,
-                            'sticks':
-                            empty((0, 1)),
-                            'children': [],
-                            'tag': False
-                        })
+        reRange = deepcopy(varphiR)
+        reRange.remove(piR)
+        for childNode in targetNode['node'].children():
+            if descend(childNode):
+                reRange.remove(childNode.varphiR)
 
-                    edges = 1.0 - cumprod(1.0 - root['sticks'])
-                    index = sum(u > edges)
-                    edges = hstack([0.0, edges])
-                    u = (u - edges[index]) / (edges[index + 1] - edges[index])
-
-                    varphiR = [
-                        (varphiR[1]-varphiR[0])*edges[index]+varphiR[0],
-                        (varphiR[1]-varphiR[0])*edges[index+1]+varphiR[0]]
-
-                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
-                                                    varphiR, depth + 1)
-                else:
-                    index = 0
-                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
-                                                    varphiR, depth + 1)
-
-                path.insert(0, index)
-
-                return (tnode, path, varphiR, piR)
-
-        descend(self.root)
+        return reRange
 
 
     def __is_in_path(self, lastStageLowestEpsilon, currentStageLoestEpsilon,

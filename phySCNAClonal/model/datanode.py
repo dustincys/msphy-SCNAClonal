@@ -52,7 +52,7 @@ class DataNode(Node):
 
         self.varphiR = MultiRangeSampler(0,1)
         self.piR = MultiRangeSampler(0,1)
-        self.remainR = MultiRangeSampler(0,1)
+        self.epsilon = ""
 
     def conc(self):
         if self.parent() is None:
