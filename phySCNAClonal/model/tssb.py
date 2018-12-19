@@ -447,19 +447,21 @@ class TSSB(object):
 
         lastDataIdx = -1
         for orderVector in orderMatrix[1:,]:
-
+            # 对当前路径进行抽样
+            #
             # 根据当前单细胞测序样本中的变异Stage进行其中包含-1
             currentSampleStageS = sorted(set(orderVector))
 
             # 此处应该设置为树根节点的varphiR - piR
             # 该变量的初始化应该放在路径搜索的起点
             # 每一个路径中有多个Stage
-            lastStageRemainR = MultiRangeSampler(0,1)
+            lastStageRemainR = MultiRangeSampler(self.root['main'],1)
 
             # 记录当前路径信息
             currentStageStatus = {}
             currentStageStatus["lowest_epsilon"] = ""
-            currentStageStatus["lowest_remain_r"] = MultiRangeSampler(0,1)
+            currentStageStatus["lowest_remain_r"] = MultiRangeSampler(
+                self.root['main'],1)
             currentStageStatus["lowest_idx"] = -1
 
             for stage in currentSampleStageS:
@@ -477,10 +479,10 @@ class TSSB(object):
                         # 一个stage
                         if len(lastStageLowestEpsilon) < len(scDataFoundD[n].epsilon):
                             lastStageLowestEpsilon = scDataFoundD[n].epsilon
-                            lastStageRemainR = deepcopy(scDataFoundD[n].remainR)
-                            currentStageStatus["lowest_remain_r"] = deepcopy(scDataFoundD[n].remainR)
-                            # 跟据最下方节点的索引，搜索树，获得目标空间
                             lastDataIdx = n
+                        # 当前状态的数据已经被抽样，需要初始化待抽样状态的起始值
+                        currentStageStatus["lowest_idx"] = -1
+                        currentStageStatus["lowest_epsilon"] = ""
                         continue
                     else:
                         # 需要搜索当前stage 的搜索空间
@@ -490,9 +492,18 @@ class TSSB(object):
                         # 第二步，获取当前stage中所有的祖先节点的R
                         # 第三步，获取所有的piR的交集与所有祖先节点的交集
                         # 获取当前状态位于最下方节点的piR，与上面的交集取并集
-                        tempUSegL = deepcopy(lastStageRemainR)
-
-                        if currentStageStatus["lowest_idx"] != -1:
+                        # 如果当前路径没有开始抽样，需要判断路径的起始点
+                        tempUSegL = None
+                        if currentStageStatus["lowest_idx"] == -1:
+                            # 如果是路径起始，则需要计算路径起始点的抽样空间
+                            tempUSegL = self._find_path_init_R(
+                                scDataFoundD[n], scDataFoundD[n].varphiR,
+                                scDataFoundD[n].piR, scDataFoundD.keys())
+                            # 更新路径起始点为上一Stage的剩余
+                            lastStageRemainR = deepcopy(tempUSegL)
+                        else:
+                            # 如果不是路径起始，则需要上一Stage的空间
+                            tempUSegL = deepcopy(lastStageRemainR)
                             tempcss = deepcopy(lastStageRemainR)
                             self.mark_specific_time_tag([currentStageStatus["lowest_idx"]])
                             ancestorsR = self.get_u_segL()
@@ -589,7 +600,7 @@ class TSSB(object):
                         if len(currentStageStatus["lowest_epsilon"]) < len(newPathEpsilon):
                             currentStageStatus["lowest_idx"] = n
                             currentStageStatus["lowest_epsilon"] = newPathEpsilon
-                            currentStageStatus["lowest_remain_r"] = varphiR.remove(piR)
+                            currentStageStatus["lowest_remain_r"] = deepcopy(varphiR).remove(piR)
 
                         # 此处需要更新当前节点的remain r
                         # 由于有空节点的存在，需要对树结构进行迭代
