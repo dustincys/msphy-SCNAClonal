@@ -44,7 +44,7 @@ class TSSB(object):
                  rootNode=None,
                  data=None,
                  minDepth=0,
-                 maxDepth=15,
+                 maxDepth=50,
                  alphaDecay=1.0,
                  baseline=0,
                  maxCopyNumber=6):
@@ -480,6 +480,7 @@ class TSSB(object):
                             lastStageLowestEpsilon = scDataFoundD[n]["epsilon"]
                             lastStageRemainR = deepcopy(scDataFoundD[n]["remainR"])
                             currentStageStatus["lowest_remain_r"] = deepcopy(scDataFoundD[n]["remainR"])
+                            # 跟据最下方节点的索引，搜索树，获得目标空间
                             lastDataIdx = n
                         continue
                     else:
@@ -535,7 +536,7 @@ class TSSB(object):
 
                         while True:
                             newU = tempUSegL.sample()
-                            (newNode, newPath, varphiR, piR)  = self.find_node_varphi_pi_range(newU)
+                            (tnode, newNode, newPath, varphiR, piR)  = self.find_node_varphi_pi_range(newU)
                             newPathEpsilon = "".join(map(lambda i: "%03d" % (i), newPath))
 
                             if newNode.parent() is None:
@@ -609,6 +610,66 @@ class TSSB(object):
 
                         lengths.append(len(newPath))
                 lengths = array(lengths)
+
+    def _find_path_init_R(self, targetNode, varphiR, piR, negativeDataS):
+        # 此处判断当前节点中是否含有目标数据的id，如果含有该数据
+        # 则对当前数据进行抽样
+        def descend(root, varphiR, depth=0):
+            if depth >= self.maxDepth:
+                # print >>sys.stderr, "WARNING: Reached maximum depth."
+                return (root, [], varphiR, [varphiR[0], piEnd])
+            elif u < root['main']:
+                if root['tag']:
+                     print >>sys.stderr, "Negative space located!!."
+                return (root, [], varphiR, [varphiR[0], piEnd])
+            else:
+                # Rescale the uniform variate to the remaining interval.
+                u = (u - root['main']) / (1.0 - root['main'])
+                varphiR[0] = (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]
+
+                # Perhaps break sticks out appropriately.
+                if depth > 0:
+                    while not root['children'] or (
+                            1.0 - prod(1.0 - root['sticks'])) < u:
+                        root['sticks'] = vstack([
+                            root['sticks'],
+                            # 注意此处为右边界
+                            boundbeta(1, self.dpGamma) if depth != 0 else .999
+                        ])  # shankar
+                        root['children'].append({
+                            'node':
+                            root['node'].spawn(),
+                            'main':
+                            boundbeta(1.0, (self.alphaDecay**
+                                            (depth + 1)) * self.dpAlpha)
+                            if self.minDepth <= (depth + 1) else 0.0,
+                            'sticks':
+                            empty((0, 1)),
+                            'children': [],
+                            'tag': False
+                        })
+
+                    edges = 1.0 - cumprod(1.0 - root['sticks'])
+                    index = sum(u > edges)
+                    edges = hstack([0.0, edges])
+                    u = (u - edges[index]) / (edges[index + 1] - edges[index])
+
+                    varphiR = [
+                        (varphiR[1]-varphiR[0])*edges[index]+varphiR[0],
+                        (varphiR[1]-varphiR[0])*edges[index+1]+varphiR[0]]
+
+                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
+                                                    varphiR, depth + 1)
+                else:
+                    index = 0
+                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
+                                                    varphiR, depth + 1)
+
+                path.insert(0, index)
+
+                return (tnode, path, varphiR, piR)
+
+        descend(self.root)
 
 
     def __is_in_path(self, lastStageLowestEpsilon, currentStageLoestEpsilon,
@@ -1012,11 +1073,11 @@ class TSSB(object):
         def descend(root, u, varphiR, depth=0):
             if depth >= self.maxDepth:
                 # print >>sys.stderr, "WARNING: Reached maximum depth."
-                return (root['node'], [], varphiR, [varphiR[0], piEnd])
+                return (root, [], varphiR, [varphiR[0], piEnd])
             elif u < root['main']:
                 if root['tag']:
                      print >>sys.stderr, "Negative space located!!."
-                return (root['node'], [], varphiR, [varphiR[0], piEnd])
+                return (root, [], varphiR, [varphiR[0], piEnd])
             else:
                 # Rescale the uniform variate to the remaining interval.
                 u = (u - root['main']) / (1.0 - root['main'])
@@ -1053,19 +1114,19 @@ class TSSB(object):
                         (varphiR[1]-varphiR[0])*edges[index]+varphiR[0],
                         (varphiR[1]-varphiR[0])*edges[index+1]+varphiR[0]]
 
-                    (node, path, varphiR, piR) = descend(root['children'][index], u,
+                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
                                                     varphiR, depth + 1)
                 else:
                     index = 0
-                    (node, path, varphiR, piR) = descend(root['children'][index], u,
+                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
                                                     varphiR, depth + 1)
 
                 path.insert(0, index)
 
-                return (node, path, varphiR, piR)
+                return (tnode, path, varphiR, piR)
 
-        n, p, vR, piR = descend(self.root, u, [0, 1])
-        return n, p, SegmentList([Segment(vR[0], vR[1])]), SegmentList([Segment(piR[0], piR[1])])
+        tn, p, vR, piR = descend(self.root, u, [0, 1])
+        return tn, tn['node'], p, SegmentList([Segment(vR[0], vR[1])]), SegmentList([Segment(piR[0], piR[1])])
 
 
     def find_node_varphi_range(self, u):
