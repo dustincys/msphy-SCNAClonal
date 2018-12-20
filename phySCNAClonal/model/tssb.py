@@ -415,7 +415,13 @@ class TSSB(object):
                 lengths.append(len(newPath))
         lengths = array(lengths)
 
-    def resample_assignments_singlecell(self, orderMatrix, srtree):
+    def resample_assignments_scsngs(self, orderMatrix):
+        nonOrderedData = set(range(len(self.data))) - set(orderMatrix[0,])
+        self.resample_assignments_ngs(nonOrderedData, set(orderMatrix[0,]))
+        self.resample_assignments_singlecell(orderMatrix)
+
+    def resample_assignments_ngs(self, sampleDataS, negativeDataS):
+
         def path_lt(path1, path2):
             if len(path1) == 0 and len(path2) == 0:
                 return 0
@@ -432,9 +438,115 @@ class TSSB(object):
         # this is not useful
         lengths = []
 
-        # filter out data not in orderMatrix
-        scData = set(orderMatrix[0,])
-        nonOrderedData = set(range(len(self.data))) - orderedData
+
+        uSegL = MultiRangeSampler(0,1)
+        self.mark_negative_space(timeTagSeq[currentTimeTagIdx - 1])
+        uNegtive = self.get_u_segL()
+        uSegL.remove(uNegtive)
+
+
+        for n in sampleDataS:
+            # change to segment operation
+            tempUSegL = deepcopy(uSegL)
+            minU = tempUSegL.lowerBoundary
+            maxU = tempUSegL.upperBoundary
+
+            llhMapD = {}
+            # Get an initial uniform variate.
+            ancestors = self.assignments[n].get_ancestors()
+            current = self.root
+            indices = []
+            for anc in ancestors[1:]:
+                index = map(lambda c: c['node'],
+                            current['children']).index(anc)
+                current = current['children'][index]
+                indices.append(index)
+
+            # Here indices could be used as path to locate v stick
+
+            currentVStick = self._locate_v_stick(indices)
+            isInNegativeSpace = currentVStick['tag']
+
+            llhS = -float('Inf')
+            if isInNegativeSpace:
+                oldLlh = -float('Inf')
+                llhS = -float('Inf')
+            else:
+                oldLlh = self.assignments[n].logprob(self.data[n:n + 1],
+                                                     self.alleleConfig,
+                                                     self.baseline,
+                                                     self.maxCopyNumber)
+                llhMapD[self.assignments[n]] = oldLlh
+                llhS = log(rand()) + oldLlh
+
+            while True:
+                newU = tempUSegL.sample()
+                (newNode, newPath) = self.find_node(newU)
+                if newNode.parent() is None:
+                    # shankar: to make root node empty
+                    newNode = newNode.children()[0]
+                    newPath = [0]
+                oldNode = self.assignments[n]
+                oldNode.remove_datum(n)
+                newNode.add_datum(n)
+                self.assignments[n] = newNode
+                if newNode in llhMapD:
+                    newLlh = llhMapD[newNode]
+                else:
+                    ####################################
+                    #  Record most likely copy number  #
+                    ####################################
+                    newLlh = newNode.logprob(self.data[n:n + 1],
+                                             self.alleleConfig, self.baseline,
+                                             self.maxCopyNumber)
+                    if -float('Inf') == newLlh:
+                        print >> sys.stderr, "Slice sampler weirdness"
+                    llhMapD[newNode] = newLlh
+                if newLlh > llhS:
+                    break
+                elif abs(maxU - minU) < epsilon:
+                    if -float('Inf') == newLlh:
+                        raise Exception("Slice sampler weirdness.")
+
+                    newNode.remove_datum(n)
+                    oldNode.add_datum(n)
+                    self.assignments[n] = oldNode
+                    print >> sys.stderr, "Slice sampler shrank down.  Keep current state."
+                    break
+                else:
+                    newNode.remove_datum(n)
+                    oldNode.add_datum(n)
+                    self.assignments[n] = oldNode
+                    pathComp = path_lt(indices, newPath)
+                    if pathComp < 0:
+                        tempUSegL.removeLeft(newU)
+                    elif pathComp >= 0:  # temporary fix only!!!!!!
+                        tempUSegL.removeRight(newU)
+                    else:
+                        raise Exception("Slice sampler weirdness.")
+                    minU = tempUSegL.lowerBoundary
+                    maxU = tempUSegL.upperBoundary
+            lengths.append(len(newPath))
+        lengths = array(lengths)
+
+
+    def resample_assignments_singlecell(self, orderMatrix):
+        def path_lt(path1, path2):
+            if len(path1) == 0 and len(path2) == 0:
+                return 0
+            elif len(path1) == 0:
+                return 1
+            elif len(path2) == 0:
+                return -1
+            s1 = "".join(map(lambda i: "%03d" % (i), path1))
+            s2 = "".join(map(lambda i: "%03d" % (i), path2))
+
+            return cmp(s2, s1)
+
+        epsilon = finfo(float64).eps
+        # this is not useful
+        lengths = []
+
 
         # 对单细胞测序数据中每一个样本，即矩阵中每一行路径搜索
 
@@ -447,35 +559,33 @@ class TSSB(object):
 
         for orderVector in orderMatrix[1:,]:
             # 对当前路径进行抽样
-            #
-            # 根据当前单细胞测序样本中的变异Stage进行其中包含-1
-            currentSampleStageS = sorted(set(orderVector))
 
             # 此处应该设置为树根节点的varphiR - piR
             # 该变量的初始化应该放在路径搜索的起点
             # 每一个路径中有多个Stage
-            lastStageRemainR = MultiRangeSampler(self.root['main'],1)
+            lastStageRemainR = MultiRangeSampler(self.root['main'], 1)
 
             # 记录当前路径信息
             currentStageStatus = {}
             currentStageStatus["lowest_epsilon"] = ""
             currentStageStatus["lowest_remain_r"] = MultiRangeSampler(
-                self.root['main'],1)
+                self.root['main'], 1)
             currentStageStatus["lowest_idx"] = -1
 
-            for stage in currentSampleStageS:
+            for stage in sorted(set(orderVector)):
+                # 根据当前单细胞测序样本中的变异Stage进行其中包含-1
                 if stage == -1
                     # 当前单细胞测序中不含有该变异
                     continue
                 # 获取当前stage的数据id
                 idxL = orderMatrix[0, where(orderVector==stage)[0]]
 
+                # 用来判断当前数据所在结点位置是否在抽样空间中
                 lastStageLowestEpsilon = ""
 
                 for n in idxL:
                     if n in scDataFoundD.keys():
                         # 此处需要搜索最下方的节点
-                        # 一个stage
                         if len(lastStageLowestEpsilon) < len(scDataFoundD[n].epsilon):
                             lastStageLowestEpsilon = scDataFoundD[n].epsilon
                         # 当前状态的数据已经被抽样，需要初始化待抽样状态的起始值
