@@ -190,6 +190,9 @@ parserModel.add_argument('--singleCellFile', dest='singleCellFile', help= 'The s
 parserModel.add_argument('--maxCopyNumber', dest='maxCopyNumber', default=6,
                          type=int, help= 'Max copy number')
 
+parserModel.add_argument('--noTag', default=False, type=str2bool,
+                         help='''to remove all tag or not''')
+
 parserModel.set_defaults(func=run_modelprocess)
 
 

@@ -29,6 +29,12 @@ class MultiRangeSampler(object):
         self._supportiveRanges = self._get_supportive_ranges()
         self._cumLens = self._get_cumulative_lens()
 
+    @classmethod
+    def from_ranges(cls, ranges):
+        newCls = cls()
+        newCls.assign_supportive(ranges)
+        return newCls
+
     def _get_cumulative_lens(self):
         lens = np.array([seg[1] - seg[0] for seg in self._supportiveRanges])
         # here need to transform to float
@@ -46,6 +52,9 @@ class MultiRangeSampler(object):
     def upperBoundary(self):
         return self._maxU
 
+    @property
+    def supportiveRanges(self):
+        return self._supportiveRanges
 
     def assign_supportive(self, ranges):
         """
@@ -68,6 +77,8 @@ class MultiRangeSampler(object):
             self._cumLens = np.array([])
             raise Exception("remove range error!")
 
+    def minus(self, other):
+        self.remove(other.supportiveRanges)
 
     def remove(self, ranges):
         self._supportiveRanges = self._supportiveRanges - ranges

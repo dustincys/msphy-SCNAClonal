@@ -34,6 +34,7 @@ class SINGLECELL2T():
         dataMatrix = self.scmatrix[1:,]
         overlapPathMatrix = dataMatrix * dataMatrix.sum(axis=0)
 
+        print overlapPathMatrix
         for i_row in range(len(overlapPathMatrix)):
             overlapPathMatrix[i_row,] = self.__order_transfrom(overlapPathMatrix[i_row,])
 
@@ -43,9 +44,10 @@ class SINGLECELL2T():
         revec = [-1] * len(vec)
 
         orderDict = {}
-        for idx, item in enumerate(sorted(vec, reverse=True)):
+        for idx, item in enumerate(sorted(set(vec), reverse=True)):
             if item != 0:
                 orderDict[item] = idx
+        print orderDict
 
         for i in range(len(vec)):
             if vec[i] in orderDict.keys():
@@ -433,7 +435,8 @@ def main():
 
     # print timeOrder, negativeSD, phiDL
 
-    sc2t = SINGLECELL2T("./singlecell.example.txt")
+    # sc2t = SINGLECELL2T("./singlecell.example.txt")
+    sc2t = SINGLECELL2T("/media/d/github/phy-SCNAClonal/pipeline/phy-SCNAClonal/rd300chr21_2/nofbp/singlecell.txt")
     print sc2t.transform()
 
 if __name__ == "__main__":
