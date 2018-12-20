@@ -31,7 +31,7 @@ import numpy as np
 from gwpy.segments import Segment, SegmentList
 from phySCNAClonal.model.datanode import DataNode
 
-from phySCNAClonal.model.ordertransform import CS2T, SRTree
+from phySCNAClonal.model.ordertransform import SINGLECELL2T, CS2T, SRTree
 
 from phySCNAClonal.model.params import get_c_fnames, metropolis
 from phySCNAClonal.model.printo import (print_top_trees,
@@ -71,6 +71,8 @@ def start_new_run(stateManager,
                   isMerged,
                   isCrossing=False,
                   crossingFile="",
+                  isSingleCell=False,
+                  singleCellFile="",
                   noTag=False):
     state = {}
 
@@ -106,15 +108,26 @@ def start_new_run(stateManager,
 
     # 此处载入数据，此处含有baseline
     inputData, baseline = load_data(state['input_data_file'], isMerged)
+
+    ####################################
+    #  crossing rule and summing rule  #
+    ####################################
     state['crossing_file'] = crossingFile
     state['is_crossing'] = isCrossing
-
     timeOrderL, negativeSD, phiDL, srtree = load_crossing_rule(
         inputData, state['crossing_file'], isCrossing)
     state['negative_set_dict'] = negativeSD
     state['time_order_list'] = timeOrderL
     state['phi_dict_list'] = phiDL
     state['sum_rule_tree'] = srtree
+
+    ############################
+    #  single cell sequencing  #
+    ############################
+    state['single_cell_file'] = singleCellFile
+    state['is_single_cell'] = isSingleCell
+    state['single_cell_order_matrix'] = load_single_cell_rule(
+        inputData, state['single_cell_file'], isSingleCell)
 
     if noTag:
         for data in inputData:
@@ -262,6 +275,14 @@ def start_new_run(stateManager,
             tmpDir)
 
 
+def load_single_cell_rule(inputData, singleCellFile, isSingleCell):
+    if not isSingleCell:
+        return None
+    else:
+        sc2t = SINGLECELL2T(singleCellFile)
+        return sc2t.transform()
+
+
 def load_crossing_rule(inputData, crossingFile, isCrossing):
     if not isCrossing:
         return None, None, None, None
@@ -385,6 +406,8 @@ def do_mcmc(stateManager,
                                      config['tmp_pdf_dir'],
                                      "iter_{0}".format(iteration),
                                      True)
+            elif state['is_single_cell']:
+                state['tssb'].resample_assignments_scsngs(state['single_cell_order_matrix'])
             else:
                 state['tssb'].resample_assignments(timeTag)
 
@@ -644,6 +667,8 @@ def run(args, safeToExit, runSucceeded, config):
             isMerged=args.isMerged,
             isCrossing=args.isCrossing,
             crossingFile=args.crossingFile,
+            isSingleCell=args.isSingleCell,
+            singleCellFile=args.singleCellFile,
             noTag=args.noTag)
 
 

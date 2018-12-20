@@ -182,6 +182,11 @@ parserModel.add_argument('--isCrossing', default=False, type=str2bool,
 
 parserModel.add_argument('--crossingFile', dest='crossingFile', help= 'The crossing file.')
 
+parserModel.add_argument('--isSingleCell', default=False, type=str2bool,
+                               help='''using single cell file''')
+
+parserModel.add_argument('--singleCellFile', dest='singleCellFile', help= 'The single cell file.')
+
 parserModel.add_argument('--maxCopyNumber', dest='maxCopyNumber', default=6,
                          type=int, help= 'Max copy number')
 
