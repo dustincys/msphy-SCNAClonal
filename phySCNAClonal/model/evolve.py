@@ -407,7 +407,7 @@ def do_mcmc(stateManager,
                                      "iter_{0}".format(iteration),
                                      True)
             elif state['is_single_cell']:
-                state['tssb'].resample_assignments_scsngs(state['single_cell_order_matrix'])
+                state['tssb'].resample_assignments_scsngs(state['single_cell_order_matrix'], config)
             else:
                 state['tssb'].resample_assignments(timeTag)
 

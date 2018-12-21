@@ -26,7 +26,7 @@ from phySCNAClonal.preprocess.utils import get_cn_allele_config
 from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
 
 
-# from phySCNAClonal.model.printo import show_tree_structure3
+from phySCNAClonal.model.printo import show_tree_structure3
 
 
 
@@ -415,8 +415,8 @@ class TSSB(object):
                 lengths.append(len(newPath))
         lengths = array(lengths)
 
-    def resample_assignments_scsngs(self, orderMatrix):
-        self.resample_assignments_singlecell(orderMatrix)
+    def resample_assignments_scsngs(self, orderMatrix, config):
+        self.resample_assignments_singlecell(orderMatrix, config)
         nonOrderedData = set(range(len(self.data))) - set(orderMatrix[0,])
         self.resample_assignments_ngs(nonOrderedData, set(orderMatrix[0,]))
 
@@ -530,7 +530,7 @@ class TSSB(object):
         lengths = array(lengths)
 
 
-    def resample_assignments_singlecell(self, orderMatrix):
+    def resample_assignments_singlecell(self, orderMatrix, config):
         def path_lt(path1, path2):
             if len(path1) == 0 and len(path2) == 0:
                 return 0
@@ -563,13 +563,19 @@ class TSSB(object):
             # 此处应该设置为树根节点的varphiR - piR
             # 该变量的初始化应该放在路径搜索的起点
             # 每一个路径中有多个Stage
-            lastStageRemainRsampler = MultiRangeSampler(self.root['main'], 1)
+            lastStageRemainRsampler = MultiRangeSampler(
+                self.root['main'],
+                self.root["sticks"][0][0]* (1-self.root['main'])+self.root['main'])
 
             # 记录当前路径信息
             currentStageStatus = {}
             currentStageStatus["lowest_epsilon"] = ""
-            currentStageStatus["lowest_remain_r"] = SegmentList([Segment(self.root['main'],1)])
+            currentStageStatus["lowest_remain_r"] = SegmentList([Segment(
+                    self.root['main'],
+                    self.root["sticks"][0][0]* (1-self.root['main']) + self.root['main']
+                )])
             currentStageStatus["lowest_idx"] = -1
+            currentStageStatus["current_stage_data_found"] = {}
 
             for stage in sorted(set(orderVector)):
                 # 根据当前单细胞测序样本中的变异Stage进行其中包含-1
@@ -583,6 +589,13 @@ class TSSB(object):
                 lastStageLowestEpsilon = ""
 
                 for n in idxL:
+
+                    show_tree_structure3(self,
+                                     config['tmp_tex_dir'],
+                                     config['tmp_pdf_dir'],
+                                     "node_idx_{0}".format(n),
+                                     True)
+
                     if n in scDataFoundD.keys():
                         # 此处需要搜索最下方的节点
                         if len(lastStageLowestEpsilon) < len(scDataFoundD[n].epsilon):
@@ -604,7 +617,9 @@ class TSSB(object):
                         if currentStageStatus["lowest_idx"] == -1:
                             # 如果是路径起始，则需要计算路径起始点的抽样空间
                             if n not in scDataFoundD.keys():
-                                tempUSegL = MultiRangeSampler(self.root['main'], 1)
+                                tempUSegL = MultiRangeSampler(
+                                    self.root['main'],
+                                    self.root["sticks"][0][0]* (1-self.root['main']) + self.root['main'])
                             else:
                                 initR = self._find_path_init_R(
                                     scDataFoundD[n], scDataFoundD[n].varphiR,
@@ -621,6 +636,10 @@ class TSSB(object):
                             tempcss.remove(ancestorsR)
                             tempcss.remove(currentStageStatus["lowest_remain_r"])
                             tempUSegL.minus(tempcss)
+                            # 在无限位点假设限制下，需要减去所有已经抽样节点的空
+                            # 间
+                            for dataFound in currentStageStatus["current_stage_data_found"].keys():
+                                tempUSegL.remove(currentStageStatus["current_stage_data_found"][dataFound].piR)
 
                         minU = tempUSegL.lowerBoundary
                         maxU = tempUSegL.upperBoundary
@@ -722,6 +741,7 @@ class TSSB(object):
                             currentStageStatus["lowest_remain_r"] = varphiR - piR
 
                         scDataFoundD[n] = self.assignments[n]
+                        currentStageStatus["current_stage_data_found"][n] = self.assignments[n]
 
                         lengths.append(len(newPath))
         lengths = array(lengths)
@@ -1180,11 +1200,11 @@ class TSSB(object):
         def descend(root, u, varphiR, depth=0):
             if depth >= self.maxDepth:
                 # print >>sys.stderr, "WARNING: Reached maximum depth."
-                return (root, [], varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main']])
+                return (root, [], varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]])
             elif u < root['main']:
                 if root['tag']:
                      print >>sys.stderr, "Negative space located!!."
-                return (root, [], varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main']])
+                return (root, [], varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]])
             else:
                 # Rescale the uniform variate to the remaining interval.
                 u = (u - root['main']) / (1.0 - root['main'])
@@ -1225,6 +1245,7 @@ class TSSB(object):
                                                     varphiR, depth + 1)
                 else:
                     index = 0
+                    varphiR = [varphiR[0], (varphiR[1]-varphiR[0])*root['sticks'][0][0]+varphiR[0]]
                     (tnode, path, varphiR, piR) = descend(root['children'][index], u,
                                                     varphiR, depth + 1)
 

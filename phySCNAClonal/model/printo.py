@@ -7,7 +7,8 @@ from numpy.random import *
 
 from phySCNAClonal.model.tssb import *
 from phySCNAClonal.model.util import *
-from phySCNAClonal.model.util2 import remove_empty_nodes, TreeReader
+# for tssb show tree, comment
+# from phySCNAClonal.model.util2 import remove_empty_nodes, TreeReader
 from collections import Counter
 
 import os
