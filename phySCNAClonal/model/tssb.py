@@ -439,7 +439,8 @@ class TSSB(object):
         lengths = []
 
 
-        uSegL = MultiRangeSampler(0,1)
+        uSegL = MultiRangeSampler(self.root['main'],
+                                  self.root["sticks"][0][0]* (1-self.root['main'])+self.root['main'])
         self.mark_specific_time_tag(negativeDataS)
         uNegtive = self.get_u_segL()
         uSegL.remove(uNegtive)
@@ -568,14 +569,14 @@ class TSSB(object):
                 self.root["sticks"][0][0]* (1-self.root['main'])+self.root['main'])
 
             # 记录当前路径信息
-            currentStageStatus = {}
-            currentStageStatus["lowest_epsilon"] = ""
-            currentStageStatus["lowest_remain_r"] = SegmentList([Segment(
+            currentPathStatus = {}
+            currentPathStatus["lowest_epsilon"] = ""
+            currentPathStatus["lowest_remain_r"] = SegmentList([Segment(
                     self.root['main'],
                     self.root["sticks"][0][0]* (1-self.root['main']) + self.root['main']
                 )])
-            currentStageStatus["lowest_idx"] = -1
-            currentStageStatus["current_stage_data_found"] = {}
+            currentPathStatus["lowest_idx"] = -1
+            currentPathStatus["current_path_data_sampled"] = {}
 
             # 用来判断当前数据所在结点位置是否在抽样空间中
             lastStageLowestEpsilon = ""
@@ -602,9 +603,10 @@ class TSSB(object):
                         if len(lastStageLowestEpsilon) < len(scDataFoundD[n].epsilon):
                             lastStageLowestEpsilon = scDataFoundD[n].epsilon
                             lastStageLowestDataIdx = n
+                            currentPathStatus["current_path_data_sampled"][n] = scDataFoundD[n]
                         # 当前状态的数据已经被抽样，需要初始化待抽样状态的起始值
-                        # currentStageStatus["lowest_idx"] = -1
-                        # currentStageStatus["lowest_epsilon"] = ""
+                        # currentPathStatus["lowest_idx"] = -1
+                        # currentPathStatus["lowest_epsilon"] = ""
                         continue
                     else:
                         # 需要搜索当前stage 的搜索空间
@@ -616,7 +618,7 @@ class TSSB(object):
                         # 获取当前状态位于最下方节点的piR，与上面的交集取并集
                         # 如果当前路径没有开始抽样，需要判断路径的起始点
                         tempUSegL = None
-                        if currentStageStatus["lowest_idx"] == -1:
+                        if currentPathStatus["lowest_idx"] == -1:
                             # 如果是路径起始，则需要计算路径起始点的抽样空间
                             if lastStageLowestDataIdx == -1:
                                 tempUSegL = MultiRangeSampler(
@@ -633,15 +635,15 @@ class TSSB(object):
                             # 如果不是路径起始，则需要上一Stage的空间
                             tempUSegL = deepcopy(lastStageRemainRsampler)
                             tempcss = deepcopy(lastStageRemainRsampler)
-                            self.mark_specific_time_tag([currentStageStatus["lowest_idx"]])
+                            self.mark_specific_time_tag([currentPathStatus["lowest_idx"]])
                             ancestorsR = self.get_u_segL()
                             tempcss.remove(ancestorsR)
-                            tempcss.remove(currentStageStatus["lowest_remain_r"])
+                            tempcss.remove(currentPathStatus["lowest_remain_r"])
                             tempUSegL.minus(tempcss)
                             # 在无限位点假设限制下，需要减去所有已经抽样节点的空
                             # 间
-                            for dataFound in currentStageStatus["current_stage_data_found"].keys():
-                                tempUSegL.remove(currentStageStatus["current_stage_data_found"][dataFound].piR)
+                            for dataFound in currentPathStatus["current_path_data_sampled"].keys():
+                                tempUSegL.remove(currentPathStatus["current_path_data_sampled"][dataFound].piR)
 
                         minU = tempUSegL.lowerBoundary
                         maxU = tempUSegL.upperBoundary
@@ -663,8 +665,8 @@ class TSSB(object):
                         # 如果没有落入当前path中，赋予最小概率
                         # 判断方法应该使用epsilon 判断
                         isInPath = self.__is_in_sampling_range(lastStageLowestEpsilon,
-                                                     currentStageStatus["lowest_epsilon"],
-                                                     oldEpsilon, currentStageStatus["current_stage_data_found"])
+                                                     currentPathStatus["lowest_epsilon"],
+                                                     oldEpsilon, currentPathStatus["current_path_data_sampled"])
                         llhS = -float('Inf')
                         if not isInPath:
                             oldLlh = -float('Inf')
@@ -737,13 +739,13 @@ class TSSB(object):
 
                         # 此处需要更新当前状态信息，和所有已经抽样的数据的状态信
                         # 息
-                        if len(currentStageStatus["lowest_epsilon"]) < len(newEpsilon):
-                            currentStageStatus["lowest_idx"] = n
-                            currentStageStatus["lowest_epsilon"] = newEpsilon
-                            currentStageStatus["lowest_remain_r"] = varphiR - piR
+                        if len(currentPathStatus["lowest_epsilon"]) < len(newEpsilon):
+                            currentPathStatus["lowest_idx"] = n
+                            currentPathStatus["lowest_epsilon"] = newEpsilon
+                            currentPathStatus["lowest_remain_r"] = varphiR - piR
 
                         scDataFoundD[n] = self.assignments[n]
-                        currentStageStatus["current_stage_data_found"][n] = self.assignments[n]
+                        currentPathStatus["current_path_data_sampled"][n] = self.assignments[n]
 
                         lengths.append(len(newPath))
         lengths = array(lengths)
@@ -1221,8 +1223,8 @@ class TSSB(object):
                 # print >>sys.stderr, "WARNING: Reached maximum depth."
                 return (root, [], varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]])
             elif u < root['main']:
-                if root['tag']:
-                     print >>sys.stderr, "Negative space located!!."
+                # if root['tag']:
+                     # print >>sys.stderr, "Negative space located!!."
                 return (root, [], varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]])
             else:
                 # Rescale the uniform variate to the remaining interval.
