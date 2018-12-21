@@ -543,7 +543,7 @@ class TSSB(object):
 
             return cmp(s2, s1)
 
-        epsilon = finfo(float64).eps
+        minEps = finfo(float64).eps
         # this is not useful
         lengths = []
 
@@ -577,6 +577,10 @@ class TSSB(object):
             currentStageStatus["lowest_idx"] = -1
             currentStageStatus["current_stage_data_found"] = {}
 
+            # 用来判断当前数据所在结点位置是否在抽样空间中
+            lastStageLowestEpsilon = ""
+            lastStageLowestDataIdx = -1
+
             for stage in sorted(set(orderVector)):
                 # 根据当前单细胞测序样本中的变异Stage进行其中包含-1
                 if stage == -1:
@@ -584,9 +588,6 @@ class TSSB(object):
                     continue
                 # 获取当前stage的数据id
                 idxL = orderMatrix[0, where(orderVector==stage)[0]]
-
-                # 用来判断当前数据所在结点位置是否在抽样空间中
-                lastStageLowestEpsilon = ""
 
                 for n in idxL:
 
@@ -600,6 +601,7 @@ class TSSB(object):
                         # 此处需要搜索最下方的节点
                         if len(lastStageLowestEpsilon) < len(scDataFoundD[n].epsilon):
                             lastStageLowestEpsilon = scDataFoundD[n].epsilon
+                            lastStageLowestDataIdx = n
                         # 当前状态的数据已经被抽样，需要初始化待抽样状态的起始值
                         # currentStageStatus["lowest_idx"] = -1
                         # currentStageStatus["lowest_epsilon"] = ""
@@ -616,14 +618,14 @@ class TSSB(object):
                         tempUSegL = None
                         if currentStageStatus["lowest_idx"] == -1:
                             # 如果是路径起始，则需要计算路径起始点的抽样空间
-                            if n not in scDataFoundD.keys():
+                            if lastStageLowestDataIdx == -1:
                                 tempUSegL = MultiRangeSampler(
                                     self.root['main'],
                                     self.root["sticks"][0][0]* (1-self.root['main']) + self.root['main'])
                             else:
                                 initR = self._find_path_init_R(
-                                    scDataFoundD[n], scDataFoundD[n].varphiR,
-                                    scDataFoundD[n].piR, scDataFoundD.keys())
+                                    scDataFoundD[lastStageLowestDataIdx], scDataFoundD[lastStageLowestDataIdx].varphiR,
+                                    scDataFoundD[lastStageLowestDataIdx].piR, set(scDataFoundD.keys()))
                                 tempUSegL = MultiRangeSampler.from_ranges(initR)
                             # 更新路径起始点为上一Stage的剩余
                             lastStageRemainRsampler = deepcopy(tempUSegL)
@@ -660,9 +662,9 @@ class TSSB(object):
                         # 此处需要判断上次抽样的节点是否落入当前path中
                         # 如果没有落入当前path中，赋予最小概率
                         # 判断方法应该使用epsilon 判断
-                        isInPath = self.__is_in_path(lastStageLowestEpsilon,
+                        isInPath = self.__is_in_sampling_range(lastStageLowestEpsilon,
                                                      currentStageStatus["lowest_epsilon"],
-                                                     oldEpsilon)
+                                                     oldEpsilon, currentStageStatus["current_stage_data_found"])
                         llhS = -float('Inf')
                         if not isInPath:
                             oldLlh = -float('Inf')
@@ -705,7 +707,7 @@ class TSSB(object):
                                 self.assignments[n].piR = piR
                                 self.assignments[n].epsilon = newEpsilon
                                 break
-                            elif abs(maxU - minU) < epsilon:
+                            elif abs(maxU - minU) < minEps:
                                 if -float('Inf') == newLlh:
                                     raise Exception("Slice sampler weirdness.")
 
@@ -749,7 +751,7 @@ class TSSB(object):
     def _get_varphiR_piR_from_idx(self, n):
         def descend(root, varphiR, depth=0):
             if n in root['node'].data:
-                return (root, [], varphiR, [varphiR[0], piEnd])
+                return (root, [], varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]])
             else:
                 varphiR[0] = (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]
 
@@ -763,18 +765,21 @@ class TSSB(object):
                         (varphiR[1]-varphiR[0])*edges[index]+varphiR[0],
                         (varphiR[1]-varphiR[0])*edges[index+1]+varphiR[0]]
 
-                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
-                                                    varphiR, depth + 1)
+                    (tnode, path, varphiR, piR) = descend(
+                        root['children'][index], varphiR, depth + 1)
                 else:
                     index = 0
-                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
-                                                    varphiR, depth + 1)
+                    varphiR = [
+                        varphiR[0],
+                        (varphiR[1]-varphiR[0])*root['sticks'][0][0]+varphiR[0]]
+                    (tnode, path, varphiR, piR) = descend(
+                        root['children'][index], varphiR, depth + 1)
 
                 path.insert(0, index)
 
                 return (tnode, path, varphiR, piR)
 
-        tn, p, vR, piR = descend(self.root, u, [0, 1])
+        tn, p, vR, piR = descend(self.root, [0, 1])
         return SegmentList([Segment(vR[0], vR[1])]), SegmentList([Segment(piR[0], piR[1])])
 
     def _find_path_init_R(self, targetNode, varphiR, piR, negativeDataS):
@@ -782,21 +787,35 @@ class TSSB(object):
         # 则对当前数据进行抽样
 
         def descend(rootNode, negativeDataS):
-            if len(set.intersection(rootNode.data(), negativeDataS)) > 0:
+            if len(negativeDataS.intersection(rootNode.data)) > 0:
                 return True
             else:
                 reFlag = False
                 for childNode in rootNode.children():
                     reFlag = reFlag or descend(childNode, negativeDataS)
-                    return reFlag
-                return False
+
+                return reFlag
 
         reRange = varphiR - piR
-        for childNode in targetNode['node'].children():
-            if descend(childNode):
+        for childNode in targetNode.children():
+            if descend(childNode, negativeDataS):
                 reRange = reRange - childNode.varphiR
 
         return reRange
+
+
+    def __is_in_sampling_range(self, lastStageLowestEpsilon,
+                               currentStageLoestEpsilon, targetEpsilon,
+                               dataNodeD):
+        epsilonS = set([dataNodeD[dataIdx].epsilon for dataIdx in dataNodeD.keys()])
+        if self.__is_in_path(lastStageLowestEpsilon, currentStageLoestEpsilon,
+                             targetEpsilon):
+            if targetEpsilon in epsilonS:
+                return False
+            else:
+                return True
+        else:
+            return False
 
 
     def __is_in_path(self, lastStageLowestEpsilon, currentStageLoestEpsilon,
