@@ -753,18 +753,18 @@ class TSSB(object):
     def _get_varphiR_piR_from_idx(self, n):
         def descend(root, varphiR, depth=0):
             if n in root['node'].data:
-                return (root, [], varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]])
+                return (varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]])
             else:
                 varphiR[0] = (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]
                 if depth > 0:
                     edges = 1.0 - cumprod(1.0 - root['sticks'])
                     edges = hstack([0.0, edges])
                     for childIdx, child in enumerate(root['children']):
-                        varphiR = [
-                            (varphiR[1]-varphiR[0])*edges[childIdx]+varphiR[0],
+                        varphiR = [(varphiR[1]-varphiR[0])*edges[childIdx]+varphiR[0],
                             (varphiR[1]-varphiR[0])*edges[childIdx+1]+varphiR[0]]
-                        (varphiR, piR) = descend(
-                            root['children'][childIdx], varphiR, depth + 1)
+                        (varphiR, piR) = descend(child, varphiR, depth + 1)
+                        if not varphiR is None:
+                            return (varphiR, piR)
                 else:
                     index = 0
                     varphiR = [
@@ -772,8 +772,10 @@ class TSSB(object):
                         (varphiR[1]-varphiR[0])*root['sticks'][0][0]+varphiR[0]]
                     (varphiR, piR) = descend(
                         root['children'][index], varphiR, depth + 1)
+                    if not varphiR is None:
+                        return (varphiR, piR)
 
-                return (varphiR, piR)
+                return (None, None)
 
         vR, piR = descend(self.root, [0, 1])
 
