@@ -756,32 +756,27 @@ class TSSB(object):
                 return (root, [], varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]])
             else:
                 varphiR[0] = (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]
-
                 if depth > 0:
                     edges = 1.0 - cumprod(1.0 - root['sticks'])
-                    index = sum(u > edges)
                     edges = hstack([0.0, edges])
-                    u = (u - edges[index]) / (edges[index + 1] - edges[index])
-
-                    varphiR = [
-                        (varphiR[1]-varphiR[0])*edges[index]+varphiR[0],
-                        (varphiR[1]-varphiR[0])*edges[index+1]+varphiR[0]]
-
-                    (tnode, path, varphiR, piR) = descend(
-                        root['children'][index], varphiR, depth + 1)
+                    for childIdx, child in enumerate(root['children']):
+                        varphiR = [
+                            (varphiR[1]-varphiR[0])*edges[childIdx]+varphiR[0],
+                            (varphiR[1]-varphiR[0])*edges[childIdx+1]+varphiR[0]]
+                        (varphiR, piR) = descend(
+                            root['children'][childIdx], varphiR, depth + 1)
                 else:
                     index = 0
                     varphiR = [
                         varphiR[0],
                         (varphiR[1]-varphiR[0])*root['sticks'][0][0]+varphiR[0]]
-                    (tnode, path, varphiR, piR) = descend(
+                    (varphiR, piR) = descend(
                         root['children'][index], varphiR, depth + 1)
 
-                path.insert(0, index)
+                return (varphiR, piR)
 
-                return (tnode, path, varphiR, piR)
+        vR, piR = descend(self.root, [0, 1])
 
-        tn, p, vR, piR = descend(self.root, [0, 1])
         return SegmentList([Segment(vR[0], vR[1])]), SegmentList([Segment(piR[0], piR[1])])
 
     def _find_path_init_R(self, targetNode, varphiR, piR, negativeDataS):
