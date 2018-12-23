@@ -762,18 +762,19 @@ class TSSB(object):
                     for childIdx, child in enumerate(root['children']):
                         varphiR = [(varphiR[1]-varphiR[0])*edges[childIdx]+varphiR[0],
                             (varphiR[1]-varphiR[0])*edges[childIdx+1]+varphiR[0]]
-                        (varphiR, piR) = descend(child, varphiR, depth + 1)
-                        if not varphiR is None:
-                            return (varphiR, piR)
+                        # 此处返回孩子节点的数值不能影响到其他孩子节点
+                        (varphiRChild, piRChild) = descend(child, varphiR, depth + 1)
+                        if not varphiRChild is None:
+                            return (varphiRChild, piRChild)
                 else:
                     index = 0
                     varphiR = [
                         varphiR[0],
                         (varphiR[1]-varphiR[0])*root['sticks'][0][0]+varphiR[0]]
-                    (varphiR, piR) = descend(
+                    (varphiRChild, piRChild) = descend(
                         root['children'][index], varphiR, depth + 1)
-                    if not varphiR is None:
-                        return (varphiR, piR)
+                    if not varphiRChild is None:
+                        return (varphiRChild, piRChild)
 
                 return (None, None)
 
