@@ -34,10 +34,12 @@ class ResultGenerator(object):
         Load SCNA data from SCNALFile, write population and data parameters
         into SCNA data file
         """
+        treeNum = -1
         reader = TreeReader(treeFile)
         try:
             # to record params, manually
             params = json.loads(reader.read_extra_file('params.json'))
+            treeNum = reader.num_trees()
         except KeyError:
             # File not present in archive, likely because it originates from an
             # older run.
@@ -69,7 +71,7 @@ class ResultGenerator(object):
             self._update_SCNAPool(mutPops, dp, currentSCNAPool, isStripe)
             summaries[idx]['SCNAPool'] = currentSCNAPool
 
-        return summaries, allMutAss, params, partialDict, isStripe
+        return treeNum, summaries, allMutAss, params, partialDict, isStripe
 
 
     def _generate_partialData(self, tree, pd):

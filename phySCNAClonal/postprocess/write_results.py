@@ -9,21 +9,28 @@ from phySCNAClonal.postprocess.pwgsresults.result_generator import \
     ResultGenerator
 
 
-def output_partial_data(outFilePath, pd):
-    with open(outFilePath, 'w') as outFile:
-        for fromNode in pd.keys():
-            totalLink = sum([pd[fromNode][toNode] for toNode in pd[fromNode]])
-            for toNode in pd[fromNode]:
-                outFile.write("{0}\t{1}\t{2}\n".format(
-                    fromNode, toNode, pd[fromNode][toNode]*1.0/totalLink))
+def output_partial_data(outFilePath, pd, treeNum):
+    outFileP = open(outFilePath+".linkProb.txt", 'w')
+    outFileT = open(outFilePath+".tree.txt", "w")
+
+    for fromNode in pd.keys():
+        totalLink = sum([pd[fromNode][toNode] for toNode in pd[fromNode]])
+        for toNode in pd[fromNode]:
+            outFileP.write("{0}\t{1}\t{2}\n".format(
+                fromNode, toNode, pd[fromNode][toNode]*10.0/totalLink))
+            outFileT.write("{0}\t{1}\t{2}\n".format(
+                fromNode, toNode, pd[fromNode][toNode]*10.0/treeNum))
+
+    outFileT.close()
+    outFileP.close()
 
 def process(args):
     # 此处应该生成关于目标的copyNumber, phi等信息
-    summaries, allMutAss, params, partialDict, isStripe =\
+    treeNum, summaries, allMutAss, params, partialDict, isStripe =\
         ResultGenerator().generate(args.treeFile, args.SCNAPoolFile)
 
-    outFilePath = args.outputFolder + "/partialData.txt"
-    output_partial_data(outFilePath, partialDict)
+    outFilePath = args.outputFolder + "/partialData"
+    output_partial_data(outFilePath, partialDict, treeNum)
 
     # 此处生成图形
     fg = FigureGenerator()
