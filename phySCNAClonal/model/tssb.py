@@ -26,7 +26,8 @@ from phySCNAClonal.preprocess.utils import get_cn_allele_config
 from util import betapdfln, boundbeta, logsumexp, sticks_to_edges
 
 
-from phySCNAClonal.model.printo import show_tree_structure3
+# for single cell
+# from phySCNAClonal.model.printo import show_tree_structure3
 
 
 
@@ -149,6 +150,9 @@ class TSSB(object):
         timeTagSeq = sort(unique(tagL))
         currentTimeTagIdx = where(timeTagSeq == tag)[0][0]
         uSegL = MultiRangeSampler(0,1)
+
+        # uSegL = MultiRangeSampler(self.root['main'],
+                                # self.root["sticks"][0][0]* (1-self.root['main'])+self.root['main'])
         if currentTimeTagIdx == 0:
             self.reset_time_tag()
         else:
@@ -291,9 +295,8 @@ class TSSB(object):
             if dataL[0][1] == -1:
                 isNonOrderedData = True
 
-            uSegL = MultiRangeSampler(0,1)
-            lastUL = MultiRangeSampler(0,0)
-            lastt = -1
+            uSegL = MultiRangeSampler(self.root['main'],
+                                    self.root["sticks"][0][0]* (1-self.root['main'])+self.root['main'])
 
             for n, t in dataL:
                 # change to segment operation
@@ -437,7 +440,6 @@ class TSSB(object):
         epsilon = finfo(float64).eps
         # this is not useful
         lengths = []
-
 
         uSegL = MultiRangeSampler(self.root['main'],
                                   self.root["sticks"][0][0]* (1-self.root['main'])+self.root['main'])
@@ -592,11 +594,11 @@ class TSSB(object):
 
                 for n in idxL:
 
-                    show_tree_structure3(self,
-                                     config['tmp_tex_dir'],
-                                     config['tmp_pdf_dir'],
-                                     "node_idx_{0}".format(n),
-                                     True)
+                    # show_tree_structure3(self,
+                                     # config['tmp_tex_dir'],
+                                     # config['tmp_pdf_dir'],
+                                     # "node_idx_{0}".format(n),
+                                     # True)
 
                     if n in scDataFoundD.keys():
                         # 此处需要搜索最下方的节点
@@ -1325,6 +1327,7 @@ class TSSB(object):
                                                     varphiR, depth + 1)
                 else:
                     index = 0
+                    varphiR = [varphiR[0], (varphiR[1]-varphiR[0])*root['sticks'][0][0]+varphiR[0]]
                     (node, path, varphiR) = descend(root['children'][index], u,
                                                     varphiR, depth + 1)
 
