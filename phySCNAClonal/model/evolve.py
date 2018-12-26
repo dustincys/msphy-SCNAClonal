@@ -410,6 +410,11 @@ def do_mcmc(stateManager,
                 state['tssb'].resample_assignments_scsngs(state['single_cell_order_matrix'], config)
             else:
                 state['tssb'].resample_assignments(timeTag)
+                show_tree_structure3(state['tssb'],
+                                     config['tmp_tex_dir'],
+                                     config['tmp_pdf_dir'],
+                                     "iter_{0}".format(iteration),
+                                     True)
 
             if timeTag < state['time_tags'][-1]:
                 if state['is_crossing']:
