@@ -128,7 +128,7 @@ class SegmentPool:
             self.segments.append(tempSeg)
 
     def get_baseline(self, maxCopyNumber, subcloneNum, baselineThredLOH,
-                     baselineThredAPM, mergeSeg=False, isPreprocess=False):
+                     baselineThredAPM, mergeSeg=False, isPreprocess=False, index=-1):
         """
         return the baseline segment list
         """
@@ -140,6 +140,12 @@ class SegmentPool:
         self.baseline = self._calc_baseline_clusterd(maxCopyNumber,
                                                      subcloneNum,
                                                      isPreprocess)
+
+        #debug
+        if index == 0:
+            self.baseline = -0.32
+        else:
+            self.baseline = -0.21
 
         if mergeSeg:
             return self._get_baseline_segs_from_stripe()
@@ -307,7 +313,7 @@ class SegmentPool:
         cpbaf = constants.COVERAGE_PROPERATION_BAF
         for j in range(0, len(self.segments)):
             self.segments[j].APMFrac = get_APM_frac_MAXMIN(
-                self.segments[j].pairedCounts, self.coverage * cpbaf)
+                self.segments[j].pairedCounts, self.coverage,  cpbaf)
 
     def _get_LOH_status(self, baseThred, isPreprocess=False):
         if isPreprocess:

@@ -113,7 +113,7 @@ class AnswerIndex(object):
         return self._answerDict[key]
 
 
-def dump_seg_to_txt(segPool, idx, answerFilePath, pathPreFix):
+def dump_seg_to_txt_with_answer(segPool, idx, answerFilePath, pathPreFix):
     ansIdx = AnswerIndex(answerFilePath)
 
     outFilePath = pathPreFix + "/segments_stage{}.txt".format(str(idx))
@@ -130,6 +130,24 @@ def dump_seg_to_txt(segPool, idx, answerFilePath, pathPreFix):
             outFile.write(seg.toString() +"\t{0}\t{1}\t{2}\n".format(
                 listValue[-3], listValue[-2], listValue[-1]))
 
+def dump_seg_to_txt(segPool, idx, pathPreFix):
+    outFilePath = pathPreFix + "/segments_stage{}.txt".format(str(idx))
+    with open(outFilePath, 'w') as outFile:
+        outFile.write(segPool.segments[0].toName()+"\n")
+        for seg in segPool.segments:
+            outFile.write(seg.toString()+"\n")
+
+def dump_seg_to_txt_list(segPoolL, pathPreFix):
+    outFilePath = pathPreFix + "/segments_stage_all.txt"
+    with open(outFilePath, 'w') as outFile:
+        outFile.write(segPoolL[0].segments[0].toName()+"\tsampleID\n")
+        for stageIndex, segPool in enumerate(segPoolL):
+            for seg in segPool.segments:
+                if stageIndex == 0:
+                    sampleID = "n5t95"
+                else:
+                    sampleID = "n25t35s40"
+                outFile.write(seg.toString()+"\t{}\n".format(sampleID))
 
 def updateFixedCValue(segPool, answerFilePath):
     ansIdx = AnswerIndex(answerFilePath)
@@ -339,13 +357,18 @@ def get_APM_frac_MAXMIN_SNP(counts):
     pass
 
 
-def get_APM_frac_MAXMIN(counts, coverageLimits=20.0):
+def get_APM_frac_MAXMIN(counts, coverage = 30, fraction = 0.9):
     """get the baf position that are average in the tumor bam
 
     :counts: TODO
     :returns: TODO
 
     """
+    coverageUpper = coverage * (8-fraction)
+    coverageLower = coverage * fraction
+    # print "____>>> get_APM_frac_MAXMIN: coverageLimits____"
+    # print coverageLower
+    # print "_________end get_APM_frac_MAXMIN:coverageLimits______________"
 
     I = counts.shape[0]
 
@@ -361,7 +384,7 @@ def get_APM_frac_MAXMIN(counts, coverageLimits=20.0):
     aT = counts[:, 2]
     bT = counts[:, 3]
     dT = aT + bT
-    countsGood = counts[np.where(dT >= coverageLimits)[0],:]
+    countsGood = counts[np.where((dT <= coverageUpper) & (dT >= coverageLower))[0],:]
 
     aT = countsGood[:, 2]
     bT = countsGood[:, 3]
@@ -371,6 +394,9 @@ def get_APM_frac_MAXMIN(counts, coverageLimits=20.0):
     APMNum = np.where(np.logical_and(pT > APMNMin, pT <= 0.5))[0].shape[0]
 
     APMFrac = APMNum * 1.0 / I
+    print "____>>> get_APM_frac_MAXMIN: APMFrac____"
+    print APMFrac
+    print "_________end get_APM_frac_MAXMIN:APMFrac______________"
 
     return APMFrac
 

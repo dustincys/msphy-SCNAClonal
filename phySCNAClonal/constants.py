@@ -111,9 +111,9 @@ VARPI = 0.8 ## gap parameters
 #  Stripe range parameters  #
 #############################
 
-YDOWNL = [-5, -5, -5, -5]
-YUPL = [5, 5, 5, 5]
-STRIPENUML = [6, 6, 6, 6]
+YDOWNL = [-1, -1, -5, -5]
+YUPL = [0.7, 0.7, 5, 5]
+STRIPENUML = [50, 50, 12, 12]
 NOISESTRIPENUML = [1, 1, 1, 1]
 
 #################################

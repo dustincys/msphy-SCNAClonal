@@ -129,10 +129,10 @@ class GCStripePlot():
         self.m1, self.c1 = self.m0, self.c0
         self.m, self.c = self.m0, self.c0
 
-        # xseq = np.arange(min(x0), max(x0), (max(x0) - min(x0))/100.0)
-        # fl, = ax.plot(xseq, self.m0*xseq + self.c0, 'r', label='Fitted line')
-        # hl = ax.axhline(y=np.median(y0), linewidth=1, color='black')
-        # vl = ax.axvline(x=np.median(x0), linewidth=1, color='black')
+        xseq = np.arange(min(x0), max(x0), (max(x0) - min(x0))/100.0)
+        fl, = ax.plot(xseq, self.m0*xseq + self.c0, 'r', label='Fitted line')
+        hl = ax.axhline(y=np.median(y0), linewidth=1, color='black')
+        vl = ax.axvline(x=np.median(x0), linewidth=1, color='black')
 
         axcolor = 'lightgoldenrodyellow'
         axm = plt.axes([0.25, 0.1, 0.65, 0.03], axisbg=axcolor)
@@ -155,7 +155,7 @@ class GCStripePlot():
             y_axis = x_axis * self.m + self.c
             self._updateM(sm.val)
             self.c = y_axis - self.m * x_axis
-            # fl.set_ydata(self.m*xseq + self.c)
+            fl.set_ydata(self.m*xseq + self.c)
             fig.canvas.draw_idle()
 
         def update_c(val):
@@ -164,7 +164,7 @@ class GCStripePlot():
 
             """
             self._updateC(sc.val)
-            # fl.set_ydata(self.m*xseq + self.c)
+            fl.set_ydata(self.m*xseq + self.c)
             fig.canvas.draw_idle()
 
         def update_alpha(val):
@@ -174,7 +174,7 @@ class GCStripePlot():
             """
             self.alpha = salpha.val
             pts.set_alpha(self.alpha)
-            # fig.canvas.draw_idle()
+            fig.canvas.draw_idle()
 
         def update_area(val):
             """
@@ -208,8 +208,8 @@ class GCStripePlot():
             A = np.vstack([self.x, np.ones(len(self.x))]).T
             self.m, self.c = np.linalg.lstsq(A, self.y)[0]
             self.m1, self.c1 = self.m, self.c
-            # fl.set_ydata(self.m*xseq + self.c)
-            # hl.set_ydata(np.median(self.y))
+            fl.set_ydata(self.m*xseq + self.c)
+            hl.set_ydata(np.median(self.y))
 
             sm.reset()
             sc.reset()
@@ -232,8 +232,8 @@ class GCStripePlot():
             A = np.vstack([self.x, np.ones(len(self.x))]).T
             self.m, self.c = np.linalg.lstsq(A, self.y)[0]
             self.m1, self.c1 = self.m, self.c
-            # fl.set_ydata(self.m*xseq + self.c)
-            # hl.set_ydata(np.median(self.y))
+            fl.set_ydata(self.m*xseq + self.c)
+            hl.set_ydata(np.median(self.y))
 
         button.on_clicked(reset)
 
@@ -330,7 +330,7 @@ class GCStripePoolPlot(GCStripePlot):
             y_axis = x_axis * self.m + self.c
             self._updateM(sm.val)
             self.c = y_axis - self.m * x_axis
-            # fl.set_ydata(self.m*xseq + self.c)
+            fl.set_ydata(self.m*xseq + self.c)
             fig.canvas.draw_idle()
 
         def update_c(val):
@@ -338,7 +338,7 @@ class GCStripePoolPlot(GCStripePlot):
             :returns: TODO
             """
             self._updateC(sc.val)
-            # fl.set_ydata(self.m*xseq + self.c)
+            fl.set_ydata(self.m*xseq + self.c)
             fig.canvas.draw_idle()
 
         def update_alpha(val):
@@ -371,17 +371,17 @@ class GCStripePoolPlot(GCStripePlot):
             self.x = np.array(select_col(xys[ind], 0))
             self.y = np.array(select_col(xys[ind], 1))
 
-            # self.colorin = colorConverter.to_rgba('red', self.alpha0)
-            # self.colorout = colorConverter.to_rgba('blue', self.alpha0)
-            # facecolors = np.array([self.colorout for xy in xys])
-            # facecolors[ind] = self.colorin
-            # pts.set_facecolors(facecolors)
+            self.colorin = colorConverter.to_rgba('red', self.alpha0)
+            self.colorout = colorConverter.to_rgba('blue', self.alpha0)
+            facecolors = np.array([self.colorout for xy in xys])
+            facecolors[ind] = self.colorin
+            pts.set_facecolors(facecolors)
 
             A = np.vstack([self.x, np.ones(len(self.x))]).T
             self.m, self.c = np.linalg.lstsq(A, self.y)[0]
             self.m1, self.c1 = self.m, self.c
-            # fl.set_ydata(self.m*xseq + self.c)
-            # hl.set_ydata(np.median(self.y))
+            fl.set_ydata(self.m*xseq + self.c)
+            hl.set_ydata(np.median(self.y))
 
             sm.reset()
             sc.reset()
@@ -396,16 +396,16 @@ class GCStripePoolPlot(GCStripePlot):
         def reset(event):
             sm.reset()
             sc.reset()
-            # self.colorout = colorConverter.to_rgba('blue', self.alpha0)
-            # facecolors = np.array([self.colorout for y in y0])
-            # pts.set_facecolors(facecolors)
+            self.colorout = colorConverter.to_rgba('blue', self.alpha0)
+            facecolors = np.array([self.colorout for y in y0])
+            pts.set_facecolors(facecolors)
             self.y = y0
             self.x = x0
             A = np.vstack([self.x, np.ones(len(self.x))]).T
             self.m, self.c = np.linalg.lstsq(A, self.y)[0]
             self.m1, self.c1 = self.m, self.c
-            # fl.set_ydata(self.m*xseq + self.c)
-            # hl.set_ydata(np.median(self.y))
+            fl.set_ydata(self.m*xseq + self.c)
+            hl.set_ydata(np.median(self.y))
 
         button.on_clicked(reset)
 
@@ -508,7 +508,7 @@ def main():
     :returns: TODO
 
     """
-    from data import Segment
+    from data.elements.segment import Segment
 
     segments = []
 

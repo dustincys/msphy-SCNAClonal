@@ -208,9 +208,9 @@ parserPostprocess.add_argument('--treeFile', help='File containing sampled trees
 
 parserPostprocess.add_argument('--SCNAPoolFile', help='File containing SCNA pool')
 
-parserPostprocess.add_argument('--answerFilePath', default=None, help='Answer file path')
+parserPostprocess.add_argument('--answerFilePath', default="", help='Answer file path')
 
-parserPostprocess.add_argument('--outputFolder', default=None, help='Output folder')
+parserPostprocess.add_argument('--outputFolder', default="", help='Output folder')
 
 # parserPostprocess.add_argument('mutlistOutput', help='Output file for\
                                # JSON-formatted list of mutations')

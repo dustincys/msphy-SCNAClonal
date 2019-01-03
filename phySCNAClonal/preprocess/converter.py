@@ -31,6 +31,8 @@ from phySCNAClonal.preprocess.mcmc import MCMCLM
 from phySCNAClonal.preprocess.plotGC import GCStripePlot, GCStripePoolPlot
 from phySCNAClonal.preprocess.utils import (get_BAF_counts,AnswerIndex,
                                             dump_seg_to_txt,
+                                            dump_seg_to_txt_with_answer,
+                                            dump_seg_to_txt_list,
                                             normal_heterozygous_filter,
                                             updateFixedCValue)
 
@@ -101,6 +103,9 @@ class BamConverter:
             self._segPoolL = pkl.load(pklFile )
             pklFile .close()
 
+
+        # self._correct_bias(method)
+        # self._dump(self._segPoolL, ".temp.gccorrected.segPoolL")
         blSegsL = self._get_baseline(mergeSeg)
         self._mark_timestamp(blSegsL)
 
@@ -119,8 +124,7 @@ class BamConverter:
             self._dump_txt(segmentPool, "lastSegPoolNoBlSegs.txt")
 
         self._dump(self._segPoolL, "allSegPoolL.pkl")
-        if self.__answerFilePath != "":
-            self._dump_seg_to_txt()
+        self._dump_seg_to_txt()
 
     def _updateFixedCValue(self):
         updateFixedCValue(self._segPoolL[-1], self.__answerFilePath)
@@ -129,8 +133,17 @@ class BamConverter:
         """
         output table for R, draw figures
         """
-        dump_seg_to_txt(self._segPoolL[-1], len(self._segPoolL) - 1,
-                        self.__answerFilePath, self.__pathPrefix)
+        if self.__answerFilePath != "" and not self.__answerFilePath is None:
+            dump_seg_to_txt_with_answer(self._segPoolL[-1],
+                                        len(self._segPoolL) - 1,
+                                        self.__answerFilePath,
+                                        self.__pathPrefix)
+        else:
+            # dump_seg_to_txt(self._segPoolL[-1], len(self._segPoolL) - 1,
+                            # self.__pathPrefix)
+            # dump_seg_to_txt(self._segPoolL[0], len(self._segPoolL) - 2,
+                            # self.__pathPrefix)
+            dump_seg_to_txt_list(self._segPoolL, self.__pathPrefix)
 
     def _dump_txt(self, pool, outFilePath):
         """
@@ -294,10 +307,11 @@ class BamConverter:
                                           self.__baselineThredLOH,
                                           self.__baselineThredAPM,
                                           mergeSeg,
-                                          isPreprocess=True)
+                                          isPreprocess=True,
+                                          index=idx)
             print len(tempBL)
             blSegsL.append(tempBL)
-            # self.visualize(segPool)
+            self.visualize(segPool)
 
         return blSegsL
 
@@ -336,19 +350,22 @@ class BamConverter:
         return y - A + K
 
     def visualize(self, segPool):
-        # gsp = GCStripePlot(segPool.segments, len(segPool.segments))
+        gsp = GCStripePlot(segPool.segments, len(segPool.segments))
         print "total number: {}".format(len(segPool.segments))
-        # gsp.plot()
-        x, y, m, c = gsp.output()
-        print "x, y, m, c"
-        print x, y, m, c
+        gsp.plot()
+        _, _, m, c = gsp.output()
+        print "m, c"
+        print m, c
 
     def _V_GC_C(self, segPool, sampleNumber=10000):
-        # gsp = GCStripePlot(segPool.segments, sampleNumber)
+        gsp = GCStripePlot(segPool.segments, 10000)
         print >> sys.stdout, "total number: {}".format(len(segPool.segments))
-        # gsp.plot()
-        print >> sys.stdout, "x, y, m, c"
-        print >> sys.stdout, gsp.output()
+        gsp.plot()
+        # print >> sys.stdout, "x, y, m, c"
+        # print >> sys.stdout, gsp.output()
+
+        _, _, m, c = gsp.output()
+        print >> sys.stdout, m, c
 
         x = np.array(map(lambda seg: seg.gc, segPool.segments))
         y = np.array(map(lambda seg: np.log(seg.tReadNum + 1) -
@@ -364,7 +381,7 @@ class BamConverter:
             )
 
         print "gc corrected, with slope = {0}, intercept = {1}".\
-            format(slope, intercept)
+            format(m, c)
 
     def _get_counts(self, tBamName, segPool):
         """
