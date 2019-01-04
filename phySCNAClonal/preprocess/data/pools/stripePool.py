@@ -106,15 +106,19 @@ class StripePool(object):
             for seg in self.segPool.segments
         ])
 
+        isNotBLV = np.array([seg.tag != "BASELINE" for seg in self.segPool.segments])
+
         # 记录是否是outlier
         statusYcV = np.logical_and(ycV > yDown, ycV < yUp)
+        statusYcV = np.logical_and(statusYcV, isNotBLV)
 
         yFcd = ycV.reshape(ycV.shape[0], 1)
         clusters = hierarchy.fclusterdata(
             yFcd, stripeNum + noiseStripeNum, criterion="maxclust",
             method="complete")
 
-        mostClosedCluster, _ = self.__get_baseline_from_stripe(clusters, ycV)
+        # 此处应该在进行聚类之前就排除baseline选项，不应该放在这里进行进一步聚类
+        # mostClosedCluster, _ = self.__get_baseline_from_stripe(clusters, ycV)
 
         if plot:
             writeToFile(self, clusters)
@@ -128,9 +132,6 @@ class StripePool(object):
 
         for cId, _ in mccs:
             # 对每一个条带进行裂解操作，生成子条带, return
-            if cId == mostClosedCluster:
-                # 此处去除baseline
-                continue
             self._decompose(cId, clusters, statusYcV, byTag, plot)
 
     def get_baseline_segs(self):
@@ -154,17 +155,27 @@ class StripePool(object):
         # 记录是否是outlier
         statusYcV = np.logical_and(ycV > yDown, ycV < yUp)
 
+        ycV = ycV[statusYcV]
+
         yFcd = ycV.reshape(ycV.shape[0], 1)
         clusters = hierarchy.fclusterdata(
             yFcd, stripeNum + noiseStripeNum, criterion="maxclust",
             method="complete")
 
-        _, blSegL = self.__get_baseline_from_stripe(clusters, ycV)
+        _, blSegL = self.__get_baseline_from_stripe(clusters, ycV, statusBoolL = statusYcV)
         # writeToFile(self,clusters)
+        # debug
+        ycVBL = np.array([
+            np.log(seg.tReadNum + 1) - np.log(seg.nReadNum + 1)
+            for seg in blSegL])
+
+        statusYcVBL = np.logical_or(ycVBL <= yDown, ycVBL >= yUp)
+        if sum(statusYcVBL) > 0:
+            print "baseline segment is not correct"
 
         return blSegL
 
-    def __get_baseline_from_stripe(self, clusters, ycV):
+    def __get_baseline_from_stripe(self, clusters, ycV, statusBoolL = None):
         """
         Get baseline segments in the aggregation step
         for the sake of
@@ -192,7 +203,12 @@ class StripePool(object):
                 mostClosedCluster = key
 
         index = np.where(clusters == mostClosedCluster)
-        for i in index[0]:
+        idL = index[0]
+        if not statusBoolL is None:
+            totalIdL = np.where(statusBoolL == True)[0]
+            idL = totalIdL[index[0]]
+
+        for i in idL:
             self.segPool.segments[i].tag = "BASELINE"
 
         blSegL = filter(lambda item:item.tag == "BASELINE",

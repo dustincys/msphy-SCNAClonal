@@ -108,6 +108,19 @@ class BamConverter:
         # self._dump(self._segPoolL, ".temp.gccorrected.segPoolL")
         blSegsL = self._get_baseline(mergeSeg)
         self._mark_timestamp(blSegsL)
+        debug = True
+        if debug:
+            for blSegL in blSegsL:
+                logaL = [np.log(seg.tReadNum + 1) - np.log(seg.nReadNum + 1) for
+                         seg in blSegL]
+                print "blSegL: min(logaL) = {}".format(min(logaL))
+                print "blSegL: max(logaL) = {}".format(max(logaL))
+
+            for segPool in self._segPoolL:
+                logaL = [np.log(seg.tReadNum + 1) - np.log(seg.nReadNum + 1) for
+                         seg in segPool.segments if seg.tag == "BASELINE"]
+                print "tag: min(logaL) = {}".format(min(logaL))
+                print "tag: max(logaL) = {}".format(max(logaL))
 
         if self.__isFixedC:
             # only update the segment pool it seems there is no need to update
@@ -125,6 +138,18 @@ class BamConverter:
 
         self._dump(self._segPoolL, "allSegPoolL.pkl")
         self._dump_seg_to_txt()
+
+        if debug:
+            for blSegL in blSegsL:
+                logaL = [np.log(seg.tReadNum + 1) - np.log(seg.nReadNum + 1) for
+                         seg in blSegL]
+                print "min(logaL) = {}".format(min(logaL))
+                print "max(logaL) = {}".format(max(logaL))
+            for segPool in self._segPoolL:
+                logaL = [np.log(seg.tReadNum + 1) - np.log(seg.nReadNum + 1) for
+                         seg in segPool.segments if seg.tag == "BASELINE"]
+                print "tag: min(logaL) = {}".format(min(logaL))
+                print "tag: max(logaL) = {}".format(max(logaL))
 
     def _updateFixedCValue(self):
         updateFixedCValue(self._segPoolL[-1], self.__answerFilePath)
@@ -311,7 +336,7 @@ class BamConverter:
                                           index=idx)
             print len(tempBL)
             blSegsL.append(tempBL)
-            self.visualize(segPool)
+            # self.visualize(segPool)
 
         return blSegsL
 

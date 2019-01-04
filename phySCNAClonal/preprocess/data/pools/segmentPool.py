@@ -142,15 +142,33 @@ class SegmentPool:
                                                      isPreprocess)
 
         #debug
-        if index == 0:
-            self.baseline = -0.32
-        else:
-            self.baseline = -0.21
+        debug = True
+        if debug:
+            if index == 0:
+                self.baseline = -0.32
+            else:
+                self.baseline = -0.23
 
-        if mergeSeg:
-            return self._get_baseline_segs_from_stripe()
+            deltaUp = 0.08
+            deltaDown = 0.1
+            blSegL = []
+
+            for seg in self.segments:
+                loga = np.log(seg.tReadNum + 1) - np.log(seg.nReadNum + 1)
+                if loga > self.baseline - deltaDown and\
+                        loga < self.baseline + deltaUp:
+                    seg.tag = "BASELINE"
+                    blSegL.append(seg)
+                else:
+                    seg.tag = "0"
+
+            return blSegL
+
         else:
-            return self._get_baseline_segs_by_label()
+            if mergeSeg:
+                return self._get_baseline_segs_from_stripe()
+            else:
+                return self._get_baseline_segs_by_label()
 
 
     def get_seg_by_tag(self, tag="BASELINE"):

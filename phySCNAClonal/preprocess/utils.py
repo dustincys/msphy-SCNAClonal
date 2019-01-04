@@ -146,7 +146,7 @@ def dump_seg_to_txt_list(segPoolL, pathPreFix):
                 if stageIndex == 0:
                     sampleID = "n5t95"
                 else:
-                    sampleID = "n25t35s40"
+                    sampleID = "n25t55s20"
                 outFile.write(seg.toString()+"\t{}\n".format(sampleID))
 
 def updateFixedCValue(segPool, answerFilePath):
