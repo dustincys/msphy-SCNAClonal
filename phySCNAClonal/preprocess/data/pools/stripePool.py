@@ -112,6 +112,8 @@ class StripePool(object):
         statusYcV = np.logical_and(ycV > yDown, ycV < yUp)
         statusYcV = np.logical_and(statusYcV, isNotBLV)
 
+        ycV = ycV[statusYcV]
+
         yFcd = ycV.reshape(ycV.shape[0], 1)
         clusters = hierarchy.fclusterdata(
             yFcd, stripeNum + noiseStripeNum, criterion="maxclust",
@@ -127,8 +129,7 @@ class StripePool(object):
         # 此处获取最小和最大值之间的条带的方法是：直接去除这些位置不列入计算范围
         # 此处应该是去除了outlier之后的Counter
 
-        mccs = Counter(
-            clusters[statusYcV]).most_common(stripeNum + noiseStripeNum)
+        mccs = Counter(clusters).most_common(stripeNum + noiseStripeNum)
 
         for cId, _ in mccs:
             # 对每一个条带进行裂解操作，生成子条带, return
@@ -224,11 +225,12 @@ class StripePool(object):
         :returns: TODO
 
         """
+        # statusYcV 中对应的True 的子集是clusters 中的ID值
+        #
         # 获得该类别的所有结点idx：
         # 即，clusters 中与cId相等且，在statusYcV中的位置
         ca = np.argwhere(clusters == cId).flatten()
-        sa = np.argwhere(statusYcV).flatten()
-        mSIdx = np.intersect1d(ca, sa)
+        mSIdx = np.where(statusYcV == True)[0][ca]
 
         # 这里的基于BAF的归类处理分为3个步骤
 
