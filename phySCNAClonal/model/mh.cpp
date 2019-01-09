@@ -142,6 +142,12 @@ void sample_cons_params(struct node nodes[], struct config conf, gsl_rng *rand){
 	for(int i=0;i<NNODES;i++){
 		double param = nodes[i].pi1;
 		for(int c=0;c<nodes[i].nchild;c++){
+			if(nodes[i].cids.empty()){
+				cout<<"is empty!";
+			}
+			cout<<nodes[i].cids.size();
+			cout<<nodes[i].cids.at(c);
+			cout<<node_id_map[nodes[i].cids.at(c)];
 			param+=nodes[node_id_map[nodes[i].cids.at(c)]].param1;
 		}
 		nodes[i].param1=param;
@@ -167,6 +173,7 @@ double param_post(struct node nodes[], SCNA data[], int old,
 			p=nodes[i].param;
 		for(int j=0;j<nodes[i].ndata;j++){
 			//此处调用data中的似然 data id
+			int dataIdx = nodes[i].dids.at(j);
 			llh+=data[nodes[i].dids.at(j)].log_ll(p, cngenotype,
 					conf.MAX_COPY_NUMBER, conf.BASELINE);
 		}

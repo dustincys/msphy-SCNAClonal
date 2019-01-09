@@ -64,7 +64,7 @@ public:
 			double baseline){
 		//pi 为基因型
 		vector<int> cns;
-		if(fixedC > 0){
+		if(fixedC < 0){
 			if(tag == "BASELINE"){
 				cns.push_back(2);
 			}else if(get_loga(this->tReadNum, this->nReadNum) > baseline){
