@@ -142,12 +142,12 @@ void sample_cons_params(struct node nodes[], struct config conf, gsl_rng *rand){
 	for(int i=0;i<NNODES;i++){
 		double param = nodes[i].pi1;
 		for(int c=0;c<nodes[i].nchild;c++){
-			if(nodes[i].cids.empty()){
-				cout<<"is empty!";
-			}
-			cout<<nodes[i].cids.size();
-			cout<<nodes[i].cids.at(c);
-			cout<<node_id_map[nodes[i].cids.at(c)];
+			//if(nodes[i].cids.empty()){
+				//cout<<"is empty!";
+			//}
+			//cout<<nodes[i].cids.size();
+			//cout<<nodes[i].cids.at(c);
+			//cout<<node_id_map[nodes[i].cids.at(c)];
 			param+=nodes[node_id_map[nodes[i].cids.at(c)]].param1;
 		}
 		nodes[i].param1=param;
