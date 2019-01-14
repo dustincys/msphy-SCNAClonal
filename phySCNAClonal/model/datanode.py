@@ -19,6 +19,7 @@ from scipy.stats import beta, binom
 import phySCNAClonal.constants as constants
 from phySCNAClonal.model.node import Node
 # 在节点中保存varphiR\piR\remainR
+from gwpy.segments import Segment, SegmentList
 from phySCNAClonal.model.usegsampler.segsupportive import MultiRangeSampler
 
 
@@ -50,8 +51,9 @@ class DataNode(Node):
             parent.pi = parent.pi - self.pi
             self.param = self.pi
 
-        self.varphiR = MultiRangeSampler(0,1)
-        self.piR = MultiRangeSampler(0,1)
+        # 此处初始化应该设置为SegmentList
+        self.varphiR = SegmentList([Segment(0, 1)])
+        self.piR = SegmentList([Segment(0, 1)])
         self.epsilon = ""
 
     def conc(self):

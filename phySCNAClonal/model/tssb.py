@@ -801,7 +801,10 @@ class TSSB(object):
         reRange = varphiR - piR
         for childNode in targetNode.children():
             if descend(childNode, negativeDataS):
-                reRange = reRange - childNode.varphiR
+                # 此处的孩子节点中的varphiR可能没有初始化，
+                # 需要根据父节点中psi分割来计算varphiR
+                # 需要函数，查找其父节点
+                reRange = reRange - self.locate_node_varphi_range(childNode)
 
         return reRange
 
@@ -1337,6 +1340,36 @@ class TSSB(object):
 
         n, p, vR = descend(self.root, u, [0, 1])
         return n, p, SegmentList([Segment(vR[0], vR[1])])
+
+    def locate_node_varphi_range(self, node):
+        def descend(root, node, varphiR, depth=0):
+            if depth >= self.maxDepth:
+                return None
+            elif node == root['node']:
+                return varphiR
+            else:
+                varphiR[0] = (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]
+
+                if depth > 0:
+
+                    edges = 1.0 - cumprod(1.0 - root['sticks'])
+                    edges = hstack([0.0, edges])
+                    for index in range(len(edges)-1):
+                        varphiR = [
+                            (varphiR[1]-varphiR[0])*edges[index]+varphiR[0],
+                            (varphiR[1]-varphiR[0])*edges[index+1]+varphiR[0]]
+
+                        varphiR = descend(root['children'][index], node, varphiR, depth + 1)
+                else:
+                    index = 0
+                    varphiR = [varphiR[0], (varphiR[1]-varphiR[0])*root['sticks'][0][0]+varphiR[0]]
+                    varphiR = descend(root['children'][index], node, varphiR, depth + 1)
+
+                return varphiR
+
+        vR = descend(self.root, node, [0, 1])
+        return SegmentList([Segment(vR[0], vR[1])])
+
 
     def get_u_segL(self):
         """
