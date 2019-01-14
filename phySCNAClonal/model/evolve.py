@@ -109,6 +109,11 @@ def start_new_run(stateManager,
     # 此处载入数据，此处含有baseline
     inputData, baseline = load_data(state['input_data_file'], isMerged)
 
+    debugNotFixedC = True
+    if debugNotFixedC == True:
+        for data in inputData:
+            if data.fixedC != -1:
+                data.fixedC = -1
     ####################################
     #  crossing rule and summing rule  #
     ####################################

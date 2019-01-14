@@ -105,10 +105,16 @@ class Stripe:
         # 发生
         # 注意此处可以设置默认参数
 
-        return self.__log_likelihood_RD_BAF(phi,
-                                            alleleConfig,
-                                            baseline,
-                                            maxCopyNumber,fixedC)
+	if self.fixedC != -1:
+		return self.__log_likelihood_RD_BAF(phi,
+				alleleConfig,
+				baseline,
+				maxCopyNumber,self.fixedC)
+	else:
+		return self.__log_likelihood_RD_BAF(phi,
+				alleleConfig,
+				baseline,
+				maxCopyNumber)
 
 
     def __log_likelihood_RD_BAF(self, phi, alleleConfig, baseline,
