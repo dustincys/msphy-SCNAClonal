@@ -55,6 +55,8 @@ class DataNode(Node):
         self.varphiR = SegmentList([Segment(0, 1)])
         self.piR = SegmentList([Segment(0, 1)])
         self.epsilon = ""
+        # tssb node
+        self.tNode = None
 
     def conc(self):
         if self.parent() is None:

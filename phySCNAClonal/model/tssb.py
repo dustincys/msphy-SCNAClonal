@@ -677,7 +677,7 @@ class TSSB(object):
 
                         while True:
                             newU = tempUSegL.sample()
-                            (tnode, newNode, newPath, varphiR, piR)  = self.find_node_varphi_pi_range(newU)
+                            (tNode, newNode, newPath, varphiR, piR)  = self.find_node_varphi_pi_range(newU)
                             newEpsilon = "".join(map(lambda i: "%03d" % (i), newPath))
 
                             if newNode.parent() is None:
@@ -705,6 +705,7 @@ class TSSB(object):
                                 self.assignments[n].varphiR = varphiR
                                 self.assignments[n].piR = piR
                                 self.assignments[n].epsilon = newEpsilon
+                                self.assignments[n].tNode = tNode
                                 break
                             elif abs(maxU - minU) < minEps:
                                 if -float('Inf') == newLlh:
@@ -714,7 +715,7 @@ class TSSB(object):
                                 oldNode.add_datum(n)
                                 self.assignments[n] = oldNode
                                 self.assignments[n].epsilon = oldEpsilon
-                                self.assignments[n].varphiR,\
+                                self.assignments[n].tNode, self.assignments[n].varphiR,\
                                     self.assignments[n].piR= self._get_varphiR_piR_from_idx(n)
 
                                 # 此处需要更新oldNode的varphi piR
@@ -754,7 +755,7 @@ class TSSB(object):
     def _get_varphiR_piR_from_idx(self, n):
         def descend(root, varphiR, depth=0):
             if n in root['node'].data:
-                return (varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]])
+                return (root, varphiR, [varphiR[0], (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]])
             else:
                 varphiR[0] = (varphiR[1] - varphiR[0]) * root['main'] + varphiR[0]
                 if depth > 0:
@@ -764,46 +765,52 @@ class TSSB(object):
                         varphiR = [(varphiR[1]-varphiR[0])*edges[childIdx]+varphiR[0],
                             (varphiR[1]-varphiR[0])*edges[childIdx+1]+varphiR[0]]
                         # 此处返回孩子节点的数值不能影响到其他孩子节点
-                        (varphiRChild, piRChild) = descend(child, varphiR, depth + 1)
+                        (tNode, varphiRChild, piRChild) = descend(child, varphiR, depth + 1)
                         if not varphiRChild is None:
-                            return (varphiRChild, piRChild)
+                            return (tNode, varphiRChild, piRChild)
                 else:
                     index = 0
                     varphiR = [
                         varphiR[0],
                         (varphiR[1]-varphiR[0])*root['sticks'][0][0]+varphiR[0]]
-                    (varphiRChild, piRChild) = descend(
+                    (tNode, varphiRChild, piRChild) = descend(
                         root['children'][index], varphiR, depth + 1)
                     if not varphiRChild is None:
-                        return (varphiRChild, piRChild)
+                        return (tNode, varphiRChild, piRChild)
 
-                return (None, None)
+                return (None, None, None)
 
-        vR, piR = descend(self.root, [0, 1])
+        tNode, vR, piR = descend(self.root, [0, 1])
 
-        return SegmentList([Segment(vR[0], vR[1])]), SegmentList([Segment(piR[0], piR[1])])
+        return tNode, SegmentList([Segment(vR[0], vR[1])]), SegmentList([Segment(piR[0], piR[1])])
 
     def _find_path_init_R(self, targetNode, varphiR, piR, negativeDataS):
         # 此处判断当前节点中是否含有目标数据的id，如果含有该数据
         # 则对当前数据进行抽样
+        # 此处应该递归tssb，
 
-        def descend(rootNode, negativeDataS):
-            if len(negativeDataS.intersection(rootNode.data)) > 0:
+        def descend(root, negativeDataS):
+            if len(negativeDataS.intersection(root['node'].data)) > 0:
                 return True
             else:
                 reFlag = False
-                for childNode in rootNode.children():
-                    reFlag = reFlag or descend(childNode, negativeDataS)
+                for childIdx, child in enumerate(root['children']):
+                    reFlag = reFlag or descend(child, negativeDataS)
 
                 return reFlag
 
+        tNode = targetNode.tNode
         reRange = varphiR - piR
-        for childNode in targetNode.children():
-            if descend(childNode, negativeDataS):
-                # 此处的孩子节点中的varphiR可能没有初始化，
-                # 需要根据父节点中psi分割来计算varphiR
-                # 需要函数，查找其父节点
-                reRange = reRange - self.locate_node_varphi_range(childNode)
+
+        lb = reRange.lowerBoundary
+        upb = reRange.upperBoundary
+
+        edges = 1.0 - cumprod(1.0 - root['sticks'])
+        edges = hstack([0.0, edges])
+        for childIdx, child in enumerate(tNode['children']):
+            childVarphiR = [(upb-lb)*edges[childIdx]+lb, (upb-lb)*edges[childIdx+1]+lb]
+            if descend(child, negativeDataS):
+                reRange = reRange - SegmentList([Segment(childVarphiR[0], childVarphiR[1])])
 
         return reRange
 
@@ -1264,17 +1271,17 @@ class TSSB(object):
                         (varphiR[1]-varphiR[0])*edges[index]+varphiR[0],
                         (varphiR[1]-varphiR[0])*edges[index+1]+varphiR[0]]
 
-                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
+                    (tNode, path, varphiR, piR) = descend(root['children'][index], u,
                                                     varphiR, depth + 1)
                 else:
                     index = 0
                     varphiR = [varphiR[0], (varphiR[1]-varphiR[0])*root['sticks'][0][0]+varphiR[0]]
-                    (tnode, path, varphiR, piR) = descend(root['children'][index], u,
+                    (tNode, path, varphiR, piR) = descend(root['children'][index], u,
                                                     varphiR, depth + 1)
 
                 path.insert(0, index)
 
-                return (tnode, path, varphiR, piR)
+                return (tNode, path, varphiR, piR)
 
         tn, p, vR, piR = descend(self.root, u, [0, 1])
         return tn, tn['node'], p, SegmentList([Segment(vR[0], vR[1])]), SegmentList([Segment(piR[0], piR[1])])
