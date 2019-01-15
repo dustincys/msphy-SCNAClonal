@@ -750,6 +750,12 @@ class TSSB(object):
                         currentPathStatus["current_path_data_sampled"][n] = self.assignments[n]
 
                         lengths.append(len(newPath))
+                    # for n
+                    lastStageLowestDataIdx = currentPathStatus["lowest_idx"]
+                    lastStageLowestEpsilon = currentPathStatus["lowest_epsilon"]
+                    lastStageRemainRsampler = currentPathStatus["lowest_remain_r"]
+                # for stage
+                # updateLastStage
         lengths = array(lengths)
 
     def _get_varphiR_piR_from_idx(self, n):
