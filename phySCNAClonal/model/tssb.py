@@ -743,7 +743,7 @@ class TSSB(object):
                 # for n
                 lastStageLowestDataIdx = currentPathStatus["lowest_idx"]
                 lastStageLowestEpsilon = currentPathStatus["lowest_epsilon"]
-                lastStageRemainRsampler = currentPathStatus["lowest_remain_r"]
+                lastStageRemainRsampler = MultiRangeSampler.from_ranges(currentPathStatus["lowest_remain_r"])
             # for stage
             # updateLastStage
 
