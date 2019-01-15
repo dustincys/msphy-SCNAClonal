@@ -574,7 +574,10 @@ class TSSB(object):
             lastStageLowestEpsilon = ""
             lastStageLowestDataIdx = -1
 
+            isPathHead = True
+
             for stage in sorted(set(orderVector)):
+
                 # 根据当前单细胞测序样本中的变异Stage进行其中包含-1
                 if stage == -1:
                     # 当前单细胞测序中不含有该变异
@@ -583,6 +586,7 @@ class TSSB(object):
                 idxL = orderMatrix[0, where(orderVector==stage)[0]]
 
                 for n in idxL:
+
 
                     # show_tree_structure3(self,
                                      # config['tmp_tex_dir'],
@@ -610,7 +614,7 @@ class TSSB(object):
                         # 获取当前状态位于最下方节点的piR，与上面的交集取并集
                         # 如果当前路径没有开始抽样，需要判断路径的起始点
                         tempUSegL = None
-                        if currentPathStatus["lowest_idx"] == -1:
+                        if isPathHead:
                             # 如果是路径起始，则需要计算路径起始点的抽样空间
                             if lastStageLowestDataIdx == -1:
                                 tempUSegL = MultiRangeSampler(
@@ -623,6 +627,7 @@ class TSSB(object):
                                 tempUSegL = MultiRangeSampler.from_ranges(initR)
                             # 更新路径起始点为上一Stage的剩余
                             lastStageRemainRsampler = deepcopy(tempUSegL)
+                            isPathHead = False
                         else:
                             # 如果不是路径起始，则需要上一Stage的空间
                             tempUSegL = deepcopy(lastStageRemainRsampler)
