@@ -802,10 +802,10 @@ class TSSB(object):
         tNode = targetNode.tNode
         reRange = varphiR - piR
 
-        lb = reRange.lowerBoundary
-        upb = reRange.upperBoundary
+        lb = reRange[0][0]
+        upb = reRange[-1][1]
 
-        edges = 1.0 - cumprod(1.0 - root['sticks'])
+        edges = 1.0 - cumprod(1.0 - tNode['sticks'])
         edges = hstack([0.0, edges])
         for childIdx, child in enumerate(tNode['children']):
             childVarphiR = [(upb-lb)*edges[childIdx]+lb, (upb-lb)*edges[childIdx+1]+lb]
