@@ -109,6 +109,12 @@ def start_new_run(stateManager,
     # 此处载入数据，此处含有baseline
     inputData, baseline = load_data(state['input_data_file'], isMerged)
 
+    debugNotFixedC = True
+    if debugNotFixedC == True:
+        for data in inputData:
+            if data.fixedC != -1:
+                data.fixedC = -1
+
     ####################################
     #  crossing rule and summing rule  #
     ####################################
@@ -408,8 +414,15 @@ def do_mcmc(stateManager,
                                      True)
             elif state['is_single_cell']:
                 state['tssb'].resample_assignments_scsngs(state['single_cell_order_matrix'], config)
+
+                show_tree_structure3(state['tssb'],
+                                     config['tmp_tex_dir'],
+                                     config['tmp_pdf_dir'],
+                                     "iter_{0}".format(iteration),
+                                     True)
             else:
                 state['tssb'].resample_assignments(timeTag)
+
                 show_tree_structure3(state['tssb'],
                                      config['tmp_tex_dir'],
                                      config['tmp_pdf_dir'],
