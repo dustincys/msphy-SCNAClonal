@@ -141,7 +141,6 @@ class TSSB(object):
 
         epsilon = finfo(float64).eps
         # this is not useful
-        lengths = []
 
         # change data range
         # 需要保存索引号码
@@ -242,8 +241,6 @@ class TSSB(object):
                         raise Exception("Slice sampler weirdness.")
                     minU = tempUSegL.lowerBoundary
                     maxU = tempUSegL.upperBoundary
-            lengths.append(len(newPath))
-        lengths = array(lengths)
 
     def resample_assignments_crossing(self, timeOrderL, negativeSD, phiDL, srtree):
         def path_lt(path1, path2):
@@ -260,7 +257,6 @@ class TSSB(object):
 
         epsilon = finfo(float64).eps
         # this is not useful
-        lengths = []
 
         # change data range
 
@@ -415,8 +411,6 @@ class TSSB(object):
 
                 if not isNonOrderedData:
                     srtree.update_path_varphiR(timeOrderIndex, n, newPathS, varphiR)
-                lengths.append(len(newPath))
-        lengths = array(lengths)
 
     def resample_assignments_scsngs(self, orderMatrix, config):
         self.resample_assignments_singlecell(orderMatrix, config)
@@ -439,7 +433,6 @@ class TSSB(object):
 
         epsilon = finfo(float64).eps
         # this is not useful
-        lengths = []
 
         uSegL = MultiRangeSampler(self.root['main'],
                                   self.root["sticks"][0][0]* (1-self.root['main'])+self.root['main'])
@@ -529,8 +522,6 @@ class TSSB(object):
                         raise Exception("Slice sampler weirdness.")
                     minU = tempUSegL.lowerBoundary
                     maxU = tempUSegL.upperBoundary
-            lengths.append(len(newPath))
-        lengths = array(lengths)
 
 
     def resample_assignments_singlecell(self, orderMatrix, config):
@@ -548,7 +539,6 @@ class TSSB(object):
 
         minEps = finfo(float64).eps
         # this is not useful
-        lengths = []
 
 
         # 对单细胞测序数据中每一个样本，即矩阵中每一行路径搜索
@@ -749,14 +739,12 @@ class TSSB(object):
                         scDataFoundD[n] = self.assignments[n]
                         currentPathStatus["current_path_data_sampled"][n] = self.assignments[n]
 
-                        lengths.append(len(newPath))
-                    # for n
-                    lastStageLowestDataIdx = currentPathStatus["lowest_idx"]
-                    lastStageLowestEpsilon = currentPathStatus["lowest_epsilon"]
-                    lastStageRemainRsampler = currentPathStatus["lowest_remain_r"]
-                # for stage
-                # updateLastStage
-        lengths = array(lengths)
+                # for n
+                lastStageLowestDataIdx = currentPathStatus["lowest_idx"]
+                lastStageLowestEpsilon = currentPathStatus["lowest_epsilon"]
+                lastStageRemainRsampler = currentPathStatus["lowest_remain_r"]
+            # for stage
+            # updateLastStage
 
     def _get_varphiR_piR_from_idx(self, n):
         def descend(root, varphiR, depth=0):
