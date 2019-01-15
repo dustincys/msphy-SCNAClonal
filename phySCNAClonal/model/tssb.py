@@ -576,6 +576,8 @@ class TSSB(object):
 
             isPathHead = True
 
+            currentPathIdxL = orderMatrix[0, where(orderVector != -1)[0]]
+
             for stage in sorted(set(orderVector)):
 
                 # 根据当前单细胞测序样本中的变异Stage进行其中包含-1
@@ -661,9 +663,11 @@ class TSSB(object):
                         # 此处需要判断上次抽样的节点是否落入当前path中
                         # 如果没有落入当前path中，赋予最小概率
                         # 判断方法应该使用epsilon 判断
+                        # 此处还需要判断，是否落入了已经抽样的分支中。
                         isInPath = self.__is_in_sampling_range(lastStageLowestEpsilon,
-                                                     currentPathStatus["lowest_epsilon"],
-                                                     oldEpsilon, currentPathStatus["current_path_data_sampled"])
+                                                               currentPathStatus["lowest_epsilon"],
+                                                               oldEpsilon, currentPathStatus["current_path_data_sampled"],
+                                                               currentPathIdxL,scDataFoundD)
                         llhS = -float('Inf')
                         if not isInPath:
                             oldLlh = -float('Inf')
@@ -817,7 +821,15 @@ class TSSB(object):
 
     def __is_in_sampling_range(self, lastStageLowestEpsilon,
                                currentStageLoestEpsilon, targetEpsilon,
-                               dataNodeD):
+                               dataNodeD, currentPathIdxL,scDataFoundD):
+
+        otherBranchIdxS = set(scDataFoundD.keys()) - set(currentPathIdxL)
+        for otherId in otherBranchIdxS:
+            otherEpsilon = scDataFoundD[otherId].epsilon
+            ltcp = commonprefix([otherEpsilon, targetEpsilon])
+            if ltcp == otherId or ltcp == targetEpsilon:
+                return False
+
         epsilonS = set([dataNodeD[dataIdx].epsilon for dataIdx in dataNodeD.keys()])
         if self.__is_in_path(lastStageLowestEpsilon, currentStageLoestEpsilon,
                              targetEpsilon):
