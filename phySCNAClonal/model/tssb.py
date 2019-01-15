@@ -737,10 +737,10 @@ class TSSB(object):
 
                         # 此处需要更新当前状态信息，和所有已经抽样的数据的状态信
                         # 息
-                        if len(currentPathStatus["lowest_epsilon"]) < len(newEpsilon):
+                        if len(currentPathStatus["lowest_epsilon"]) < len(self.assignments[n].epsilon):
+                            currentPathStatus["lowest_epsilon"] = self.assignments[n].epsilon
                             currentPathStatus["lowest_idx"] = n
-                            currentPathStatus["lowest_epsilon"] = newEpsilon
-                            currentPathStatus["lowest_remain_r"] = varphiR - piR
+                            currentPathStatus["lowest_remain_r"] = self.assignments[n].varphiR - self.assignments[n].piR
 
                         scDataFoundD[n] = self.assignments[n]
                         currentPathStatus["current_path_data_sampled"][n] = self.assignments[n]

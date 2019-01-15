@@ -75,7 +75,7 @@ class MultiRangeSampler(object):
             self._minU = 0
             self._maxU = 0
             self._cumLens = np.array([])
-            raise Exception("remove range error!")
+            # raise Exception("remove range error!")
 
     def minus(self, other):
         self.remove(other.supportiveRanges)
