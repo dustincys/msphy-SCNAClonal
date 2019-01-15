@@ -596,9 +596,9 @@ class TSSB(object):
                             lastStageLowestEpsilon = scDataFoundD[n].epsilon
                             lastStageLowestDataIdx = n
                             currentPathStatus["current_path_data_sampled"][n] = scDataFoundD[n]
+                            currentPathStatus["lowest_idx"] = n
+                            currentPathStatus["lowest_epsilon"] = scDataFoundD[n].epsilon
                         # 当前状态的数据已经被抽样，需要初始化待抽样状态的起始值
-                        # currentPathStatus["lowest_idx"] = -1
-                        # currentPathStatus["lowest_epsilon"] = ""
                         continue
                     else:
                         # 需要搜索当前stage 的搜索空间
