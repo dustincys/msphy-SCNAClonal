@@ -107,6 +107,7 @@ void mh_loop(struct node nodes[], SCNA data[], char* fname, struct config conf){
 			update_params(nodes,conf);
 		}
 	}
+	multi_param_post(nodes,data,0,conf,cngenotype);
 	gsl_rng_free(rand);
 
 	ofstream dfile;
