@@ -139,6 +139,7 @@ class Stripe:
 
         self.copyNumber = cn
         self.genotype = pi
+        self.phi = phi
 
         return ll
 

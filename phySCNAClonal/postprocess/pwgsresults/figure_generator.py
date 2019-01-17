@@ -56,6 +56,16 @@ class FigureGenerator(object):
         self._print_tree_latex(tssb, timeTagsL, texFilePath, score)
         self._draw_pdf(texFilePath)
 
+    def output_tree_data(self, tssb, timeTagsL):
+        """TODO: Docstring for output_tree_data.
+
+        :tssb: TODO
+        :timeTagsL: TODO
+        :returns: TODO
+
+        """
+        pass
+
     def _draw_pdf(self, texFilePath):
         pdfFolder = os.path.dirname(texFilePath)
         try:
@@ -69,11 +79,11 @@ class FigureGenerator(object):
         except OSError as oser:  # pdflatex not available, do not die
             print >> sys.stderr, 'pdflatex not available'
 
-    def draw_data_param(self, SCNAPool, isStripe = False):
+    def draw_data_param(self, SCNAL, isStripe = False):
         rTablePath = self._rOutputPrefix + ".txt"
         copyNumberPath = self._copyNumberOutputPrefix + ".png"
 
-        self._output_r_table(SCNAPool,
+        self._output_r_table(SCNAL,
                              rTablePath,
                              self._answerFilePath,
                              isStripe)
@@ -81,17 +91,11 @@ class FigureGenerator(object):
         self._r_draw_CopyNumber(rTablePath, copyNumberPath)
         self._r_draw_phi(rTablePath, self._phiOutputPrefix)
 
-    def draw_all_result(self, SCNAPool, tssb, isStripe=False, score=None):
-        timeTagsL = []
-        if isStripe:
-            timeTagsL = sorted(list(set([int(item.tag) for item in
-                                         SCNAPool.stripes])))
-        else:
-            timeTagsL = sorted(list(set([int(item.tag) for item in
-                                         SCNAPool.segments])))
-
+    def draw_all_result(self, SCNAL, tssb, isStripe=False, score=None):
+        timeTagsL = sorted(list(set([int(item.tag) for item in
+                                        SCNAL])))
         self.draw_tree(tssb, timeTagsL, score)
-        self.draw_data_param(SCNAPool, isStripe)
+        self.draw_data_param(SCNAL, isStripe)
 
     def _print_tree_latex(self, tssb, timeTagsL, outputFilePath, score):
         count = {'nodeId': -1}
@@ -176,26 +180,21 @@ class FigureGenerator(object):
         with open(outputFilePath, 'w') as outputFile:
             outputFile.write(treeFile)
 
-    def _output_r_table(self, SCNAPool, outputFilePath, answerFilePath=None,
+    def _output_r_table(self, SCNAL, outputFilePath, answerFilePath=None,
                         isStripe=False):
-        segPool = None
-        if isStripe:
-            segPool = SCNAPool.segPool
-        else:
-            segPool = SCNAPool
 
         if answerFilePath is None:
             with open(outputFilePath, 'w') as outputFile:
-                outputFile.write(segPool.segments[0].toName() +"\n")
-                for seg in segPool.segments:
+                outputFile.write(SCNAL[0].toName() +"\n")
+                for seg in SCNAL:
                     outputFile.write(seg.toString() +"\n")
         else:
             ansIdx = AnswerIndex(answerFilePath)
 
             with open(outputFilePath, 'w') as outputFile:
-                outputFile.write(segPool.segments[0].toName() +
+                outputFile.write(SCNAL[0].toName() +
                                 "\tcopyNumberAnswer\tgenotypeAnswer\tphiAnswer\n")
-                for seg in segPool.segments:
+                for seg in SCNAL:
                     value = ansIdx.getValue(seg.chromName,
                                             seg.start,
                                             seg.end)

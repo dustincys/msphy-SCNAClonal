@@ -52,14 +52,23 @@ class ResultGenerator(object):
         allMutAss = {}
         allMutDataParam = {}
         partialDict = {}
+        bestIdx = -1
+        bestllh = -float("Inf")
 
         for idx, llh, dp, tree, pops, mutAss, structure, mutPops in\
                 self._summarize_all_pops(treeFile, isStripe):
 
+            print "post process idx: {}".format(idx)
             self._generate_partialData(tree, partialDict)
+            # 此处在evolve中计算树的完整后验概率时已经更新好
+            llh2 = tree.complete_data_log_likelihood()
+            # llh3 = tree.complete_log_likelihood()
+            if bestllh < llh2:
+                bestllh = llh2
+                bestIdx = idx
 
             summaries[idx] = {
-                'llh': llh,
+                'llh': llh2,
                 'structure': structure,
                 'populations': pops,
                 'tree': tree
@@ -67,11 +76,13 @@ class ResultGenerator(object):
             allMutDataParam[idx] = dp
             allMutAss[idx] = mutAss
 
-            currentSCNAPool = copy.deepcopy(SCNAPool)
-            self._update_SCNAPool(mutPops, dp, currentSCNAPool, isStripe)
-            summaries[idx]['SCNAPool'] = currentSCNAPool
+            # currentSCNAPool = copy.deepcopy(SCNAPool)
+            # 此处在evolve中计算树的完整后验概率时已经更新好
+            # 所以此处在调用一次完整树的计算
+            # self._update_SCNAPool(mutPops, dp, currentSCNAPool, isStripe)
+            summaries[idx]['SCNAL'] = tree.data
 
-        return treeNum, summaries, allMutAss, params, partialDict, isStripe
+        return treeNum, summaries, allMutAss, params, partialDict, isStripe, bestIdx
 
 
     def _generate_partialData(self, tree, pd):
