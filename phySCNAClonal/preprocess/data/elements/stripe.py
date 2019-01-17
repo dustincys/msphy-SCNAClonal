@@ -135,7 +135,7 @@ class Stripe:
         llPiS = [self._getLLStripe(copyNumber, phi, baseline, alleleConfig) for copyNumber in
                    copyNumbers]
         ll, pi = max(llPiS, key=lambda x: x[0])
-        cn = llPiS.index((ll, pi))
+        cn = copyNumbers[llPiS.index((ll, pi))]
 
         self.copyNumber = cn
         self.genotype = pi
