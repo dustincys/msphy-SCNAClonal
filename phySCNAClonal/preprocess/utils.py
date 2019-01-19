@@ -137,6 +137,19 @@ def dump_seg_to_txt(segPool, idx, pathPreFix):
         for seg in segPool.segments:
             outFile.write(seg.toString()+"\n")
 
+def export_bed(segPool, pathPreFix):
+    outFilePath = pathPreFix + "/gccorrected.bed"
+    with open(outFilePath, 'w') as outFile:
+        outFile.write("chrom\tstart\tend\tsampleReads\treferenceReads\tgc\n")
+        for seg in segPool.segments:
+            outFile.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
+                str(seg.chromName),
+                str(seg.start),
+                str(seg.end),
+                str(seg.tReadNum),
+                str(seg.nReadNum),
+                str(seg.gc)))
+
 def dump_seg_to_txt_list(segPoolL, pathPreFix):
     outFilePath = pathPreFix + "/segments_stage_all.txt"
     with open(outFilePath, 'w') as outFile:

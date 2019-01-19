@@ -34,7 +34,8 @@ from phySCNAClonal.preprocess.utils import (get_BAF_counts,AnswerIndex,
                                             dump_seg_to_txt_with_answer,
                                             dump_seg_to_txt_list,
                                             normal_heterozygous_filter,
-                                            updateFixedCValue)
+                                            updateFixedCValue,
+                                            export_bed)
 
 np.set_printoptions(threshold=np.inf)
 
@@ -105,6 +106,7 @@ class BamConverter:
 
 
         # self._correct_bias(method)
+        self._export_last_corrected_bed(self.__pathPrefix)
         # self._dump(self._segPoolL, ".temp.gccorrected.segPoolL")
         blSegsL = self._get_baseline(mergeSeg)
         self._mark_timestamp(blSegsL)
@@ -150,6 +152,9 @@ class BamConverter:
                          seg in segPool.segments if seg.tag == "BASELINE"]
                 print "tag: min(logaL) = {}".format(min(logaL))
                 print "tag: max(logaL) = {}".format(max(logaL))
+
+    def _export_last_corrected_bed(self, outFilePath):
+        export_bed(self._segPoolL[-1], outFilePath)
 
     def _updateFixedCValue(self):
         updateFixedCValue(self._segPoolL[-1], self.__answerFilePath)
