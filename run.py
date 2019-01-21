@@ -208,7 +208,7 @@ parserPostprocess.add_argument('--treeFile', help='File containing sampled trees
 
 parserPostprocess.add_argument('--SCNAPoolFile', help='File containing SCNA pool')
 
-parserPostprocess.add_argument('--answerFilePath', default="", help='Answer file path')
+parserPostprocess.add_argument('--answerFilePath', default=None, help='Answer file path')
 
 parserPostprocess.add_argument('--outputFolder', default="", help='Output folder')
 

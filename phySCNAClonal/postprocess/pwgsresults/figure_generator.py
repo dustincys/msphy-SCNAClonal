@@ -14,6 +14,7 @@
 '''
 
 import os
+import pickle as pkl
 from collections import Counter
 from subprocess import call
 
@@ -43,6 +44,16 @@ class FigureGenerator(object):
 
     def set_answer_file_path(self, answerFilePath = None):
         self._answerFilePath = answerFilePath
+
+    def load_segments(self, isStripe = None, SCNAPool = None):
+        if isStripe:
+            pklFile = open(inputFilePath, 'rb')
+            SCNAPool = pkl.load(pklFile)
+            pklFile.close()
+
+            self._segments = SCNAPool.segPool.segments
+        else:
+            self._segments = None
 
     def _get_output_prefixes(self):
         self._treeOutputPrefix = self._outputPrefix + "_tree"
@@ -183,30 +194,55 @@ class FigureGenerator(object):
     def _output_r_table(self, SCNAL, outputFilePath, answerFilePath=None,
                         isStripe=False):
 
-        if answerFilePath is None:
-            with open(outputFilePath, 'w') as outputFile:
-                outputFile.write(SCNAL[0].toName() +"\n")
-                for seg in SCNAL:
-                    outputFile.write(seg.toString() +"\n")
+        if isStripe:
+            if answerFilePath is None:
+                with open(outputFilePath, 'w') as outputFile:
+                    outputFile.write(self._segments[0].toName() +"\n")
+                    for scna in SCNAL:
+                        for segIdx in scna.segsIdxL:
+                            self._segments[segIdx].copyNumber = scna.copyNumber
+                            self._segments[segIdx].phi = scna.phi
+                            outputFile.write(self._segments[segIdx].toString()+"\n")
+            else:
+                ansIdx = AnswerIndex(answerFilePath)
+
+                with open(outputFilePath, 'w') as outputFile:
+                    outputFile.write(self._segments[0].toName() +
+                                    "\tcopyNumberAnswer\tgenotypeAnswer\tphiAnswer\n")
+                    for scna in SCNAL:
+                        for segIdx in scna.segsIdxL:
+                            self._segments[segIdx].copyNumber = scna.copyNumber
+                            self._segments[segIdx].phi = scna.phi
+                            # outputFile.write(segments[segIdx].toString()+"\n")
+                            value = ansIdx.getValue(scna.chromName,
+                                                    scna.start,
+                                                    scna.end)
+                            value = value.strip()
+                            listValue = value.split('\t')
+
+                            outputFile.write(scna.toString() +"\t{0}\t{1}\t{2}\n".format(
+                                listValue[-3], listValue[-2], listValue[-1]))
         else:
-            ansIdx = AnswerIndex(answerFilePath)
+            if answerFilePath is None:
+                with open(outputFilePath, 'w') as outputFile:
+                    outputFile.write(SCNAL[0].toName() +"\n")
+                    for seg in SCNAL:
+                        outputFile.write(seg.toString() +"\n")
+            else:
+                ansIdx = AnswerIndex(answerFilePath)
 
-            with open(outputFilePath, 'w') as outputFile:
-                outputFile.write(SCNAL[0].toName() +
-                                "\tcopyNumberAnswer\tgenotypeAnswer\tphiAnswer\n")
-                for seg in SCNAL:
-                    value = ansIdx.getValue(seg.chromName,
-                                            seg.start,
-                                            seg.end)
-                    value = value.strip()
-                    listValue = value.split('\t')
+                with open(outputFilePath, 'w') as outputFile:
+                    outputFile.write(SCNAL[0].toName() +
+                                    "\tcopyNumberAnswer\tgenotypeAnswer\tphiAnswer\n")
+                    for seg in SCNAL:
+                        value = ansIdx.getValue(seg.chromName,
+                                                seg.start,
+                                                seg.end)
+                        value = value.strip()
+                        listValue = value.split('\t')
 
-                    outputFile.write(seg.toString() +"\t{0}\t{1}\t{2}\n".format(
-                        listValue[-3], listValue[-2], listValue[-1]))
-                    pass
-                pass
-            pass
-        pass
+                        outputFile.write(seg.toString() +"\t{0}\t{1}\t{2}\n".format(
+                            listValue[-3], listValue[-2], listValue[-1]))
 
     def _r_draw_CopyNumber(self, rTableFilePath, outputFilePath):
         """

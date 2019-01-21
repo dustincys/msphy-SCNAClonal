@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import pickle as pkl
 
 from phySCNAClonal.postprocess.pwgsresults.figure_generator import \
     FigureGenerator
@@ -24,29 +25,45 @@ def output_partial_data(outFilePath, pd, treeNum):
     outFileT.close()
     outFileP.close()
 
-def output_result_distribution_data(outFilePath, summaries, bestIdx):
-    outFileDist = open(outFilePath+".result_distribution.txt", 'w')
+def output_result_data(outFilePath, summaries, bestIdx, isStripe, inputFilePath):
+
+    # outFileDist = open(outFilePath+".result_distribution.txt", 'w')
     outFileBest = open(outFilePath+".bestTree.txt", 'w')
 
+    if isStripe:
+        pklFile = open(inputFilePath, 'rb')
+        SCNAPool = pkl.load(pklFile)
+        pklFile.close()
 
-    headLine = True
-    for treeIdx in summaries.keys():
-        SCNAL = summaries[treeIdx]['SCNAL']
+        segments = SCNAPool.segPool.segments
+        outFileBest.write(segments[0].toName()+"\n")
+
+        SCNAL = summaries[bestIdx]['SCNAL']
+        for scna in SCNAL:
+            for segIdx in scna.segsIdxL:
+                segments[segIdx].copyNumber = scna.copyNumber
+                segments[segIdx].phi = scna.phi
+                outFileBest.write(segments[segIdx].toString()+"\n")
+
+    else:
+        # headLine = True
+        # for treeIdx in summaries.keys():
+            # SCNAL = summaries[treeIdx]['SCNAL']
+            # for scna in SCNAL:
+                # if headLine:
+                    # outFileDist.write(scna.toName()+"\n")
+                    # headLine = False
+                # outFileDist.write(scna.toString()+"\n")
+
+        headLine = True
+        SCNAL = summaries[bestIdx]['SCNAL']
         for scna in SCNAL:
             if headLine:
-                outFileDist.write(scna.toName()+"\n")
+                outFileBest.write(scna.toName()+"\n")
                 headLine = False
-            outFileDist.write(scna.toString()+"\n")
+            outFileBest.write(scna.toString()+"\n")
 
-    headLine = True
-    SCNAL = summaries[bestIdx]['SCNAL']
-    for scna in SCNAL:
-        if headLine:
-            outFileBest.write(scna.toName()+"\n")
-            headLine = False
-        outFileBest.write(scna.toString()+"\n")
-
-    outFileDist.close()
+    # outFileDist.close()
     outFileBest.close()
 
 
@@ -59,11 +76,12 @@ def process(args):
     output_partial_data(outFilePath, partialDict, treeNum)
 
     outFilePath = args.outputFolder + "/resultData"
-    output_result_distribution_data(outFilePath, summaries, bestIdx)
+    output_result_data(outFilePath, summaries, bestIdx, isStripe, args.SCNAPoolFile)
 
     # 此处生成图形
     fg = FigureGenerator()
     fg.set_answer_file_path(args.answerFilePath)
+    fg.load_segments(isStripe, args.SCNAPoolFile)
 
     # for treeIdx in summaries.keys():
         # figPrefix = args.outputFolder + "/tree{}".format(treeIdx)
@@ -81,6 +99,7 @@ def process(args):
         summaries[bestIdx]['tree'],
         isStripe,
         summaries[bestIdx]['llh'])
+
     # 堆排序重写
 
     # 此处将生成关于目标的copyNumber, phi等信息输出到文件
