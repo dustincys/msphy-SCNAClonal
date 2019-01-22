@@ -151,6 +151,17 @@ class TSSB(object):
 
         # uSegL = MultiRangeSampler(self.root['main'],
                                 # self.root["sticks"][0][0]* (1-self.root['main'])+self.root['main'])
+
+        # for debug, to make the two subpopulation to be brother node##
+        self.reset_time_tag()
+        self.root['tag'] = True
+        if len(self.root['children']) > 0 :
+            self.root['children'][0]['tag'] = True
+        uNegtive = self.get_u_segL()
+        uSegL.remove(uNegtive)
+        self.reset_time_tag()
+        ###############################################################
+
         if currentTimeTagIdx == 0:
             self.reset_time_tag()
         else:
@@ -158,6 +169,11 @@ class TSSB(object):
             uNegtive = self.get_u_segL()
             uSegL.remove(uNegtive)
 
+        # for debug, to make the two subpopulation to be brother node##
+        self.root['tag'] = True
+        if len(self.root['children']) > 0 :
+            self.root['children'][0]['tag'] = True
+        ###############################################################
 
         nL = where(tagL == tag)[0]
             # change to segment operation
@@ -190,7 +206,7 @@ class TSSB(object):
                                                       self.alleleConfig,
                                                       self.baseline,
                                                       self.maxCopyNumber) for n
-                          in NL])
+                          in nL])
             llhMapD[self.assignments[nL[0]]] = oldLlh
             llhS = log(rand()) + oldLlh
 
@@ -1012,7 +1028,7 @@ class TSSB(object):
 
         descend(self.root)
 
-    def resample_sticks(self):
+    def resample_sticks(self, isParameterized=False):
         def descend(root, depth=0):
 
             dataDown = 0
@@ -1023,9 +1039,14 @@ class TSSB(object):
                 childData = descend(child, depth + 1)
                 postAlpha = 1.0 + childData
                 postBeta = self.dpGamma + dataDown
-                root['sticks'][i] = boundbeta(
-                    postAlpha,
-                    postBeta) if depth != 0 else .999999  # shankar
+                if isParameterized:
+                    root['sticks'][i] = boundbeta(
+                        postAlpha,
+                        postBeta) if depth != 0 else .999999  # for debug
+                else:
+                    root['sticks'][i] = boundbeta(
+                        postAlpha,
+                        postBeta) if depth != 0 else .999999  # shankar
                 dataDown += childData
 
             # Resample the main break.
@@ -1041,7 +1062,7 @@ class TSSB(object):
 
         descend(self.root)
 
-    def resample_stick_orders(self):
+    def resample_stick_orders(self, isParameterized=False):
         def descend(root, depth=0):
             if not root['children']:
                 return
@@ -1104,7 +1125,7 @@ class TSSB(object):
         descend(self.root)
 
         # Immediately resample sticks.
-        self.resample_sticks()
+        self.resample_sticks(isParameterized)
 
     def resample_hypers(self, dpAlpha=True, alphaDecay=True, dpGamma=True):
         def dp_alpha_llh(dpAlpha, alphaDecay):

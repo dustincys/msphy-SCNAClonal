@@ -14,6 +14,7 @@
 '''
 
 import os
+import sys
 import pickle as pkl
 from collections import Counter
 from subprocess import call
@@ -45,7 +46,7 @@ class FigureGenerator(object):
     def set_answer_file_path(self, answerFilePath = None):
         self._answerFilePath = answerFilePath
 
-    def load_segments(self, isStripe = None, SCNAPool = None):
+    def load_segments(self, isStripe = None, inputFilePath = None):
         if isStripe:
             pklFile = open(inputFilePath, 'rb')
             SCNAPool = pkl.load(pklFile)
@@ -255,7 +256,6 @@ class FigureGenerator(object):
                         rTableFilePath, outputFilePath]
             call(" ".join(callList), shell=True)
         except OSError as oser:
-            print >> oser
             print >> sys.stderr, 'Rscript not available'
 
     def _r_draw_phi(self, rTableFilePath, outputFilePath):
@@ -269,6 +269,5 @@ class FigureGenerator(object):
                         rTableFilePath, outputFilePath]
             call(" ".join(callList), shell=True)
         except OSError as oser:
-            print >> oser
             print >> sys.stderr, 'Rscript not available'
 

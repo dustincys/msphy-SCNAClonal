@@ -221,10 +221,18 @@ def start_new_run(stateManager,
     # 初始化把所有数据放到第一个孩子节点
     if 1:
         depth = 0
-        state['tssb'].root['sticks'] = np.vstack([
-            state['tssb'].root['sticks'],
-            boundbeta(1, state['tssb'].dpGamma) if depth != 0 else .999999
-        ])
+
+        if isParameterized:
+            state['tssb'].root['sticks'] = np.vstack([
+                state['tssb'].root['sticks'],
+                boundbeta(1, state['tssb'].dpGamma) if depth != 0 else .999999
+            ])
+        else:
+            state['tssb'].root['sticks'] = np.vstack([
+                state['tssb'].root['sticks'],
+                boundbeta(1, state['tssb'].dpGamma) if depth != 0 else .999999 #for debug
+            ])
+
         state['tssb'].root['children'].append({
             'node': state['tssb'].root['node'].spawn(),
             'main': boundbeta(1.0, (state['tssb'].alphaDecay**
@@ -486,8 +494,8 @@ def do_mcmc(stateManager,
                     state['mh_std'] = state['mh_std'] / 2.0
                     logmsg("Growing MH proposals. Now %f" % state['mh_std'])
 
-                state['tssb'].resample_sticks()
-                state['tssb'].resample_stick_orders()
+                state['tssb'].resample_sticks(state['is_parameterized'])
+                state['tssb'].resample_stick_orders(state['is_parameterized'])
                 state['tssb'].resample_hypers(dpAlpha=True, alphaDecay=True, dpGamma=True)
 
                 lastLlh = state['tssb'].complete_data_log_likelihood()
