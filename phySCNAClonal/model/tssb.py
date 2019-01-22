@@ -126,6 +126,126 @@ class TSSB(object):
 
             descend(self.root)
 
+    def resample_assignments_parameterized(self, tag):
+        def path_lt(path1, path2):
+            if len(path1) == 0 and len(path2) == 0:
+                return 0
+            elif len(path1) == 0:
+                return 1
+            elif len(path2) == 0:
+                return -1
+            s1 = "".join(map(lambda i: "%03d" % (i), path1))
+            s2 = "".join(map(lambda i: "%03d" % (i), path2))
+
+            return cmp(s2, s1)
+
+        epsilon = finfo(float64).eps
+
+        # change data range
+        # 需要保存索引号码
+
+        tagL = array([int(item.tag) for item in self.data])
+        timeTagSeq = sort(unique(tagL))
+        currentTimeTagIdx = where(timeTagSeq == tag)[0][0]
+        uSegL = MultiRangeSampler(0,1)
+
+        # uSegL = MultiRangeSampler(self.root['main'],
+                                # self.root["sticks"][0][0]* (1-self.root['main'])+self.root['main'])
+        if currentTimeTagIdx == 0:
+            self.reset_time_tag()
+        else:
+            self.mark_negative_space(timeTagSeq[currentTimeTagIdx - 1])
+            uNegtive = self.get_u_segL()
+            uSegL.remove(uNegtive)
+
+
+        nL = where(tagL == tag)[0]
+            # change to segment operation
+        tempUSegL = deepcopy(uSegL)
+        minU = tempUSegL.lowerBoundary
+        maxU = tempUSegL.upperBoundary
+
+        llhMapD = {}
+            # Get an initial uniform variate.
+        ancestors = self.assignments[nL[0]].get_ancestors()
+        current = self.root
+        indices = []
+        for anc in ancestors[1:]:
+            index = map(lambda c: c['node'],
+                        current['children']).index(anc)
+            current = current['children'][index]
+            indices.append(index)
+
+        # Here indices could be used as path to locate v stick
+
+        currentVStick = self._locate_v_stick(indices)
+        isInNegativeSpace = currentVStick['tag']
+
+        llhS = -float('Inf')
+        if isInNegativeSpace:
+            oldLlh = -float('Inf')
+            llhS = -float('Inf')
+        else:
+            oldLlh = sum([self.assignments[n].logprob(self.data[n:n + 1],
+                                                      self.alleleConfig,
+                                                      self.baseline,
+                                                      self.maxCopyNumber) for n
+                          in NL])
+            llhMapD[self.assignments[nL[0]]] = oldLlh
+            llhS = log(rand()) + oldLlh
+
+        while True:
+            newU = tempUSegL.sample()
+            (newNode, newPath) = self.find_node(newU)
+            if newNode.parent() is None:
+                # shankar: to make root node empty
+                newNode = newNode.children()[0]
+                newPath = [0]
+            for n in nL:
+                oldNode = self.assignments[n]
+                oldNode.remove_datum(n)
+                newNode.add_datum(n)
+                self.assignments[n] = newNode
+            if newNode in llhMapD:
+                newLlh = llhMapD[newNode]
+            else:
+                ####################################
+                #  Record most likely copy number  #
+                ####################################
+                newLlh = sum([newNode.logprob(self.data[n:n + 1],
+                                              self.alleleConfig, self.baseline,
+                                              self.maxCopyNumber) for n in nL])
+                if -float('Inf') == newLlh:
+                    print >> sys.stderr, "Slice sampler weirdness"
+                llhMapD[newNode] = newLlh
+            if newLlh > llhS:
+                break
+            elif abs(maxU - minU) < epsilon:
+                if -float('Inf') == newLlh:
+                    raise Exception("Slice sampler weirdness.")
+
+                for n in nL:
+                    newNode.remove_datum(n)
+                    oldNode.add_datum(n)
+                    self.assignments[n] = oldNode
+                print >> sys.stderr, "Slice sampler shrank down.  Keep current state."
+                break
+            else:
+                for n in nL:
+                    newNode.remove_datum(n)
+                    oldNode.add_datum(n)
+                    self.assignments[n] = oldNode
+                pathComp = path_lt(indices, newPath)
+                if pathComp < 0:
+                    tempUSegL.removeLeft(newU)
+                elif pathComp >= 0:  # temporary fix only!!!!!!
+                    tempUSegL.removeRight(newU)
+                else:
+                    raise Exception("Slice sampler weirdness.")
+                minU = tempUSegL.lowerBoundary
+                maxU = tempUSegL.upperBoundary
+
+
     def resample_assignments(self, tag):
         def path_lt(path1, path2):
             if len(path1) == 0 and len(path2) == 0:

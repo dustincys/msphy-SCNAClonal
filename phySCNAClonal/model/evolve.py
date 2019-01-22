@@ -73,9 +73,9 @@ def start_new_run(stateManager,
                   crossingFile="",
                   isSingleCell=False,
                   singleCellFile="",
-                  noTag=False):
+                  noTag=False,
+                  isParameterized=False):
     state = {}
-
 
     try:
         state['rand_seed'] = int(randSeed)
@@ -138,6 +138,8 @@ def start_new_run(stateManager,
     if noTag:
         for data in inputData:
             data.tag = "0"
+
+    state['is_parameterized'] = isParameterized
 
     ########################
     #  test, set time tag  #
@@ -421,7 +423,10 @@ def do_mcmc(stateManager,
                                      "iter_{0}".format(iteration),
                                      True)
             else:
-                state['tssb'].resample_assignments(timeTag)
+                if state['is_parameterized']:
+                    state['tssb'].resample_assignments_parameterized(timeTag)
+                else:
+                    state['tssb'].resample_assignments(timeTag)
 
                 show_tree_structure3(state['tssb'],
                                      config['tmp_tex_dir'],
@@ -687,7 +692,8 @@ def run(args, safeToExit, runSucceeded, config):
             crossingFile=args.crossingFile,
             isSingleCell=args.isSingleCell,
             singleCellFile=args.singleCellFile,
-            noTag=args.noTag)
+            noTag=args.noTag,
+            isParameterized = args.isParameterized)
 
 
 def remove_tmp_files(tmpDir):

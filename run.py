@@ -193,6 +193,9 @@ parserModel.add_argument('--maxCopyNumber', dest='maxCopyNumber', default=6,
 parserModel.add_argument('--noTag', default=False, type=str2bool,
                          help='''to remove all tag or not''')
 
+parserModel.add_argument('--isParameterized', default=False, type=str2bool, # for debug
+                         help='''to make only one subpopulation in each time tag''') # for debug
+
 parserModel.set_defaults(func=run_modelprocess)
 
 
