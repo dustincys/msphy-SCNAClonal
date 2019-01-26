@@ -153,13 +153,13 @@ class TSSB(object):
                                 # self.root["sticks"][0][0]* (1-self.root['main'])+self.root['main'])
 
         # for debug, to make the two subpopulation to be brother node##
-        self.reset_time_tag()
-        self.root['tag'] = True
-        if len(self.root['children']) > 0 :
-            self.root['children'][0]['tag'] = True
-        uNegtive = self.get_u_segL()
-        uSegL.remove(uNegtive)
-        self.reset_time_tag()
+        # self.reset_time_tag()
+        # self.root['tag'] = True
+        # if len(self.root['children']) > 0 :
+            # self.root['children'][0]['tag'] = True
+        # uNegtive = self.get_u_segL()
+        # uSegL.remove(uNegtive)
+        # self.reset_time_tag()
         ###############################################################
 
         if currentTimeTagIdx == 0:
@@ -170,9 +170,9 @@ class TSSB(object):
             uSegL.remove(uNegtive)
 
         # for debug, to make the two subpopulation to be brother node##
-        self.root['tag'] = True
-        if len(self.root['children']) > 0 :
-            self.root['children'][0]['tag'] = True
+        # self.root['tag'] = True
+        # if len(self.root['children']) > 0 :
+            # self.root['children'][0]['tag'] = True
         ###############################################################
 
         nL = where(tagL == tag)[0]
@@ -1613,6 +1613,12 @@ class TSSB(object):
         llhs = []
         for i, node in enumerate(nodes):
             if node.num_local_data():
+                print node.num_local_data()
+                print log(weights[i])
+                print node.data_log_likelihood(self.alleleConfig,
+                                               self.baseline,
+                                               self.maxCopyNumber)
+
                 llhs.append(node.num_local_data() * log(weights[i]) +
                             node.data_log_likelihood(self.alleleConfig,
                                                      self.baseline,
