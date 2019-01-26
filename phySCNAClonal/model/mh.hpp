@@ -4,6 +4,7 @@
 #include <cstring>
 #include <string>
 #include <math.h>
+#include <cmath>
 
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_rng.h>
@@ -123,7 +124,12 @@ public:
 					gtIdxMaxs[idxMax]);
 		}
 
-		return ll;
+		if ( isfinite(ll) ){
+			return ll;
+		}else{
+			exit(0);
+		}
+
 	}
 
 };
