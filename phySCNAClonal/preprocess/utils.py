@@ -818,7 +818,7 @@ def log_binomial_likelihood(k, n, mu):
     nn = n * np.ones((mu.shape[0], n.shape[0]))
     kk = k * np.ones((mu.shape[0], k.shape[0]))
     mumu = mu[np.newaxis,:].T * np.ones((mu.shape[0], n.shape[0]))
-    ll = np.log(comb(nn, kk)) + kk * np.log(mumu) + (nn - kk) * np.log(1 - mumu)
+    ll = binom.logpmf(kk, nn, mumu)
     return ll.transpose()
 
 
