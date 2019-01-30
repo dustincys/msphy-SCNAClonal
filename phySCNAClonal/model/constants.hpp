@@ -7,6 +7,7 @@ namespace CONSTANTS
 	extern const double MINIMUM_POSITIVE;
 	extern const double RD_WEIGHT;
 	extern const double BAF_THRESHOLD;
+	extern const double US_WEIGHT; //unisolution weigth
 	extern const int COVERAGE;
 }
 #endif

@@ -46,6 +46,8 @@ public:
 
 	string id;
 
+	vector<int> segIdx;
+
 	ArrayXd a;
 	ArrayXd b;
 
@@ -61,6 +63,10 @@ public:
 
 	SCNA (){};
 
+	bool is_unisolution(double baseline){
+		return get_loga(this->tReadNum, this->nReadNum) < baseline;
+	}
+
 	double log_ll(double phi, CNGenotype& cgn, int maxCopyNumber,
 			double baseline){
 		//pi 为基因型
@@ -69,9 +75,18 @@ public:
 			if(tag == "BASELINE"){
 				cns.push_back(2);
 			}else if(get_loga(this->tReadNum, this->nReadNum) > baseline){
-				for(int i=3; i<=maxCopyNumber; i++){cns.push_back(i);}
+				//if(tag != "0"){
+					//for(int i=6; i<=8; i++){cns.push_back(i);}
+				//}else{
+					for(int i=3; i<=10; i++){cns.push_back(i);}
+				//}
+
 			}else{
-				for(int i=0; i<2; i++){cns.push_back(i);}
+				//if(tag != "0"){
+					//for(int i=0; i<1; i++){cns.push_back(i);}
+				//}else{
+					for(int i=0; i<2; i++){cns.push_back(i);}
+				//}
 			}
 		}else{
 			cns.push_back(this->fixedC);
@@ -84,9 +99,11 @@ public:
 
 		thread threads[cns.size()];                         // default-constructed threads
 		for(int i=0; i<cns.size(); i++){
-			threads[i] = thread(getLLStripe, cns[i], phi, baseline,
-					cgn, ref(gtIdxMaxs[i]), this->a, this->b,
-					this->tReadNum, this->nReadNum, ref(lls[i]));
+			threads[i] = thread(getLLStripe, segIdx.size(),
+					stoi(tag), cns[i], phi, baseline, cgn,
+					ref(gtIdxMaxs[i]), this->a, this->b,
+					this->tReadNum, this->nReadNum,
+					ref(lls[i]));
 		}
 		for(int i=0; i<cns.size(); i++){
 			threads[i].join();

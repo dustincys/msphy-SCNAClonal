@@ -110,9 +110,9 @@ ArrayXd get_mu_E_joint(ArrayXd muG, int copyNumber, double phi){
 	return muET.transpose();
 }
 
-void getLLStripe(int copyNumber, double phi, double baseline, CNGenotype
-		cgn, int& gtIdxMax, ArrayXd a, ArrayXd b, int tReadNum, int
-		nReadNum, double& ll){
+void getLLStripe(int segIdxSize, int tag, int copyNumber, double phi, double
+		baseline, CNGenotype cgn, int& gtIdxMax, ArrayXd a, ArrayXd b,
+		int tReadNum, int nReadNum, double& ll){
 	double rdWeight = CONSTANTS::RD_WEIGHT;
 	double llStripe = 0;
 	double llRD = getRD(copyNumber, phi, baseline, tReadNum, nReadNum);
@@ -133,8 +133,10 @@ void getLLStripe(int copyNumber, double phi, double baseline, CNGenotype
 				gtIdxMax);
 	}
 
-	ll = llRD * rdWeight + llBAF * (1 - rdWeight);
-
+	//cout << "llRD" << llRD << endl;
+	//cout << "llBAF" << llBAF << endl;
+	//cout << "rdWeight" << rdWeight << endl;
+	ll = llRD * rdWeight * segIdxSize+ llBAF * (1 - rdWeight);
 	return;
 }
 

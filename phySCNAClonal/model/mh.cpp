@@ -107,7 +107,7 @@ void mh_loop(struct node nodes[], SCNA data[], char* fname, struct config conf){
 			update_params(nodes,conf);
 		}
 	}
-	multi_param_post(nodes,data,0,conf,cngenotype);
+	multi_param_post(nodes,data,1,conf,cngenotype);
 	gsl_rng_free(rand);
 
 	ofstream dfile;
@@ -165,6 +165,8 @@ double multi_param_post(struct node nodes[], SCNA data[], int old,
 
 double param_post(struct node nodes[], SCNA data[], int old,
 		struct config conf, CNGenotype& cngenotype){
+
+	double usWeight = CONSTANTS::US_WEIGHT;
 	double llh = 0.0;
 	for(int i=0;i<conf.NNODES;i++){
 		double p=0;
@@ -172,12 +174,46 @@ double param_post(struct node nodes[], SCNA data[], int old,
 			p=nodes[i].param1;
 		else
 			p=nodes[i].param;
+
+		double pllh = 0;
 		for(int j=0;j<nodes[i].ndata;j++){
 			//此处调用data中的似然 data id
 			int dataIdx = nodes[i].dids.at(j);
-			llh+=data[nodes[i].dids.at(j)].log_ll(p, cngenotype,
+			pllh+=data[nodes[i].dids.at(j)].log_ll(p, cngenotype,
 					conf.MAX_COPY_NUMBER, conf.BASELINE);
+			if(data[nodes[i].dids.at(j)].is_unisolution(conf.BASELINE)){
+				pllh *= usWeight;
+			}else{
+				pllh *= (1 - usWeight);
+			}
 		}
+		//double pllh1 = 0;
+		//double p1 = 0.75;
+		//for(int j=0;j<nodes[i].ndata;j++){
+			////此处调用data中的似然 data id
+			//int dataIdx = nodes[i].dids.at(j);
+			//pllh1+=data[nodes[i].dids.at(j)].log_ll(p1, cngenotype,
+					//conf.MAX_COPY_NUMBER, conf.BASELINE);
+			//if(data[nodes[i].dids.at(j)].is_unisolution(conf.BASELINE)){
+				//pllh1 *= usWeight;
+			//}else{
+				//pllh1 *= (1 - usWeight);
+			//}
+		//}
+		//double pllh2 = 0;
+		//double p2 = 0.2;
+		//for(int j=0;j<nodes[i].ndata;j++){
+			////此处调用data中的似然 data id
+			//int dataIdx = nodes[i].dids.at(j);
+			//pllh2+=data[nodes[i].dids.at(j)].log_ll(p2, cngenotype,
+					//conf.MAX_COPY_NUMBER, conf.BASELINE);
+			//if(data[nodes[i].dids.at(j)].is_unisolution(conf.BASELINE)){
+				//pllh2 *= usWeight;
+			//}else{
+				//pllh2 *= (1 - usWeight);
+			//}
+		//}
+		llh += pllh;
 	}
 	return llh;
 }
@@ -210,6 +246,8 @@ void write_params(char fname[], struct node *nodes, struct config conf){
 	for(int i=0; i<conf.NNODES; i++){
 		dfile << nodes[i].id << '\t' << nodes[i].param << '\t'
 			<< nodes[i].pi << '\n';
+		cout<< "best phi:"  << nodes[i].id << '\t' << nodes[i].param << '\t'
+			<< nodes[i].pi << '\n';
 	}
 	dfile.close();
 }
@@ -241,6 +279,12 @@ void load_SCNA_data(char fname[], SCNA *data, struct config conf){
 		while(getline(iss, token, '\t')){
 			if(ctr == 1){
 				data->id = token;
+			}
+			else if(ctr==2){
+				istringstream iss1(token);
+				while(getline(iss1, token1, ',')){
+					data->segIdx.push_back(atoi(token1.c_str()));
+				}
 			}
 			//此处ctr == 0 时　对应的是name
 			else if(ctr==3){
