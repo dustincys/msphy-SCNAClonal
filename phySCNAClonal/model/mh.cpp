@@ -47,10 +47,17 @@ int main(int argc, char* argv[]){
 	load_tree(FNAME_C_TREE, nodes, conf);
 
 	//start MH loop
-	mh_loop(nodes, data, FNAME_C_MH_AR, conf);
+	//
+	//
+	for(int i = 1; i <= 9; i++ ){
+		CONSTANTS::US_WEIGHT = 0.1 * i;
+		cout << "usweight" << CONSTANTS::US_WEIGHT;
+		mh_loop(nodes, data, FNAME_C_MH_AR, conf);
+		// write updated params to disk
+		string fcn = "usweight_" + to_string(i);
+		write_params(&fcn[0u], nodes, conf);
+	}
 
-	// write updated params to disk
-	write_params(FNAME_C_PARAMS, nodes, conf);
 	output_SCNA_data(FNAME_OUT_SCNA_DATA, data, conf);
 
 	delete [] data;
