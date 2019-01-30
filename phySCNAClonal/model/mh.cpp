@@ -49,14 +49,31 @@ int main(int argc, char* argv[]){
 	//start MH loop
 	//
 	//
-	for(int i = 1; i <= 9; i++ ){
-		CONSTANTS::US_WEIGHT = 0.1 * i;
-		cout << "usweight" << CONSTANTS::US_WEIGHT;
-		mh_loop(nodes, data, FNAME_C_MH_AR, conf);
-		// write updated params to disk
-		string fcn = "usweight_" + to_string(i);
-		write_params(&fcn[0u], nodes, conf);
+	ofstream dfile;
+	string fcn = "grid.txt";
+	dfile.open(&fcn[0u]);
+
+	for(int i = 5; i <= 8; i++){
+		for(int j = 2; i <= 8; i++){
+			CONSTANTS::US_WEIGHT = 0.1 * i;
+			CONSTANTS::RD_WEIGHT = 0.1 * j;
+			double rdp = CONSTANTS::RD_WEIGHT;
+			double usp = CONSTANTS::US_WEIGHT;
+			cout << "usweight" << CONSTANTS::US_WEIGHT << endl;
+			cout << "rdweight" << CONSTANTS::RD_WEIGHT << endl;
+			mh_loop(nodes, data, FNAME_C_MH_AR, conf);
+
+			for(int i=0; i<conf.NNODES; i++){
+				dfile << rdp << '\t' << usp << '\t' << nodes[i].id << '\t' <<
+					nodes[i].param << '\t' << nodes[i].pi << '\n';
+				cout << "best phi:" << "rdp:" << rdp << '\t' << "usp:" << usp
+					<< '\t' << nodes[i].id << '\t' << nodes[i].param <<
+					'\t' << nodes[i].pi << '\n';
+			}
+		}
 	}
+
+	dfile.close();
 
 	return 1;
 	output_SCNA_data(FNAME_OUT_SCNA_DATA, data, conf);
