@@ -67,6 +67,14 @@ public:
 		return get_loga(this->tReadNum, this->nReadNum) < baseline;
 	}
 
+	bool is_upperOutlier(double upper){
+		return get_loga(this->tReadNum, this->nReadNum) > upper;
+	}
+
+	bool is_lowerOutlier(double lower){
+		return get_loga(this->tReadNum, this->nReadNum) < lower;
+	}
+
 	double log_ll(double phi, CNGenotype& cgn, int maxCopyNumber,
 			double baseline){
 		//pi 为基因型

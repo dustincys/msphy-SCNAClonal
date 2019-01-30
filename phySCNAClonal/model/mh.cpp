@@ -56,9 +56,9 @@ int main(int argc, char* argv[]){
 		// write updated params to disk
 		string fcn = "usweight_" + to_string(i);
 		write_params(&fcn[0u], nodes, conf);
-		system("pause");
 	}
 
+	return 1;
 	output_SCNA_data(FNAME_OUT_SCNA_DATA, data, conf);
 
 	delete [] data;
@@ -191,7 +191,10 @@ double param_post(struct node nodes[], SCNA data[], int old,
 					conf.MAX_COPY_NUMBER, conf.BASELINE);
 			if(data[nodes[i].dids.at(j)].is_unisolution(conf.BASELINE)){
 				pllh *= usWeight;
-			}else{
+			}else if(data[nodes[i].dids.at(j)].is_upperOutlier(1)){
+				pllh = 0;
+			}
+			else{
 				pllh *= (1 - usWeight);
 			}
 		}
