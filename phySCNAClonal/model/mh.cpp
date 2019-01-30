@@ -56,6 +56,7 @@ int main(int argc, char* argv[]){
 		// write updated params to disk
 		string fcn = "usweight_" + to_string(i);
 		write_params(&fcn[0u], nodes, conf);
+		system("pause");
 	}
 
 	output_SCNA_data(FNAME_OUT_SCNA_DATA, data, conf);
