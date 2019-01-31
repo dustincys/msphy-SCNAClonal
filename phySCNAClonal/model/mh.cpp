@@ -53,28 +53,32 @@ int main(int argc, char* argv[]){
 	string fcn = "grid.txt";
 	dfile.open(&fcn[0u]);
 
-	for(int l = 1; l <= 20; l++){
-		for(int k = 5; k <= 9; k++){
-			for(int j = 1; j <= 9; j++){
-				CONSTANTS::UPPER_OUTLIER = 1 + 0.2 * l;
-				CONSTANTS::US_WEIGHT = 0.1 * k;
-				CONSTANTS::RD_WEIGHT = 0.1 * j;
+	int base[] = {2,1,3,4};
 
-				double rdp = CONSTANTS::RD_WEIGHT;
-				double usp = CONSTANTS::US_WEIGHT;
-				double upperOutlier = CONSTANTS::UPPER_OUTLIER;
+	for(int ll = 0; ll < 4; ll ++){
+		for(int l = 1; l <= 10; l++){
+			for(int k = 5; k <= 9; k++){
+				for(int j = 1; j <= 9; j++){
+					CONSTANTS::UPPER_OUTLIER = base[ll] + 0.1 * l;
+					CONSTANTS::US_WEIGHT = 0.1 * k;
+					CONSTANTS::RD_WEIGHT = 0.1 * j;
 
-				cout << "usweight" << CONSTANTS::US_WEIGHT << endl;
-				cout << "rdweight" << CONSTANTS::RD_WEIGHT << endl;
-				cout << "upperOutlier" << CONSTANTS::UPPER_OUTLIER << endl;
-				mh_loop(nodes, data, FNAME_C_MH_AR, conf);
+					double rdp = CONSTANTS::RD_WEIGHT;
+					double usp = CONSTANTS::US_WEIGHT;
+					double upperOutlier = CONSTANTS::UPPER_OUTLIER;
 
-				for(int i=0; i<conf.NNODES; i++){
-					dfile <<upperOutlier <<'\t'<<rdp << '\t' << usp << '\t' << nodes[i].id << '\t' <<
-						nodes[i].param << '\t' << nodes[i].pi << '\n';
-					cout << "best phi:" << "upperOutlier:" << upperOutlier <<"rdp:" << rdp << '\t' << "usp:" << usp
-						<< '\t' << nodes[i].id << '\t' << nodes[i].param <<
-						'\t' << nodes[i].pi << '\n';
+					cout << "usweight" << CONSTANTS::US_WEIGHT << endl;
+					cout << "rdweight" << CONSTANTS::RD_WEIGHT << endl;
+					cout << "upperOutlier" << CONSTANTS::UPPER_OUTLIER << endl;
+					mh_loop(nodes, data, FNAME_C_MH_AR, conf);
+
+					for(int i=0; i<conf.NNODES; i++){
+						dfile <<upperOutlier <<'\t'<<rdp << '\t' << usp << '\t' << nodes[i].id << '\t' <<
+							nodes[i].param << '\t' << nodes[i].pi << '\n';
+						cout << "best phi:" << "upperOutlier:" << upperOutlier <<"rdp:" << rdp << '\t' << "usp:" << usp
+							<< '\t' << nodes[i].id << '\t' << nodes[i].param <<
+							'\t' << nodes[i].pi << '\n';
+					}
 				}
 			}
 		}

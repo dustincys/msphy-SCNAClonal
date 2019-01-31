@@ -86,7 +86,7 @@ public:
 				//if(tag != "0"){
 					//for(int i=6; i<=8; i++){cns.push_back(i);}
 				//}else{
-					for(int i=3; i<=10; i++){cns.push_back(i);}
+					for(int i=3; i<=maxCopyNumber; i++){cns.push_back(i);}
 				//}
 
 			}else{
