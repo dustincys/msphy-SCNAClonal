@@ -53,22 +53,29 @@ int main(int argc, char* argv[]){
 	string fcn = "grid.txt";
 	dfile.open(&fcn[0u]);
 
-	for(int i = 5; i <= 8; i++){
-		for(int j = 2; i <= 8; i++){
-			CONSTANTS::US_WEIGHT = 0.1 * i;
-			CONSTANTS::RD_WEIGHT = 0.1 * j;
-			double rdp = CONSTANTS::RD_WEIGHT;
-			double usp = CONSTANTS::US_WEIGHT;
-			cout << "usweight" << CONSTANTS::US_WEIGHT << endl;
-			cout << "rdweight" << CONSTANTS::RD_WEIGHT << endl;
-			mh_loop(nodes, data, FNAME_C_MH_AR, conf);
+	for(int l = 1; l <= 20; l++){
+		for(int k = 5; k <= 9; k++){
+			for(int j = 1; j <= 9; j++){
+				CONSTANTS::UPPER_OUTLIER = 1 + 0.2 * l;
+				CONSTANTS::US_WEIGHT = 0.1 * k;
+				CONSTANTS::RD_WEIGHT = 0.1 * j;
 
-			for(int i=0; i<conf.NNODES; i++){
-				dfile << rdp << '\t' << usp << '\t' << nodes[i].id << '\t' <<
-					nodes[i].param << '\t' << nodes[i].pi << '\n';
-				cout << "best phi:" << "rdp:" << rdp << '\t' << "usp:" << usp
-					<< '\t' << nodes[i].id << '\t' << nodes[i].param <<
-					'\t' << nodes[i].pi << '\n';
+				double rdp = CONSTANTS::RD_WEIGHT;
+				double usp = CONSTANTS::US_WEIGHT;
+				double upperOutlier = CONSTANTS::UPPER_OUTLIER;
+
+				cout << "usweight" << CONSTANTS::US_WEIGHT << endl;
+				cout << "rdweight" << CONSTANTS::RD_WEIGHT << endl;
+				cout << "upperOutlier" << CONSTANTS::UPPER_OUTLIER << endl;
+				mh_loop(nodes, data, FNAME_C_MH_AR, conf);
+
+				for(int i=0; i<conf.NNODES; i++){
+					dfile <<upperOutlier <<'\t'<<rdp << '\t' << usp << '\t' << nodes[i].id << '\t' <<
+						nodes[i].param << '\t' << nodes[i].pi << '\n';
+					cout << "best phi:" << "upperOutlier:" << upperOutlier <<"rdp:" << rdp << '\t' << "usp:" << usp
+						<< '\t' << nodes[i].id << '\t' << nodes[i].param <<
+						'\t' << nodes[i].pi << '\n';
+				}
 			}
 		}
 	}
@@ -192,6 +199,9 @@ double param_post(struct node nodes[], SCNA data[], int old,
 		struct config conf, CNGenotype& cngenotype){
 
 	double usWeight = CONSTANTS::US_WEIGHT;
+	double upperOutlier = CONSTANTS::UPPER_OUTLIER;
+	double lowerOutlier = CONSTANTS::LOWER_OUTLIER;
+
 	double llh = 0.0;
 	for(int i=0;i<conf.NNODES;i++){
 		double p=0;
@@ -206,14 +216,18 @@ double param_post(struct node nodes[], SCNA data[], int old,
 			int dataIdx = nodes[i].dids.at(j);
 			pllh+=data[nodes[i].dids.at(j)].log_ll(p, cngenotype,
 					conf.MAX_COPY_NUMBER, conf.BASELINE);
-			if(data[nodes[i].dids.at(j)].is_unisolution(conf.BASELINE)){
-				pllh *= usWeight;
-			}else if(data[nodes[i].dids.at(j)].is_upperOutlier(1)){
+
+			if(data[nodes[i].dids.at(j)].is_upperOutlier(upperOutlier)||
+					data[nodes[i].dids.at(j)].is_lowerOutlier(lowerOutlier)){
 				pllh = 0;
+			}else{
+				if(data[nodes[i].dids.at(j)].is_unisolution(conf.BASELINE)){
+					pllh *= usWeight;
+				}else{
+					pllh *= (1 - usWeight);
+				}
 			}
-			else{
-				pllh *= (1 - usWeight);
-			}
+
 		}
 		//double pllh1 = 0;
 		//double p1 = 0.75;

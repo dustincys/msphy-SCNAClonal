@@ -8,6 +8,8 @@ namespace CONSTANTS
 	extern double RD_WEIGHT;
 	extern const double BAF_THRESHOLD;
 	extern double US_WEIGHT; //unisolution weigth
+	extern double UPPER_OUTLIER; //unisolution weigth
+	extern double LOWER_OUTLIER; //unisolution weigth
 	extern const int COVERAGE;
 }
 #endif

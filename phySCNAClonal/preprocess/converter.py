@@ -106,7 +106,7 @@ class BamConverter:
 
 
         # self._correct_bias(method)
-        self._export_last_corrected_bed(self.__pathPrefix)
+        # self._export_last_corrected_bed(self.__pathPrefix)
         # self._dump(self._segPoolL, ".temp.gccorrected.segPoolL")
         blSegsL = self._get_baseline(mergeSeg)
         self._mark_timestamp(blSegsL)
@@ -274,7 +274,9 @@ class BamConverter:
         ends = IntVector([seg.end for seg in nonBlSegs])
         nonBlGR = GR.GRanges(seqnames = chromNames, ranges=IR.IRanges(starts, ends))
 
-        fo = IR.findOverlaps(nonBlGR, GRL)
+        # fo = IR.findOverlaps(nonBlGR, GRL)
+        # For large SCNA
+        fo = IR.findOverlaps(nonBlGR, GRL, minoverlap=5000)
         globalenv["fo"] = fo
         robjects.reval("fom <- as.matrix(fo)")
         overlapIdx = np.array(list(robjects.r.fom)).reshape(tuple(reversed(robjects.r.fom.dim))) - 1
