@@ -82,6 +82,44 @@ class Stripe:
             self.pairedCounts = np.vstack((self.pairedCounts,
                                             seg.pairedCounts))
 
+    def _log_likelihood_GivenC(self,
+                               phi,
+                               C,
+                               alleleConfig,
+                               baseline,
+                               maxCopyNumber,
+                               update_tree=False):
+        if update_tree:
+            ##################################################
+            # some useful info about the tree,
+            # used by CNV related computations,
+            set_node_height(self.tssb)
+            set_path_from_root_to_node(self.tssb)
+            map_datum_to_node(self.tssb)
+            ##################################################
+
+
+        copyNumbers = None
+        if self.tag == "BASELINE":
+            copyNumbers = [2]
+        elif get_loga(self) > baseline:
+            copyNumbers = range(3, maxCopyNumber + 1)
+        else:
+            copyNumbers = range(0, 2)
+            pass
+
+        if C not in copyNumbers:
+            return -float("Inf")
+
+        ll, pi  = self._getLLStripe(C, phi, baseline, alleleConfig)
+
+        self.copyNumber = C
+        self.genotype = pi
+        self.phi = phi
+
+        return ll
+        pass
+
     def _log_likelihood(self,
                         phi,
                         alleleConfig,

@@ -1613,11 +1613,11 @@ class TSSB(object):
         llhs = []
         for i, node in enumerate(nodes):
             if node.num_local_data():
-                print node.num_local_data()
-                print log(weights[i])
-                print node.data_log_likelihood(self.alleleConfig,
-                                               self.baseline,
-                                               self.maxCopyNumber)
+                # print node.num_local_data()
+                # print log(weights[i])
+                # print node.data_log_likelihood(self.alleleConfig,
+                                               # self.baseline,
+                                               # self.maxCopyNumber)
 
                 llhs.append(node.num_local_data() * log(weights[i]) +
                             node.data_log_likelihood(self.alleleConfig,

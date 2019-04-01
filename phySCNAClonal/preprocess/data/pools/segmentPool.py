@@ -145,11 +145,17 @@ class SegmentPool:
         debug = True
         if debug:
             if index == 0:
+                # 1143
+                # self.baseline = 0.08
+                # 1954
                 self.baseline = -0.32
             else:
-                self.baseline = -0.23
+                # 1143
+                # self.baseline = 0
+                # 1954
+                self.baseline = -0.21
 
-            deltaUp = 0.08
+            deltaUp = 0.1
             deltaDown = 0.1
             blSegL = []
 

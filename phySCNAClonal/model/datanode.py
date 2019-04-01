@@ -71,6 +71,13 @@ class DataNode(Node):
         self._parent = None
         self._children = None
 
+    def logprob_GivenC(self, x, C,  alleleConfig, baseline, maxCopyNumber):
+        return x[0]._log_likelihood_GivenC(self.param,
+                                    C,
+                                    alleleConfig,
+                                    baseline,
+                                    maxCopyNumber)
+
     def logprob(self, x, alleleConfig, baseline, maxCopyNumber):
         # 此处需要进一步处理
         return x[0]._log_likelihood(self.param,
@@ -173,7 +180,21 @@ class DataNode(Node):
         return lFlag and uFlag
 
     def data_log_likelihood(self, alleleConfig, baseline, maxCopyNumber):
-        return self.complete_logprob(alleleConfig, baseline, maxCopyNumber)
+        llMax = -float("Inf")
+        Cmax = -1
+        for ci in range(0, maxCopyNumber):
+            lli = self.complete_logprob_GivenC(ci, alleleConfig, baseline,
+                                               maxCopyNumber)
+            if lli > llMax:
+                llMax = lli
+                Cmax = ci
+
+        return self.complete_logprob_GivenC(Cmax, alleleConfig, baseline,
+                                            maxCopyNumber)
+
+    def complete_logprob_GivenC(self, C, alleleConfig, baseline, maxCopyNumber):
+        return sum([self.logprob_GivenC([data], C,  alleleConfig, baseline, maxCopyNumber)
+                    for data in self.get_data()])
 
     def complete_logprob(self, alleleConfig, baseline, maxCopyNumber):
         return sum([self.logprob([data], alleleConfig, baseline, maxCopyNumber)

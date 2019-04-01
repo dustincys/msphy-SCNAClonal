@@ -29,7 +29,7 @@ def show_tree_structure2(tssb,
 
     if toCompile:
         try:
-            callList = ["/usr/bin/pdflatex",
+            callList = ["/usr/local/texlive/2017/bin/x86_64-linux/pdflatex"
                         "-interaction=nonstopmode",
                         "-output-directory={}".format(pdfFolder),
                         texFileFullPath]
@@ -59,7 +59,7 @@ def show_tree_structure3(tssb,
 
     if toCompile:
         try:
-            callList = ["/usr/bin/pdflatex",
+            callList = ["/usr/local/texlive/2017/bin/x86_64-linux/pdflatex",
                         "-interaction=nonstopmode",
                         "-output-directory={}".format(pdfFolder),
                         texFileFullPath]
