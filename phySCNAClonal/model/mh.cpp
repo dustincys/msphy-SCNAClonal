@@ -47,46 +47,10 @@ int main(int argc, char* argv[]){
 	load_tree(FNAME_C_TREE, nodes, conf);
 
 	//start MH loop
-	//
-	//
-	ofstream dfile;
-	string fcn = "grid.txt";
-	dfile.open(&fcn[0u]);
+	mh_loop(nodes, data, FNAME_C_MH_AR, conf);
 
-	int base[] = {2,1,3,4};
-
-	for(int ll = 0; ll < 4; ll ++){
-		for(int l = 1; l <= 10; l++){
-			for(int k = 5; k <= 9; k++){
-				for(int j = 1; j <= 9; j++){
-					CONSTANTS::UPPER_OUTLIER = base[ll] + 0.1 * l;
-					CONSTANTS::US_WEIGHT = 0.1 * k;
-					CONSTANTS::RD_WEIGHT = 0.1 * j;
-
-					double rdp = CONSTANTS::RD_WEIGHT;
-					double usp = CONSTANTS::US_WEIGHT;
-					double upperOutlier = CONSTANTS::UPPER_OUTLIER;
-
-					cout << "usweight" << CONSTANTS::US_WEIGHT << endl;
-					cout << "rdweight" << CONSTANTS::RD_WEIGHT << endl;
-					cout << "upperOutlier" << CONSTANTS::UPPER_OUTLIER << endl;
-					mh_loop(nodes, data, FNAME_C_MH_AR, conf);
-
-					for(int i=0; i<conf.NNODES; i++){
-						dfile <<upperOutlier <<'\t'<<rdp << '\t' << usp << '\t' << nodes[i].id << '\t' <<
-							nodes[i].param << '\t' << nodes[i].pi << '\n';
-						cout << "best phi:" << "upperOutlier:" << upperOutlier <<"rdp:" << rdp << '\t' << "usp:" << usp
-							<< '\t' << nodes[i].id << '\t' << nodes[i].param <<
-							'\t' << nodes[i].pi << '\n';
-					}
-				}
-			}
-		}
-	}
-
-	dfile.close();
-
-	return 1;
+	// write updated params to disk
+	write_params(FNAME_C_PARAMS, nodes, conf);
 	output_SCNA_data(FNAME_OUT_SCNA_DATA, data, conf);
 
 	delete [] data;
@@ -203,9 +167,6 @@ double param_post(struct node nodes[], SCNA data[], int old,
 		struct config conf, CNGenotype& cngenotype){
 
 	double usWeight = CONSTANTS::US_WEIGHT;
-	double upperOutlier = CONSTANTS::UPPER_OUTLIER;
-	double lowerOutlier = CONSTANTS::LOWER_OUTLIER;
-
 	double llh = 0.0;
 	for(int i=0;i<conf.NNODES;i++){
 		double p=0;
@@ -220,18 +181,11 @@ double param_post(struct node nodes[], SCNA data[], int old,
 			int dataIdx = nodes[i].dids.at(j);
 			pllh+=data[nodes[i].dids.at(j)].log_ll(p, cngenotype,
 					conf.MAX_COPY_NUMBER, conf.BASELINE);
-
-			if(data[nodes[i].dids.at(j)].is_upperOutlier(upperOutlier)||
-					data[nodes[i].dids.at(j)].is_lowerOutlier(lowerOutlier)){
-				pllh = 0;
+			if(data[nodes[i].dids.at(j)].is_unisolution(conf.BASELINE)){
+				pllh *= usWeight;
 			}else{
-				if(data[nodes[i].dids.at(j)].is_unisolution(conf.BASELINE)){
-					pllh *= usWeight;
-				}else{
-					pllh *= (1 - usWeight);
-				}
+				pllh *= (1 - usWeight);
 			}
-
 		}
 		//double pllh1 = 0;
 		//double p1 = 0.75;
