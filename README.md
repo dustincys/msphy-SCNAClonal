@@ -21,6 +21,20 @@ data.
 
 #### Multi-stage tree structure learning model
 
+
+## Requirements
+
+    seaborn
+    pymc 
+    ete2
+    pydp
+    python2-backports.functools_lru_cache
+    gwpy
+    pysam
+    scipy
+    numpy
+    matplotlib
+
 ## Usage
 
     usage: run.py preprocess [-h] [--nBamName NBAMNAME]
@@ -161,4 +175,3 @@ data.
                             Answer file path
       --outputFolder OUTPUTFOLDER
                             Output folder
-
